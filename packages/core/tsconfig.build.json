@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  // prevent test file type definitions from being generated
+  "exclude": ["src/**/*.test.*"]
+}

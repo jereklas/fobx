@@ -1,0 +1,16 @@
+{
+  "name": "@fobx/react",
+  "version": "0.1.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "node ./build.mjs && tsc"
+  },
+  "peerDependencies": {
+    "@fobx/core": "^0.1.0"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
+}

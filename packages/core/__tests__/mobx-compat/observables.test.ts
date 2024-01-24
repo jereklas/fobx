@@ -1258,7 +1258,7 @@ test("603 - transaction should not kill reactions", () => {
 
   expect(a[$fobx].observers.size).toBe(1);
   expect(d[$fobx].dependencies.length).toBe(1);
-  expect(getGlobalState().totalActionsRunning).toEqual(0);
+  expect(getGlobalState().batchedActionsCount).toEqual(0);
   expect(getGlobalState().pendingReactions.length).toEqual(0);
   expect(getGlobalState().reactionContext).toEqual(null);
 

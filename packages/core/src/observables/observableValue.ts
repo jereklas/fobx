@@ -1,16 +1,12 @@
 import type { Any, ComparisonType, EqualityChecker, IReactionAdmin, IFobxAdmin } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
-
 import { runInAction } from "../transactions/action";
 import { $fobx, getGlobalState } from "../state/global";
 import { instanceState, isDifferent } from "../state/instance";
 import { trackObservable } from "../transactions/tracking";
 import { sendChange } from "./notifications";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ObservableValueWithAdmin<T = Any> = ObservableValue<T> & {
   [$fobx]: IObservableValueAdmin<T> & { options: ObservableValueOptions<T> };
@@ -35,7 +31,7 @@ export class ObservableValue<T = Any> implements IObservableValue<T> {
   constructor(val?: T, options?: ObservableValueOptions<T>) {
     Object.defineProperty(this, $fobx, {
       value: {
-        name: `ObservableValue@${getNextId()}`,
+        name: `ObservableValue@${globalState.getNextId()}`,
         value: val as T,
         observers: new Set<IReactionAdmin>(),
         seen: false,
@@ -53,7 +49,7 @@ export class ObservableValue<T = Any> implements IObservableValue<T> {
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
-        if (globalState.totalActionsRunning === 0 && admin.observers.size > 0) {
+        if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
           console.warn(
             `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is forbidden.`
           );

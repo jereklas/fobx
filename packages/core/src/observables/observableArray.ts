@@ -1,7 +1,6 @@
 /* eslint-disable no-fallthrough */
 import type { IObservableCollectionAdmin, Any, IReactionAdmin } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
 import { endAction, runInAction, startAction } from "../transactions/action";
 import { sendChange } from "./notifications";
 import { trackObservable } from "../transactions/tracking";
@@ -14,9 +13,7 @@ import { isObject, isObservable } from "../utils/predicates";
 // eslint-disable-next-line import/no-cycle
 import { observable } from "./observable";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ArrayOptions = {
   deep?: boolean;
@@ -47,13 +44,12 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
         : initialValue[i]
     );
   }
-  const internalName = `ObservableArray@${getNextId()}`;
+  const internalName = `ObservableArray@${globalState.getNextId()}`;
   const admin: IObservableArrayAdmin<T[]> = {
     value: arr,
     temp: [],
     name: internalName,
     observers: new Set<IReactionAdmin>(),
-    getNextChangeId: createIdGenerator(),
     changes: 0,
     seen: false,
     previous: `${internalName}.0`,
@@ -332,7 +328,7 @@ const startFnCall = (admin: IObservableArrayAdmin, prop: string) => {
   if (
     process.env.NODE_ENV !== "production" &&
     instanceState.enforceActions &&
-    globalState.totalActionsRunning === 0 &&
+    globalState.batchedActionsCount === 0 &&
     admin.observers.size > 0
   ) {
     console.warn(

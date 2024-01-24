@@ -12,11 +12,11 @@ import {
   isObservableSet,
   isPlainObject,
 } from "../utils/predicates";
-import { createIdGenerator } from "../utils/idGen";
+
 import { action } from "../transactions/action";
 import { flow } from "../transactions/flow";
 import { createComputedValue } from "../reactions/computed";
-import { $fobx } from "../state/global";
+import { $fobx, getGlobalState } from "../state/global";
 import { createObservableValue } from "./observableValue";
 
 // eslint-disable-next-line import/no-cycle
@@ -44,7 +44,7 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
   values: Map<PropertyKey, IObservableValue>;
 }
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export const createObservableObject = <T extends object>(
   obj: T,
@@ -289,7 +289,7 @@ const getType = (obj: unknown) => {
 
 export function addObservableAdministration<T extends object>(obj: T) {
   const adm: IObservableObjectAdmin = {
-    name: `ObservableObject@${getNextId()}`,
+    name: `ObservableObject@${globalState.getNextId()}`,
     values: new Map<PropertyKey, IObservableValue>(),
   };
   Object.defineProperty(obj, $fobx, { value: adm });

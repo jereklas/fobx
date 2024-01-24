@@ -4,7 +4,7 @@ import { isComputedValueAdmin } from "../utils/predicates";
 
 import { getGlobalState } from "../state/global";
 
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export function setReactionContext(reaction: IReactionAdmin | null) {
   const previous = globalState.reactionContext;

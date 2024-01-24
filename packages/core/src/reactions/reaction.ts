@@ -7,8 +7,6 @@ import type {
   EqualityChecker,
 } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
-
 import { action } from "../transactions/action";
 import { getGlobalState, $fobx } from "../state/global";
 import { isDifferent } from "../state/instance";
@@ -20,7 +18,7 @@ import {
 } from "../transactions/tracking";
 import { isObservableCollection } from "../utils/predicates";
 
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ReactionWithAdmin = Reaction & {
   [$fobx]: ReactionAdmin;
@@ -44,8 +42,6 @@ export interface IReactionAdmin extends IFobxAdmin {
   dispose: Disposer;
 }
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
 const MAX_ITERATIONS = 100;
 
 class ReactionAdmin implements IReactionAdmin {
@@ -61,7 +57,7 @@ class ReactionAdmin implements IReactionAdmin {
   effectFn: () => void;
 
   constructor(effectFn: () => void, name?: string) {
-    this.name = name ?? `Reaction@${getNextId()}`;
+    this.name = name ?? `Reaction@${globalState.getNextId()}`;
     this.effectFn = effectFn;
   }
   canRun() {
@@ -119,7 +115,7 @@ export class Reaction implements IReaction {
 }
 
 export function runReactions() {
-  if (globalState.totalActionsRunning > 0 || globalState.isRunningReactions) return;
+  if (globalState.batchedActionsCount > 0 || globalState.isRunningReactions) return;
   globalState.isRunningReactions = true;
 
   const reactions = globalState.pendingReactions;
@@ -154,13 +150,13 @@ export function runReactions() {
 }
 
 export function startBatch() {
-  globalState.totalActionsRunning++;
+  globalState.batchedActionsCount++;
 }
 
 export function endBatch() {
-  globalState.totalActionsRunning--;
+  globalState.batchedActionsCount--;
   runReactions();
-  if (globalState.totalActionsRunning === 0) {
+  if (globalState.batchedActionsCount === 0) {
     globalState.currentlyRunningAction = null;
   }
 }

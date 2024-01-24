@@ -1,7 +1,6 @@
 import type { IReactionAdmin, Any, IObservableCollectionAdmin } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
-import { $fobx } from "../state/global";
+import { $fobx, getGlobalState } from "../state/global";
 import { runInAction } from "../transactions/action";
 import { sendChange } from "./notifications";
 import { trackObservable } from "../transactions/tracking";
@@ -12,7 +11,7 @@ import { isObject, isObservable } from "../utils/predicates";
 // eslint-disable-next-line import/no-cycle
 import { observable } from "./observable";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ObservableSetWithAdmin<T = Any> = ObservableSet<T> & {
   [$fobx]: IObservableCollectionAdmin<T>;
@@ -31,7 +30,7 @@ export class ObservableSet<T = Any> extends Set<T> {
     values.forEach((v) => {
       this.#add(v);
     });
-    const name = `ObservableSet@${getNextId()}`;
+    const name = `ObservableSet@${globalState.getNextId()}`;
     this.#deep = options?.deep ?? true;
     // assigning the constructor to Set allows for deep compares to correctly compare this against other sets
     this.constructor = Set;
@@ -39,7 +38,6 @@ export class ObservableSet<T = Any> extends Set<T> {
       value: {
         value: this,
         name: name,
-        getNextChangeId: createIdGenerator(),
         changes: 0,
         previous: `${name}.0`,
         current: `${name}.0`,

@@ -1,6 +1,9 @@
 import type { IObservableValueAdmin, IObservableCollectionAdmin } from "../types";
 
 import { trackObservable } from "../transactions/tracking";
+import { getGlobalState } from "../state/global";
+
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export const wrapIteratorForTracking = <T>(iterator: IterableIterator<T>, admin: IObservableValueAdmin) => {
   const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(iterator), "next");
@@ -18,6 +21,6 @@ export const wrapIteratorForTracking = <T>(iterator: IterableIterator<T>, admin:
 
 export const incrementChangeCount = (admin: IObservableCollectionAdmin) => {
   admin.previous = admin.current;
-  admin.changes = admin.getNextChangeId();
+  admin.changes = globalState.getNextId();
   admin.current = `${admin.name}.${admin.changes}`;
 };

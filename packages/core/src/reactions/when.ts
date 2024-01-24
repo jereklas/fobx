@@ -1,12 +1,11 @@
-import { createIdGenerator } from "../utils/idGen";
 import { action } from "../transactions/action";
 import { Reaction, ReactionWithAdmin } from "./reaction";
-import { $fobx } from "../state/global";
+import { $fobx, getGlobalState } from "../state/global";
 
 const ERR_TIMEOUT = "When reaction hit timeout";
 const ERR_CANCEL = "When reaction was canceled";
 const ERR_ABORT = "When reaction was aborted";
-const getNextId = /* @__PURE__ */ createIdGenerator();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type WhenPromise = Promise<void> & { cancel: () => void };
 export type WhenOptions = {
@@ -31,7 +30,7 @@ export function when(
 function createWhen(predicate: () => boolean, sideEffectFn: () => void, options?: WhenOptions) {
   const reaction = new Reaction(() => {
     run();
-  }, `When@${getNextId()}`) as ReactionWithAdmin;
+  }, `When@${globalState.getNextId()}`) as ReactionWithAdmin;
 
   let timeoutHandle: ReturnType<typeof setTimeout>;
 

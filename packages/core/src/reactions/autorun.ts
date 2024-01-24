@@ -1,11 +1,8 @@
 import { isAction } from "../utils/predicates";
-import { createIdGenerator } from "../utils/idGen";
 import { Reaction, ReactionWithAdmin } from "./reaction";
 import { $fobx, getGlobalState } from "../state/global";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export function autorun(trackedFn: (reaction: Reaction) => void) {
   if (process.env.NODE_ENV !== "production") {
@@ -15,7 +12,7 @@ export function autorun(trackedFn: (reaction: Reaction) => void) {
   }
   const reaction = new Reaction(() => {
     run();
-  }, `Autorun@${getNextId()}`) as ReactionWithAdmin;
+  }, `Autorun@${globalState.getNextId()}`) as ReactionWithAdmin;
 
   const run = () => {
     reaction.track(() => trackedFn(reaction));

@@ -42,7 +42,6 @@ export type IObservable =
   | ObservableSetWithAdmin;
 
 export interface IObservableCollectionAdmin<T = Any> extends IObservableValueAdmin<T> {
-  getNextChangeId: () => number;
   changes: number;
   previous: string;
   current: string;

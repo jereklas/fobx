@@ -10,7 +10,6 @@ import type {
 } from "../types";
 import type { ObservableFactory } from "./observable";
 
-import { createIdGenerator } from "../utils/idGen";
 import { $fobx, getGlobalState } from "../state/global";
 import { instanceState } from "../state/instance";
 import { runInAction } from "../transactions/action";
@@ -29,9 +28,7 @@ export type ObservableMapWithAdmin = ObservableMap & {
 };
 export type MapOptions = { deep?: boolean };
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   #keys: ObservableSetWithAdmin<K>;
@@ -52,7 +49,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       );
     }
     super();
-    const name = `ObservableMap@${getNextId()}`;
+    const name = `ObservableMap@${globalState.getNextId()}`;
     this.#deep = options?.deep ?? true;
     this.#keys = observable<K>(new Set<K>()) as ObservableSetWithAdmin;
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
@@ -63,7 +60,6 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       value: {
         value: this,
         name: name,
-        getNextChangeId: createIdGenerator(),
         changes: 0,
         previous: `${name}.0`,
         current: `${name}.0`,
@@ -139,7 +135,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
-        if (globalState.totalActionsRunning === 0 && admin.observers.size > 0) {
+        if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
           console.warn(
             `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is forbidden.`
           );
@@ -185,7 +181,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     const admin = (this as unknown as ObservableMapWithAdmin)[$fobx];
 
     if (process.env.NODE_ENV !== "production") {
-      if (instanceState.enforceActions && globalState.totalActionsRunning === 0 && admin.observers.size > 0) {
+      if (instanceState.enforceActions && globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
         console.warn(
           `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is forbidden.`
         );

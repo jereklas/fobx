@@ -1,13 +1,10 @@
 import type { IReactionAdmin } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
-
 import { $fobx, getGlobalState } from "../state/global";
 import { startBatch, endBatch } from "../reactions/reaction";
 import { setReactionContext } from "./tracking";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 const previousContexts = new Map<number, IReactionAdmin | null>();
 
@@ -55,14 +52,14 @@ export function runInAction<T>(fn: () => T) {
 }
 
 export function startAction() {
-  globalState.currentlyRunningAction = getNextId();
+  globalState.currentlyRunningAction = globalState.getNextId();
   startUntracked();
   startBatch();
 }
 
 export function endAction() {
   if (process.env.NODE_ENV !== "production") {
-    if (globalState.totalActionsRunning === 0) {
+    if (globalState.batchedActionsCount === 0) {
       throw Error("invalid endAction call");
     }
   }
@@ -72,11 +69,11 @@ export function endAction() {
 }
 
 function startUntracked() {
-  previousContexts.set(globalState.totalActionsRunning, setReactionContext(null));
+  previousContexts.set(globalState.batchedActionsCount, setReactionContext(null));
 }
 
 function endUntracked() {
-  const previous = previousContexts.get(globalState.totalActionsRunning - 1)!;
+  const previous = previousContexts.get(globalState.batchedActionsCount - 1)!;
   setReactionContext(previous);
-  previousContexts.delete(globalState.totalActionsRunning);
+  previousContexts.delete(globalState.batchedActionsCount);
 }

@@ -8,8 +8,6 @@ import type {
   ComparisonType,
 } from "../types";
 
-import { createIdGenerator } from "../utils/idGen";
-
 import { removeAllDependencies, runWithTracking, trackObservable } from "../transactions/tracking";
 import { startBatch, endBatch } from "./reaction";
 import { $fobx, getGlobalState } from "../state/global";
@@ -17,9 +15,7 @@ import { isDifferent } from "../state/instance";
 import { runInAction } from "../transactions/action";
 import { sendReady, sendStale } from "../observables/notifications";
 
-const getNextId = /* @__PURE__ */ createIdGenerator();
-
-const globalState = getGlobalState();
+const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ComputedWithAdmin<T = Any> = Computed<T> & {
   [$fobx]: ComputedAdmin<T>;
@@ -42,7 +38,7 @@ export type ComputedOptions = {
 };
 
 class ComputedAdmin<T> implements IComputedAdmin<T> {
-  name = `Computed@${getNextId()}`;
+  name = `Computed@${globalState.getNextId()}`;
   value = undefined as T;
   staleCount = 0;
   readyCount = 0;

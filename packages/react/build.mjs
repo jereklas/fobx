@@ -13,9 +13,9 @@ function gzip(input, options) {
   return promise;
 }
 
-const NAME = "fobx-react";
+const NAME = "index";
 const DIR = "./dist";
-const ESM_EXT = ".esm.js";
+const ESM_EXT = ".js";
 const CJS_EXT = ".cjs.js";
 
 // make sure dist folder doesn't contain anything out of date
@@ -36,9 +36,7 @@ const writeBundle = (extension) => {
       "process.env.NODE_ENV": '"production"',
     },
     external: ["@fobx/core", "react"],
-    sourcemap: true,
     minify: false,
-    keepNames: true,
     outfile: `${DIR}/${NAME}${extension}`,
   });
 };

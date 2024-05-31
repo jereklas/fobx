@@ -3,7 +3,7 @@
   "language": "en",
   "useGitignore": true,
   // words - list of words to be always considered correct
-  "words": ["autorun", "tinybench", "iterall", "fobx", "klas"],
+  "words": ["autorun", "tinybench", "iterall", "fobx", "klas", "outdir"],
   // flagWrods - words to always consider mispelled
   "flagWords": ["hte"],
   "ignorePaths": ["./.cspell.json"]

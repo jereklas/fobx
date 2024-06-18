@@ -11,7 +11,7 @@ type BaseTest = { name: string; getFn: (set: Set<any>) => () => any };
 const runBench = async (size: number, tests: BaseTest[]) => {
   const n = new Set();
   const m = mobxObservable.set();
-  const s = observable.set();
+  const s = observable(new Set());
 
   const bench = new Bench({
     time: 100,
@@ -56,7 +56,8 @@ const tests: BaseTest[] = [
   {
     name: "for(const e of set.entries())",
     getFn: (set) => () => {
-      for (const e of set.entries()) {
+      // eslint-disable-next-line no-empty-pattern
+      for (const {} of set.entries()) {
         /* empty */
       }
     },

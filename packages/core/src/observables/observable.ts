@@ -23,8 +23,7 @@ import { ObservableMap } from "./observableMap";
 // eslint-disable-next-line import/no-cycle
 import { createObservableArray } from "./observableArray";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const observable = ((obj: any, a?: any, b?: any) => {
+export const observable = ((obj: Any, a?: Any, b?: Any) => {
   if (isDecoratorContext(a)) {
     throw new Error('[@fobx/core] @observable decorator must be imported from "@fobx/core/decorators"');
   }
@@ -43,16 +42,6 @@ export const observable = ((obj: any, a?: any, b?: any) => {
   }
   return createObservableValue(obj, a);
 }) as ObservableFactory;
-
-/* @__PURE__ */ Object.defineProperty(observable, "array", {
-  value: <T>(value: T[] = [], options?: ArrayOptions) => createObservableArray(value, options),
-});
-/* @__PURE__ */ Object.defineProperty(observable, "map", {
-  value: <K, V>(value: [K, V][] = [], options?: MapOptions) => new ObservableMap<K, V>(value, options),
-});
-/* @__PURE__ */ Object.defineProperty(observable, "set", {
-  value: <T>(value: T[] = [], options?: SetOptions) => new ObservableSet(value, options),
-});
 
 export interface ObservableFactory {
   /**
@@ -98,90 +87,4 @@ export interface ObservableFactory {
    * @returns an observable value.
    */
   <T>(value: T, options?: ObservableValueOptions<T>): ObservableValue<T>;
-  array: ObservableArrayFactory;
-  map: ObservableMapFactory;
-  set: ObservableSetFactory;
-}
-
-export interface ObservableMapFactory {
-  /**
-   * Creates a new observable map.
-   * @returns the observable map
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <K = any, V = any>(): ObservableMap<K, V>;
-  /**
-   * Creates a new observable map.
-   * @param entries - the entries to seed the map with.
-   * @param options - the map options.
-   * @returns the observable map
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <K = any, V = any>(entries: readonly (readonly [K, V])[], options?: MapOptions): ObservableMap<K, V>;
-  /**
-   * Creates a new observable map.
-   * @param iterable - the iterable to seed the map with
-   * @param options - the map options.
-   * @returns the observable map
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <K = any, V = any>(
-    iterable?: Iterable<readonly [K, V]> | null | undefined,
-    options?: MapOptions
-  ): ObservableMap<K, V>;
-
-  <K = Any, V = Any>(record?: Record<PropertyKey, V>, options?: MapOptions): ObservableMap<K, V>;
-}
-
-export interface ObservableSetFactory {
-  /**
-   * Creates a new observable set.
-   * @returns the observable set.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(): ObservableSet<T>;
-  /**
-   * Creates a new observable set.
-   * @param values the values to seed the set with.
-   * @param options the set options.
-   * @returns the observable set.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(values?: T[], options?: SetOptions): ObservableSet<T>;
-  /**
-   * Creates a new observable set.
-   * @param iterable the iterable to seed the set with.
-   * @param options the set options.
-   * @returns the observable set.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(iterable?: Iterable<unknown> | null | undefined, options?: SetOptions): ObservableSet<T>;
-}
-
-export interface ObservableArrayFactory {
-  /**
-   * Creates a new observable array.
-   * @returns the observable array
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(): ObservableArray<T>;
-  /**
-   * Creates a new observable array.
-   * @param initialValues: the values to seed the array with.
-   * @param options the array options
-   * @returns the observable array
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(initialValues?: T[], options?: ArrayOptions): ObservableArray<T>;
-}
-
-export interface ObservableObjectFactory {
-  /**
-   * Creates a new observable object based on the supplied object.
-   * @param obj the object to make observable
-   * @param annotationOverrides overrides if the auto assigned annotations are not correct
-   * @param options the object options
-   * @returns an observable object.
-   */
-  <T>(obj: T, annotationOverrides?: AnnotationsMap<T>, options?: ObservableObjectOptions): ObservableObject<T>;
 }

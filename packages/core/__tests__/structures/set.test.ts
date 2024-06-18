@@ -10,15 +10,15 @@ test("observable API for sets successfully constructs sets", () => {
   expect(s2.values()).toStrictEqual(new Set(["a", "b"]).values());
   expect(fobx.isObservableSet(s2)).toBe(true);
 
-  const s3 = fobx.observable.set();
+  const s3 = fobx.observable(new Set());
   expect(s3.values()).toStrictEqual(new Set().values());
   expect(fobx.isObservableSet(s3)).toBe(true);
 
-  const s4 = fobx.observable.set([1]);
+  const s4 = fobx.observable(new Set([1]));
   expect(s4.values()).toStrictEqual(new Set([1]).values());
   expect(fobx.isObservableSet(s4)).toBe(true);
 
-  const s5 = fobx.observable.set([true, false]);
+  const s5 = fobx.observable(new Set([true, false]));
   expect(s5.values()).toStrictEqual(new Set([true, false]).values());
   expect(fobx.isObservableSet(s5)).toBe(true);
 });
@@ -30,7 +30,7 @@ describe("ObservableSet", () => {
     ${"values"}  | ${"a"}
     ${"keys"}    | ${"a"}
   `("$fn() does not cause reaction unless the iterable.next() is called", ({ fn, expected }) => {
-    const m = fobx.observable.set();
+    const m = fobx.observable(new Set());
     fobx.reaction(() => m[fn](), jest.fn());
     expect(m[$fobx].observers.size).toBe(0);
 
@@ -45,7 +45,7 @@ describe("ObservableSet", () => {
   });
 
   test("reaction to set as a collection works as expected", () => {
-    const m = fobx.observable.set();
+    const m = fobx.observable(new Set());
     const reactionFn = jest.fn();
     fobx.reaction(() => m, reactionFn);
     expect(reactionFn).toHaveBeenCalledTimes(0);

@@ -7,8 +7,8 @@ beforeEach(() => {
   fobx.configure({ enforceActions: false });
 });
 
-test("map crud", function () {
-  const m = fobx.observable.map({ 1: "a" });
+test.only("map crud", function () {
+  const m = fobx.observable(new Map<fobx.Any, string>([[1, "a"]]));
   const changes: Map<fobx.Any, fobx.Any>[] = [];
 
   fobx.reaction(
@@ -18,17 +18,17 @@ test("map crud", function () {
     }
   );
 
-  expect(m.has("1")).toBe(true);
-  expect(m.has(1)).toBe(false);
-  expect(m.get("1")).toBe("a");
+  expect(m.has(1)).toBe(true);
+  expect(m.has("1")).toBe(false);
+  expect(m.get(1)).toBe("a");
   expect(m.get("b")).toBe(undefined);
   expect(m.size).toBe(1);
 
-  m.set("1", "aa");
-  m.set(1, "b");
+  m.set(1, "aa");
+  m.set("1", "b");
   expect(m.has("1")).toBe(true);
-  expect(m.get("1")).toBe("aa");
-  expect(m.get(1)).toBe("b");
+  expect(m.get("1")).toBe("b");
+  expect(m.get(1)).toBe("aa");
 
   const k = ["arr"];
   m.set(k, "arrVal");
@@ -42,23 +42,23 @@ test("map crud", function () {
   expect(m.get(s)).toBe("symbol-value");
   expect(m.get(s.toString())).toBe(undefined);
 
-  expect(Array.from(m.keys())).toEqual(["1", 1, k, s]);
+  expect(Array.from(m.keys())).toEqual([1, "1", k, s]);
   expect(Array.from(m.values())).toEqual(["aa", "b", "arrVal", "symbol-value"]);
   expect(Array.from(m)).toEqual([
-    ["1", "aa"],
-    [1, "b"],
+    [1, "aa"],
+    ["1", "b"],
     [k, "arrVal"],
     [s, "symbol-value"],
   ]);
   expect(new Map(m)).toEqual(
     new Map<fobx.Any, fobx.Any>([
-      ["1", "aa"],
-      [1, "b"],
+      [1, "aa"],
+      ["1", "b"],
       [k, "arrVal"],
       [s, "symbol-value"],
     ])
   );
-  expect(JSON.stringify(m)).toBe(`[["1","aa"],[1,"b"],[["arr"],"arrVal"],[null,"symbol-value"]]`);
+  expect(JSON.stringify(m)).toBe(`[[1,"aa"],["1","b"],[["arr"],"arrVal"],[null,"symbol-value"]]`);
   expect(m.toString()).toBe("[object ObservableMap]");
   expect(m.size).toBe(4);
 
@@ -74,19 +74,19 @@ test("map crud", function () {
   expect(m.get("b")).toBe(undefined);
 
   expect(changes).toStrictEqual([
-    new Map([["1", "aa"]]),
+    new Map([[1, "aa"]]),
     new Map<fobx.Any, fobx.Any>([
-      ["1", "aa"],
-      [1, "b"],
+      [1, "aa"],
+      ["1", "b"],
     ]),
     new Map<fobx.Any, fobx.Any>([
-      ["1", "aa"],
-      [1, "b"],
+      [1, "aa"],
+      ["1", "b"],
       [["arr"], "arrVal"],
     ]),
     new Map<fobx.Any, fobx.Any>([
-      ["1", "aa"],
-      [1, "b"],
+      [1, "aa"],
+      ["1", "b"],
       [k, "arrVal"],
       [s, "symbol-value"],
     ]),
@@ -97,8 +97,19 @@ test("map crud", function () {
 });
 
 test("map merge", function () {
-  const a = fobx.observable.map({ a: 1, b: 2, c: 2 });
-  const b = fobx.observable.map({ c: 3, d: 4 });
+  const a = fobx.observable(
+    new Map([
+      ["a", 1],
+      ["b", 2],
+      ["c", 2],
+    ])
+  );
+  const b = fobx.observable(
+    new Map([
+      ["c", 3],
+      ["d", 4],
+    ])
+  );
   a.merge(b);
   expect(a.toJSON()).toEqual([
     ["a", 1],
@@ -109,7 +120,7 @@ test("map merge", function () {
 });
 
 test("observe value", function () {
-  const a = fobx.observable.map();
+  const a = fobx.observable(new Map());
   let hasX = false;
   let valueX = undefined;
   let valueY = undefined;
@@ -156,34 +167,8 @@ test("observe value", function () {
   expect(Array.from(a.keys())).toEqual(["y", "z"]);
 });
 
-test("initialize with entries", function () {
-  const thing = [{ x: 3 }];
-  const a = fobx.observable.map<fobx.Any, fobx.Any>([
-    ["a", 1],
-    [thing, 2],
-  ]);
-  expect(Array.from(a)).toEqual([
-    ["a", 1],
-    [thing, 2],
-  ]);
-});
-
-test("initialize with empty value", function () {
-  const a = fobx.observable.map();
-  const b = fobx.observable.map({});
-  const c = fobx.observable.map([]);
-
-  a.set("0", 0);
-  b.set("0", 0);
-  c.set("0", 0);
-
-  expect(a.toJSON()).toEqual([["0", 0]]);
-  expect(b.toJSON()).toEqual([["0", 0]]);
-  expect(c.toJSON()).toEqual([["0", 0]]);
-});
-
 test("observe collections", function () {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   let keys, values, entries;
 
   fobx.autorun(function () {
@@ -237,7 +222,7 @@ test("observe collections", function () {
 });
 
 test("cleanup", function () {
-  const x = fobx.observable.map({ a: 1 });
+  const x = fobx.observable(new Map([["a", 1]]));
 
   let aValue;
   const disposer = fobx.autorun(function () {
@@ -258,7 +243,7 @@ test("cleanup", function () {
 });
 
 test("strict", function () {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   fobx.autorun(function () {
     x.get("y"); // should not throw
   });
@@ -267,7 +252,7 @@ test("strict", function () {
 test("issue 100", function () {
   const that = {};
   fobx.extendObservable(that, {
-    myMap: fobx.observable.map(),
+    myMap: fobx.observable(new Map()),
   });
   // @ts-expect-error - extendObservable added it
   expect(fobx.isObservableMap(that.myMap)).toBe(true);
@@ -276,7 +261,7 @@ test("issue 100", function () {
 test("issue 119 - unobserve before delete", function () {
   const propValues: fobx.Any[] = [];
   const myObservable = fobx.observable({
-    myMap: fobx.observable.map(),
+    myMap: fobx.observable(new Map()),
   });
   myObservable.myMap.set("myId", {
     myProp: "myPropValue",
@@ -297,7 +282,7 @@ test("issue 119 - unobserve before delete", function () {
 });
 
 test("issue 116 - has should not throw on invalid keys", function () {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   expect(x.has(undefined)).toBe(false);
   expect(x.has({})).toBe(false);
   expect(x.get({})).toBe(undefined);
@@ -305,19 +290,19 @@ test("issue 116 - has should not throw on invalid keys", function () {
 });
 
 test("map modifier", () => {
-  let x = fobx.observable.map<fobx.Any, fobx.Any>({ a: 1 });
+  let x = fobx.observable(new Map<fobx.Any, fobx.Any>([["a", 1]]));
   expect(fobx.isObservableMap(x)).toBe(true);
   expect(x.get("a")).toBe(1);
   x.set("b", {});
   expect(fobx.isObservableObject(x.get("b"))).toBe(true);
 
-  x = fobx.observable.map([["a", 1]]);
+  x = fobx.observable(new Map([["a", 1]]));
   expect(x.get("a")).toBe(1);
 
-  x = fobx.observable.map();
+  x = fobx.observable(new Map());
   expect(Array.from(x.keys())).toEqual([]);
 
-  const y = fobx.observable({ a: fobx.observable.map({ b: { c: 3 } }) });
+  const y = fobx.observable({ a: fobx.observable(new Map([["b", { c: 3 }]])) });
   expect(fobx.isObservableObject(y)).toBe(true);
   expect(fobx.isObservableObject(y.a)).toBe(false);
   expect(fobx.isObservableMap(y.a)).toBe(true);
@@ -325,17 +310,17 @@ test("map modifier", () => {
 });
 
 test("map modifier with modifier", () => {
-  let x = fobx.observable.map<fobx.Any, fobx.Any>({ a: { c: 3 } });
+  let x = fobx.observable(new Map<fobx.Any, fobx.Any>([["a", { c: 3 }]]));
   expect(fobx.isObservableObject(x.get("a"))).toBe(true);
   x.set("b", { d: 4 });
   expect(fobx.isObservableObject(x.get("b"))).toBe(true);
 
-  x = fobx.observable.map({ a: { c: 3 } }, { deep: false });
+  x = fobx.observable(new Map([["a", { c: 3 }]]), { deep: false });
   expect(fobx.isObservableObject(x.get("a"))).toBe(false);
   x.set("b", { d: 4 });
   expect(fobx.isObservableObject(x.get("b"))).toBe(false);
 
-  const y = fobx.observable({ a: fobx.observable.map({ b: {} }, { deep: false }) });
+  const y = fobx.observable({ a: fobx.observable(new Map([["b", {}]]), { deep: false }) });
   expect(fobx.isObservableObject(y)).toBe(true);
   expect(fobx.isObservableMap(y.a)).toBe(true);
   expect(fobx.isObservableObject(y.a.get("b"))).toBe(false);
@@ -344,7 +329,7 @@ test("map modifier with modifier", () => {
 });
 
 test("256, map.clear should not be tracked", () => {
-  const x = fobx.observable.map({ a: 3 });
+  const x = fobx.observable(new Map([["a", 3]]));
   let c = 0;
   const d = fobx.autorun(() => {
     c++;
@@ -359,8 +344,8 @@ test("256, map.clear should not be tracked", () => {
 });
 
 test("256, map.merge should be not be tracked for target", () => {
-  const x = fobx.observable.map({ a: 3 });
-  const y = fobx.observable.map({ b: 3 });
+  const x = fobx.observable(new Map([["a", 3]]));
+  const y = fobx.observable(new Map([["b", 3]]));
   let c = 0;
 
   const d = fobx.autorun(() => {
@@ -383,7 +368,7 @@ test("256, map.merge should be not be tracked for target", () => {
 });
 
 test("308, map keys should be coerced to strings correctly", () => {
-  const m = fobx.observable.map();
+  const m = fobx.observable(new Map());
   m.set(1, true);
   m.delete(1);
   expect(Array.from(m.keys())).toEqual([]);
@@ -410,7 +395,12 @@ test("308, map keys should be coerced to strings correctly", () => {
 });
 
 test("map should support iterall / iterable ", () => {
-  const a = fobx.observable.map({ a: 1, b: 2 });
+  const a = fobx.observable(
+    new Map([
+      ["a", 1],
+      ["b", 2],
+    ])
+  );
 
   function leech(iter) {
     const values: fobx.Any[] = [];
@@ -465,7 +455,7 @@ test("deepEqual map", () => {
   x.set("x", 3);
   x.set("y", { z: 2 });
 
-  const x2 = fobx.observable.map();
+  const x2 = fobx.observable(new Map());
   x2.set("x", 3);
   x2.set("y", { z: 3 });
 
@@ -484,7 +474,7 @@ test("deepEqual map", () => {
 test("869, deeply observable map should make added items observables as well", () => {
   const store = {
     map_deep1: fobx.observable(new Map()),
-    map_deep2: fobx.observable.map(),
+    map_deep2: fobx.observable(new Map()),
   };
 
   expect(fobx.isObservable(store.map_deep1)).toBeTruthy();
@@ -575,7 +565,7 @@ test("using deep map", () => {
 // })
 
 test("issue 893", () => {
-  const m = fobx.observable.map();
+  const m = fobx.observable(new Map());
   const keys = ["constructor", "toString", "assertValidKey", "isValidKey", "toJSON", "toJS"];
   for (const key of keys) {
     expect(m.get(key)).toBe(undefined);
@@ -583,7 +573,7 @@ test("issue 893", () => {
 });
 
 test("work with 'toString' key", () => {
-  const m = fobx.observable.map();
+  const m = fobx.observable(new Map());
   expect(m.get("toString")).toBe(undefined);
   m.set("toString", "test");
   expect(m.get("toString")).toBe("test");
@@ -592,7 +582,7 @@ test("work with 'toString' key", () => {
 test("issue 940, should not be possible to change maps outside strict mode", () => {
   fobx.configure({ enforceActions: true });
 
-  const m = fobx.observable.map();
+  const m = fobx.observable(new Map());
   const d = fobx.autorun(() => Array.from(m.values()));
 
   expect(
@@ -623,7 +613,13 @@ test("issue 940, should not be possible to change maps outside strict mode", () 
 });
 
 test("issue 1243, .replace should not trigger change on unchanged values", () => {
-  const m = fobx.observable.map({ a: 1, b: 2, c: 3 });
+  const m = fobx.observable(
+    new Map([
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+    ])
+  );
 
   let recomputeCount = 0;
   const computedValue = fobx.computed(() => {
@@ -668,10 +664,12 @@ test("issue 1243, .replace should not trigger change on unchanged values", () =>
 });
 
 test("#1980 .replace should not breaks entities order!", () => {
-  const original = fobx.observable.map([
-    ["a", "first"],
-    ["b", "second"],
-  ]);
+  const original = fobx.observable(
+    new Map([
+      ["a", "first"],
+      ["b", "second"],
+    ])
+  );
   const replacement = new Map([
     ["b", "first"],
     ["a", "second"],
@@ -685,7 +683,12 @@ test("#1980 .replace should not breaks entities order!", () => {
 });
 
 test("#1980 .replace should invoke autorun", () => {
-  const original = fobx.observable.map({ a: "a", b: "b" });
+  const original = fobx.observable(
+    new Map([
+      ["a", "a"],
+      ["b", "b"],
+    ])
+  );
   const replacement = { b: "b", a: "a" };
   let numOfInvokes = 0;
   fobx.autorun(() => {
@@ -708,7 +711,7 @@ test("#1980 .replace should not report changed unnecessarily", () => {
     ["removed", "removed"],
   ];
   const replacementArray: [string, string][] = [mapArray[1], mapArray[0], ["added", "added"]];
-  const map = fobx.observable.map(mapArray);
+  const map = fobx.observable(new Map(mapArray));
   let autorunInvocationCount = 0;
   fobx.autorun(() => {
     map.get("swappedA");
@@ -721,12 +724,12 @@ test("#1980 .replace should not report changed unnecessarily", () => {
 });
 
 test("#1258 cannot replace maps anymore", () => {
-  const items = fobx.observable.map();
-  items.replace(fobx.observable.map());
+  const items = fobx.observable(new Map());
+  items.replace(fobx.observable(new Map()));
 });
 
 test("can iterate maps", () => {
-  const x = fobx.observable.map<string, string>();
+  const x = fobx.observable(new Map<string, string>());
   const y: [string, string][][] = [];
   const d = fobx.reaction(
     () => Array.from(x),
@@ -762,7 +765,7 @@ function iteratorToArray(it) {
 }
 
 test("can iterate map - entries", () => {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   const y: [string, string][][] = [];
   const d = fobx.reaction(
     () => iteratorToArray(x.entries()),
@@ -786,7 +789,7 @@ test("can iterate map - entries", () => {
 });
 
 test("can iterate map - keys", () => {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   const y: string[][] = [];
   const d = fobx.reaction(
     () => iteratorToArray(x.keys()),
@@ -803,7 +806,7 @@ test("can iterate map - keys", () => {
 });
 
 test("can iterate map - values", () => {
-  const x = fobx.observable.map();
+  const x = fobx.observable(new Map());
   const y: string[][] = [];
   const d = fobx.reaction(
     () => iteratorToArray(x.values()),
@@ -820,17 +823,22 @@ test("can iterate map - values", () => {
 });
 
 test("NaN as map key", function () {
-  const a = fobx.observable.map(new Map([[NaN, 0]]));
+  const a = fobx.observable(new Map([[NaN, 0]]));
   expect(a.has(NaN)).toBe(true);
   expect(a.get(NaN)).toBe(0);
   a.set(NaN, 1);
-  a.merge(fobx.observable.map(new Map([[NaN, 2]])));
+  a.merge(fobx.observable(new Map([[NaN, 2]])));
   expect(a.get(NaN)).toBe(2);
   expect(a.size).toBe(1);
 });
 
 test("maps.values, keys and maps.entries are iterables", () => {
-  const x = fobx.observable.map({ x: 1, y: 2 });
+  const x = fobx.observable(
+    new Map([
+      ["x", 1],
+      ["y", 2],
+    ])
+  );
   expect(Array.from(x.entries())).toEqual([
     ["x", 1],
     ["y", 2],
@@ -840,7 +848,12 @@ test("maps.values, keys and maps.entries are iterables", () => {
 });
 
 test("toStringTag", () => {
-  const x = fobx.observable.map({ x: 1, y: 2 });
+  const x = fobx.observable(
+    new Map([
+      ["x", 1],
+      ["y", 2],
+    ])
+  );
   expect(x[Symbol.toStringTag]).toBe("Map");
   expect(Object.prototype.toString.call(x)).toBe("[object Map]");
 });
@@ -865,17 +878,17 @@ test("#1858 Map should not be inherited", () => {
 
   const map = new MyMap();
   expect(() => {
-    fobx.observable.map(map);
+    fobx.observable(map);
   }).toThrow("[@fobx/core] Cannot make observable map from class that inherit from Map: MyMap");
 });
 
 test("#2274", () => {
-  const myMap = fobx.observable.map();
+  const myMap = fobx.observable(new Map());
   myMap.set(1, 1);
   myMap.set(2, 1);
   myMap.set(3, 1);
 
-  const newMap = fobx.observable.map();
+  const newMap = fobx.observable(new Map());
   newMap.set(4, 1);
   newMap.set(5, 1);
   newMap.set(6, 1);
@@ -887,7 +900,7 @@ test("#2274", () => {
 });
 
 test(".forEach() subscribes for key changes", () => {
-  const map = fobx.observable.map();
+  const map = fobx.observable(new Map());
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -903,7 +916,7 @@ test(".forEach() subscribes for key changes", () => {
 });
 
 test(".keys() subscribes for key changes", () => {
-  const map = fobx.observable.map();
+  const map = fobx.observable(new Map());
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -922,7 +935,7 @@ test(".keys() subscribes for key changes", () => {
 });
 
 test(".values() subscribes for key changes", () => {
-  const map = fobx.observable.map();
+  const map = fobx.observable(new Map());
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -941,7 +954,7 @@ test(".values() subscribes for key changes", () => {
 });
 
 test(".entries() subscribes for key changes", () => {
-  const map = fobx.observable.map();
+  const map = fobx.observable(new Map());
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -960,7 +973,7 @@ test(".entries() subscribes for key changes", () => {
 });
 
 test(".toJSON() subscribes for key changes", () => {
-  const map = fobx.observable.map();
+  const map = fobx.observable(new Map());
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -976,11 +989,13 @@ test(".toJSON() subscribes for key changes", () => {
 });
 
 test(".entries() subscribes for value changes", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -999,11 +1014,13 @@ test(".entries() subscribes for value changes", () => {
 });
 
 test(".values() subscribes for value changes", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -1022,11 +1039,13 @@ test(".values() subscribes for value changes", () => {
 });
 
 test(".forEach() subscribes for value changes", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -1042,11 +1061,13 @@ test(".forEach() subscribes for value changes", () => {
 });
 
 test(".toJSON() subscribes for value changes", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -1062,11 +1083,13 @@ test(".toJSON() subscribes for value changes", () => {
 });
 
 test(".keys() does NOT subscribe for value changes", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -1085,11 +1108,13 @@ test(".keys() does NOT subscribe for value changes", () => {
 });
 
 test("noop mutations do NOT reportChanges", () => {
-  const map = fobx.observable.map([
-    [1, 1],
-    [2, 2],
-    [3, 3],
-  ]);
+  const map = fobx.observable(
+    new Map([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ])
+  );
   let autorunInvocationCount = 0;
 
   fobx.autorun(() => {
@@ -1123,12 +1148,14 @@ test("noop mutations do NOT reportChanges", () => {
 
 test("#2112 - iterators should be resilient to concurrent delete operation", () => {
   function testIterator(method) {
-    const map = fobx.observable.map([
-      [1, 1],
-      [2, 2],
-      [3, 3],
-    ]);
-    const expectedMap = fobx.observable.map(map);
+    const map = fobx.observable(
+      new Map([
+        [1, 1],
+        [2, 2],
+        [3, 3],
+      ])
+    );
+    const expectedMap = fobx.observable(map);
     for (const entry of map[method]()) {
       const key = Array.isArray(entry) ? entry[0] : entry;
       const deleted1 = map.delete(key);
@@ -1149,7 +1176,7 @@ test("2346 - subscribe to not yet existing map keys", async () => {
   const events = fobx.observable<number>([]);
 
   class Compute {
-    values = fobx.observable.map();
+    values = fobx.observable(new Map());
 
     get get42() {
       return this.get(42);

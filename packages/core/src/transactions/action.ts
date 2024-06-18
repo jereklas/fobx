@@ -1,6 +1,8 @@
 import type { IReactionAdmin } from "../types";
 
 import { $fobx, getGlobalState } from "../state/global";
+import { instanceState } from "../state/instance";
+// eslint-disable-next-line import/no-cycle
 import { startBatch, endBatch } from "../reactions/reaction";
 import { setReactionContext } from "./tracking";
 
@@ -17,14 +19,13 @@ export function action<T extends Function>(fn: T, options?: ActionOptions) {
     startAction();
     let result;
     try {
-      // TODO: is this correct for browser?
       result = fn.call(options?.getThis ? options.getThis(this) : this, ...args);
     } catch (e) {
-      globalState.actionThrew = true;
+      instanceState.actionThrew = true;
       throw e;
     } finally {
       endAction();
-      globalState.actionThrew = false;
+      instanceState.actionThrew = false;
     }
     return result;
   } as unknown as T;
@@ -42,11 +43,11 @@ export function runInAction<T>(fn: () => T) {
   try {
     result = fn();
   } catch (e) {
-    globalState.actionThrew = true;
+    instanceState.actionThrew = true;
     throw e;
   } finally {
     endAction();
-    globalState.actionThrew = false;
+    instanceState.actionThrew = false;
   }
   return result;
 }

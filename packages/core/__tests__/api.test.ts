@@ -3,6 +3,7 @@ import * as fobx from "../src";
 test("library has expected exports", () => {
   expect(Object.keys(fobx).sort()).toStrictEqual([
     "Reaction",
+    "ReactionAdmin",
     "action",
     "autorun",
     "computed",

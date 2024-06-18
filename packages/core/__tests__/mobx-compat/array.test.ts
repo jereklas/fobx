@@ -431,7 +431,7 @@ test("toString", () => {
 });
 
 test("can define properties on arrays", () => {
-  const ar = fobx.observable.array([1, 2]);
+  const ar = fobx.observable([1, 2]);
   Object.defineProperty(ar, "toString", {
     enumerable: false,
     configurable: true,

@@ -212,7 +212,6 @@ const annotateObject = <T extends object, E extends object>(
         Object.defineProperty(options.addToPrototype ? proto : observableObject, key, {
           value: action(desc.value, {
             name: key,
-            // TODO: is this correct for browsers? makes 'this' reference correctly match node
             getThis: (that: unknown) => {
               if (annotation === "action.bound") return observableObject;
               return options.addToPrototype && that === globalThis ? undefined : that;

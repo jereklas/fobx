@@ -11,7 +11,7 @@ type BaseTest = { name: string; getFn: (m: Map<any, any>) => () => any };
 const runBench = async (size: number, tests: BaseTest[]) => {
   const n = new Map();
   const m = mobxObservable.map();
-  const s = observable.map();
+  const s = observable(new Map());
 
   const bench = new Bench({
     time: 100,
@@ -56,7 +56,8 @@ const tests: BaseTest[] = [
   {
     name: "for(const e of m.entries())",
     getFn: (m) => () => {
-      for (const e of m.entries()) {
+      // eslint-disable-next-line no-empty-pattern
+      for (const {} of m.entries()) {
         /* empty */
       }
     },
@@ -75,7 +76,7 @@ const tests: BaseTest[] = [
 const runReactionBench = async (size: number) => {
   const reactionTests: BaseTest[] = [{ name: "map.forEach(i => i * 2)", getFn: (m) => () => m.forEach((i) => i * 2) }];
 
-  const s = observable.map();
+  const s = observable(new Map());
   const m = mobxObservable.map();
   const mr: ReturnType<typeof mobxReaction>[] = [];
   const sr: ReturnType<typeof reaction>[] = [];

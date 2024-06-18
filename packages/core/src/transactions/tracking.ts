@@ -3,6 +3,7 @@ import type { IObservableValueAdmin, IReactionAdmin } from "../types";
 import { isComputedValueAdmin } from "../utils/predicates";
 
 import { getGlobalState } from "../state/global";
+import { instanceState } from "../state/instance";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
@@ -66,7 +67,7 @@ export function runWithTracking(fn: () => void, reaction: IReactionAdmin) {
 
 export function reportExceptionInReaction(reaction: IReactionAdmin, err: unknown) {
   if (process.env.NODE_ENV !== "production") {
-    if (globalState.actionThrew) {
+    if (instanceState.actionThrew) {
       console.error(
         `[@fobx/core] Reaction's exception was suppressed because an action threw an error first. Fix the action's error below first.`
       );

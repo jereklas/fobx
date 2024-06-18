@@ -7,6 +7,7 @@ import type {
   EqualityChecker,
 } from "../types";
 
+// eslint-disable-next-line import/no-cycle
 import { action } from "../transactions/action";
 import { getGlobalState, $fobx } from "../state/global";
 import { isDifferent } from "../state/instance";
@@ -44,7 +45,7 @@ export interface IReactionAdmin extends IFobxAdmin {
 
 const MAX_ITERATIONS = 100;
 
-class ReactionAdmin implements IReactionAdmin {
+export class ReactionAdmin implements IReactionAdmin {
   name: string;
   dependenciesChanged = false;
   staleCount = 0;
@@ -57,7 +58,7 @@ class ReactionAdmin implements IReactionAdmin {
   effectFn: () => void;
 
   constructor(effectFn: () => void, name?: string) {
-    this.name = name ?? `Reaction@${globalState.getNextId()}`;
+    this.name = `${name ?? "Reaction"}@${globalState.getNextId()}`;
     this.effectFn = effectFn;
   }
   canRun() {
@@ -84,6 +85,9 @@ class ReactionAdmin implements IReactionAdmin {
         break;
     }
 
+    this.addToPendingReactions();
+  }
+  addToPendingReactions() {
     if (!this.isPending && this.dependenciesChanged) {
       this.isPending = true;
       globalState.pendingReactions.push(this);
@@ -101,8 +105,8 @@ class ReactionAdmin implements IReactionAdmin {
 }
 
 export class Reaction implements IReaction {
-  constructor(effectFn: () => void, name?: string) {
-    Object.defineProperty(this, $fobx, { value: new ReactionAdmin(effectFn, name) });
+  constructor(admin: ReactionAdmin) {
+    Object.defineProperty(this, $fobx, { value: admin });
   }
   track(this: Reaction, fn: () => void) {
     startBatch();
@@ -185,9 +189,11 @@ export function reaction<T>(
   let previousValue: T | undefined;
   let value: T;
 
-  const reaction = new Reaction(() => {
-    runReaction();
-  }) as ReactionWithAdmin;
+  const reaction = new Reaction(
+    new ReactionAdmin(() => {
+      runReaction();
+    })
+  ) as ReactionWithAdmin;
 
   const effectAction = action(
     (current: T, previous: T, reaction: IReaction) => {

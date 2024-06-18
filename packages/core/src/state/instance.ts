@@ -5,6 +5,7 @@ let structuralCompare: EqualityChecker | null = null;
 
 export const instanceState = {
   enforceActions: false,
+  actionThrew: false,
 };
 
 export function configure(options: {

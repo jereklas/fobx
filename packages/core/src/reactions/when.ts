@@ -1,11 +1,10 @@
 import { action } from "../transactions/action";
-import { Reaction, ReactionWithAdmin } from "./reaction";
-import { $fobx, getGlobalState } from "../state/global";
+import { Reaction, ReactionAdmin, type ReactionWithAdmin } from "./reaction";
+import { $fobx } from "../state/global";
 
 const ERR_TIMEOUT = "When reaction hit timeout";
 const ERR_CANCEL = "When reaction was canceled";
 const ERR_ABORT = "When reaction was aborted";
-const globalState = /* @__PURE__ */ getGlobalState();
 
 export type WhenPromise = Promise<void> & { cancel: () => void };
 export type WhenOptions = {
@@ -28,9 +27,11 @@ export function when(
 }
 
 function createWhen(predicate: () => boolean, sideEffectFn: () => void, options?: WhenOptions) {
-  const reaction = new Reaction(() => {
-    run();
-  }, `When@${globalState.getNextId()}`) as ReactionWithAdmin;
+  const reaction = new Reaction(
+    new ReactionAdmin(() => {
+      run();
+    }, "When")
+  ) as ReactionWithAdmin;
 
   let timeoutHandle: ReturnType<typeof setTimeout>;
 

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { forwardRef, memo } from "react";
-import { useObserver } from "./useObserver";
+import { useObserver } from "../hooks/useObserver";
 
 const hasSymbol = typeof Symbol === "function" && Symbol.for;
 

@@ -111,9 +111,9 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         this.#set(key, value);
       });
     } else {
-      Object.entries(entries).forEach(([key, value]) => {
-        this.#set(key as K, value);
-      });
+      for (const [key, val] of entries as Iterable<[K, V]>) {
+        this.#set(key, val);
+      }
     }
   }
   get size() {

@@ -15,6 +15,7 @@ export {
   runInAction,
   extendObservable,
   Reaction,
+  ReactionAdmin,
   isObservable,
   isObservableArray,
   isObservableMap,

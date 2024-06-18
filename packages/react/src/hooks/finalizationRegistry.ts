@@ -1,4 +1,4 @@
-import { Reaction } from "@fobx/core";
+import { type Reaction } from "@fobx/core";
 
 export const REGISTRY_FINALIZE_AFTER = 10_000;
 export const REGISTRY_SWEEP_INTERVAL = 10_000;

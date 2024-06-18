@@ -3,7 +3,7 @@ import * as iterall from "iterall";
 import { deepEqual } from "fast-equals";
 
 test("set crud", function () {
-  const s = fobx.observable.set<fobx.Any>([1]);
+  const s = fobx.observable(new Set<fobx.Any>([1]));
   const changes: Set<fobx.Any>[] = [];
 
   fobx.reaction(
@@ -41,7 +41,7 @@ test("set crud", function () {
   expect(s.has("2")).toBe(false);
   expect(s.has(3)).toBe(true);
 
-  s.replace(fobx.observable.set([4]));
+  s.replace(fobx.observable(new Set([4])));
 
   expect(Array.from(s.keys())).toEqual([4]);
   expect(Array.from(s.values())).toEqual([4]);
@@ -72,7 +72,7 @@ test("set crud", function () {
 });
 
 test("observe value", function () {
-  const s = fobx.observable.set();
+  const s = fobx.observable(new Set());
   let hasX = false;
   let hasY = false;
 
@@ -98,7 +98,7 @@ test("observe value", function () {
 });
 
 test("observe collections", function () {
-  const x = fobx.observable.set();
+  const x = fobx.observable(new Set());
   let keys, values, entries;
 
   fobx.autorun(function () {
@@ -144,7 +144,7 @@ test("observe collections", function () {
 });
 
 test("set modifier", () => {
-  const x = fobx.observable.set([{ a: 1 }]);
+  const x = fobx.observable(new Set([{ a: 1 }]));
   const y = fobx.observable({ a: x });
 
   expect(fobx.isObservableSet(x)).toBe(true);
@@ -154,7 +154,7 @@ test("set modifier", () => {
 });
 
 test("cleanup", function () {
-  const s = fobx.observable.set(["a"]);
+  const s = fobx.observable(new Set(["a"]));
 
   let hasA;
 
@@ -169,7 +169,7 @@ test("cleanup", function () {
 });
 
 test("set should support iterall / iterable ", () => {
-  const a = fobx.observable.set([1, 2]);
+  const a = fobx.observable(new Set([1, 2]));
 
   function leech(iter) {
     const values: number[] = [];
@@ -209,7 +209,7 @@ test("deepEqual set", () => {
   x.add(1);
   x.add({ z: 1 });
 
-  const x2 = fobx.observable.set();
+  const x2 = fobx.observable(new Set());
   x2.add(1);
   x2.add({ z: 2 });
 
@@ -219,7 +219,7 @@ test("deepEqual set", () => {
 });
 
 test("set.clear should not be tracked", () => {
-  const x = fobx.observable.set([1]);
+  const x = fobx.observable(new Set([1]));
   let c = 0;
   const d = fobx.autorun(() => {
     c++;
@@ -234,14 +234,14 @@ test("set.clear should not be tracked", () => {
 });
 
 test("toStringTag", () => {
-  const x = fobx.observable.set();
+  const x = fobx.observable(new Set());
   expect(x[Symbol.toStringTag]).toBe("Set");
   expect(Object.prototype.toString.call(x)).toBe("[object Set]");
 });
 
 test("observe", () => {
   const changes: Set<number>[] = [];
-  const x = fobx.observable.set([1]);
+  const x = fobx.observable(new Set([1]));
   fobx.reaction(
     () => x,
     (s) => {
@@ -256,7 +256,7 @@ test("observe", () => {
 
 test("set.forEach is reactive", () => {
   let c = 0;
-  const s = fobx.observable.set();
+  const s = fobx.observable(new Set());
 
   fobx.autorun(() => {
     s.forEach(() => {});

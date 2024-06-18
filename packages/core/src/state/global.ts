@@ -9,11 +9,6 @@ interface GlobalState {
    */
   batchedActionsCount: number;
   /**
-   * Flag that identifies whether an error was thrown inside of an action or not.
-   * TODO: can this be tracked in a non global way? or is it even needed at all?
-   */
-  actionThrew: boolean;
-  /**
    * Indicates whether the pending reactions are being calculated or not.
    */
   isRunningReactions: boolean;
@@ -21,7 +16,6 @@ interface GlobalState {
    * Identifies the outermost action that is running, and null when no action is running. This
    * information allows computed values to cache themselves if accessed multiple times within a
    * single action.
-   * TODO: can this computed value caching happen without the use of a global variable?
    */
   currentlyRunningAction: null | number;
   /**
@@ -61,7 +55,6 @@ export function getGlobalState(): GlobalState {
 
   const state: GlobalState = {
     batchedActionsCount: 0,
-    actionThrew: false,
     isRunningReactions: false,
     currentlyRunningAction: null as null | number,
     reactionContext: null as IReactionAdmin | null,

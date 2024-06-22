@@ -3,6 +3,7 @@ import { forwardRef, memo } from "react";
 import { useObserver } from "../hooks/useObserver";
 
 const hasSymbol = typeof Symbol === "function" && Symbol.for;
+const isFunctionNameConfigurable = Object.getOwnPropertyDescriptor(() => {}, "name")?.configurable ?? false;
 
 const ReactForwardRefSymbol = hasSymbol
   ? Symbol.for("react.forward_ref")
@@ -60,11 +61,13 @@ export function observer<P extends object, TRef = object>(
 
   // Inherit original name and displayName
   (ObserverComponent as React.FunctionComponent).displayName = baseComponent.displayName;
-  Object.defineProperty(ObserverComponent, "name", {
-    value: baseComponent.name,
-    writable: true,
-    configurable: true,
-  });
+  if (isFunctionNameConfigurable) {
+    Object.defineProperty(ObserverComponent, "name", {
+      value: baseComponent.name,
+      writable: true,
+      configurable: true,
+    });
+  }
 
   // Support legacy context: `contextTypes` must be applied before `memo`
   if ((baseComponent as any).contextTypes) {

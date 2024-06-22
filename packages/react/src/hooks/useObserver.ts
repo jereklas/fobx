@@ -2,9 +2,6 @@ import { useSyncExternalStore, useRef } from "react";
 import { observerFinalizationRegistry } from "./finalizationRegistry";
 import { createReaction, type ObserverAdministration } from "../reactions/reaction";
 
-// required for SSR hydration
-const getServerSnapshot = () => {};
-
 export const useObserver = <T>(render: () => T, baseComponentName: string = "observed") => {
   const admRef = useRef<ObserverAdministration>();
 
@@ -51,7 +48,7 @@ export const useObserver = <T>(render: () => T, baseComponentName: string = "obs
     observerFinalizationRegistry.register(adm);
   }
 
-  useSyncExternalStore(adm.subscribe, adm.getSnapshot, getServerSnapshot);
+  useSyncExternalStore(adm.subscribe, adm.getSnapshot, adm.getSnapshot);
 
   // closure to keep the render result/exception within the react function scope
   let renderResult!: T;

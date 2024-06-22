@@ -9,6 +9,7 @@ interface GlobalState {
 const $react = Symbol.for("fobx-react");
 
 export function getGlobalState(): GlobalState {
+  // @ts-expect-error - global def doesn't know about $fobx symbol
   if (globalThis[$react] !== undefined) return globalThis[$react];
 
   const state: GlobalState = {

@@ -1,6 +1,6 @@
 {
   "name": "@fobx/react",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "React higher order function reaction.",
@@ -23,16 +23,18 @@
   },
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
-  "types": "dist/types/index.d.ts",
+  "types": "src/index.ts",
   "scripts": {
-    "build": "node ./build.mjs && tsc",
-    "prepublish": "pnpm build"
+    "build": "node ./build.mjs",
+    "tsc": "tsc",
+    "prepublish": "pnpm tsc && pnpm build"
   },
   "peerDependencies": {
-    "@fobx/core": ">=0.1.0",
+    "@fobx/core": ">=0.3.0",
     "react": ">=18"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ]
 }

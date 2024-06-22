@@ -1,6 +1,6 @@
 {
   "name": "@fobx/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "Fast, reactive state management.",
@@ -24,26 +24,26 @@
   },
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
-  "types": "dist/types/index.d.ts",
+  "types": "src/index.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.cjs/js",
-      "types": "./dist/types/index.d.ts"
+      "types": "./src/index.ts"
     },
     "./decorators": {
       "import": "./dist/decorators.js",
       "require": "./dist/decorators.cjs.js",
-      "types": "./dist/types/decorators.d.ts"
+      "types": "./src/decorators.ts"
     }
   },
   "typesVersions": {
     "*": {
       "*": [
-        "dist/types/index.d.ts"
+        "src/index.ts"
       ],
       "decorators": [
-        "dist/types/decorators.d.ts"
+        "src/decorators.ts"
       ]
     }
   },
@@ -51,14 +51,16 @@
     "benchmark:array": "node ./build.mjs && node ./benchmark/array.mjs",
     "benchmark:map": "tsx ./benchmark/map.ts",
     "benchmark:set": "tsx ./benchmark/set.ts",
-    "build": "node ./build.mjs && tsc -p ./tsconfig.build.json",
-    "prepublish": "pnpm build",
+    "build": "node ./build.mjs",
+    "tsc": "tsc -p ./tsconfig.build.json",
+    "prepublish": "pnpm tsc && pnpm build",
     "test": "jest --watchAll",
     "test:tsc": "pnpm build && jest --watchAll -c ./__tests__/tsc/jest.config.cjs ./__tests__/tsc",
     "coverage": "jest --coverage --watchAll",
     "coverage:ci": "jest --coverage"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ]
 }

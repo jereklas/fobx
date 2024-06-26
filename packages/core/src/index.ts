@@ -25,4 +25,4 @@ export {
   isAction,
   isComputed,
   isFlow,
-} from "./fobx";
+} from "./fobx.js";

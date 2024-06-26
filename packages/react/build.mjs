@@ -16,7 +16,7 @@ function gzip(input, options) {
 const NAME = "index";
 const DIR = "./dist";
 const ESM_EXT = ".js";
-const CJS_EXT = ".cjs.js";
+const CJS_EXT = ".cjs";
 
 // make sure dist folder doesn't contain anything out of date
 await fs.rm(DIR, { recursive: true, force: true });

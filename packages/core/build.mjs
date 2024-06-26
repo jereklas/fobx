@@ -17,7 +17,7 @@ function gzip(input, options) {
 const NAME = "fobx";
 const DIR = "./dist";
 const ESM_EXT = ".js";
-const CJS_EXT = ".cjs.js";
+const CJS_EXT = ".cjs";
 
 // make sure dist folder doesn't contain anything out of date
 await fs.rm(DIR, { recursive: true, force: true });
@@ -80,7 +80,7 @@ const writeEntrypoint = async (name, extension) => {
   return fs.writeFile(
     path,
     extension === CJS_EXT
-      ? String.fromCharCode.apply(null, contents).replace('require("./fobx")', 'require("./fobx.cjs")')
+      ? String.fromCharCode.apply(null, contents).replace('require("./fobx.js")', 'require("./fobx.cjs")')
       : contents
   );
 };

@@ -1,23 +1,15 @@
-import type {
-  Any,
-  ObservableObjectWithAdmin,
-  ObservableValueOptions,
-} from "./types";
+import type { Any, ObservableObjectWithAdmin, ObservableValueOptions } from "./types";
 
-import {
-  $fobx,
-  createObservableValue,
-  addObservableAdministration,
-} from "./fobx";
+import { $fobx, createObservableValue, addObservableAdministration } from "./fobx.js";
 
 function decorateWithObservable<This, Value>(
   _: unknown,
   context: DecoratorContext,
-  options?: ObservableValueOptions<Value>,
+  options?: ObservableValueOptions<Value>
 ): ClassAccessorDecoratorResult<This, Value> {
   if (context.kind !== "accessor") {
     throw new Error(
-      "[@fobx/core] @observable decorator must be used with the accessor keyword (i.e. @observable accessor x = 10).",
+      "[@fobx/core] @observable decorator must be used with the accessor keyword (i.e. @observable accessor x = 10)."
     );
   }
   const { name } = context;
@@ -47,24 +39,22 @@ function decorateWithObservable<This, Value>(
 
 type DecoratorFn<This, Value> = (
   value: ClassAccessorDecoratorTarget<This, Value>,
-  ctx: ClassAccessorDecoratorContext<This, Value>,
+  ctx: ClassAccessorDecoratorContext<This, Value>
 ) => ClassAccessorDecoratorResult<This, Value>;
 
-export function observable<This, Value>(options: {
-  ref: boolean;
-}): DecoratorFn<This, Value>;
+export function observable<This, Value>(options: { ref: boolean }): DecoratorFn<This, Value>;
 export function observable<This, Value>(
   value: ClassAccessorDecoratorTarget<This, Value>,
-  context: ClassAccessorDecoratorContext<This, Value>,
+  context: ClassAccessorDecoratorContext<This, Value>
 ): ClassAccessorDecoratorResult<This, Value>;
 export function observable<This extends ObservableObjectWithAdmin, Value>(
   valueOrOptions: ClassAccessorDecoratorTarget<This, Value> | { ref: boolean },
-  context?: ClassAccessorDecoratorContext<This, Value>,
+  context?: ClassAccessorDecoratorContext<This, Value>
 ): ClassAccessorDecoratorResult<This, Value> | DecoratorFn<This, Value> {
   if (context === undefined) {
     return function (
       value: ClassAccessorDecoratorTarget<This, Value>,
-      ctx: ClassAccessorDecoratorContext<This, Value>,
+      ctx: ClassAccessorDecoratorContext<This, Value>
     ) {
       return decorateWithObservable(value, ctx);
     };
@@ -74,33 +64,25 @@ export function observable<This extends ObservableObjectWithAdmin, Value>(
 
 type ClassAccessorDecorator<This, Value> = (
   value: ClassAccessorDecoratorTarget<This, Value>,
-  context: ClassAccessorDecoratorContext<This, Value>,
+  context: ClassAccessorDecoratorContext<This, Value>
 ) => ClassAccessorDecoratorResult<This, Value>;
 
-export function obs<T, V, O extends ObservableValueOptions<Any>>(
-  options: O,
-): ClassAccessorDecorator<T, V>;
+export function obs<T, V, O extends ObservableValueOptions<Any>>(options: O): ClassAccessorDecorator<T, V>;
 export function obs<T, V>(
   value: ClassAccessorDecoratorTarget<T, V>,
-  context?: ClassAccessorDecoratorContext<T, V>,
+  context?: ClassAccessorDecoratorContext<T, V>
 ): ClassAccessorDecoratorResult<T, V>;
 export function obs<T, V>(
   value: ClassAccessorDecoratorTarget<T, V>,
-  context?: ClassAccessorDecoratorContext<T, V>,
+  context?: ClassAccessorDecoratorContext<T, V>
 ): ClassAccessorDecoratorResult<T, V> | ClassAccessorDecorator<T, V> {
   if (context === undefined) {
-    const fn = (
-      value: ClassAccessorDecoratorTarget<T, V>,
-      ctx: ClassAccessorDecoratorContext<T, V>,
-    ) => {
+    const fn = (value: ClassAccessorDecoratorTarget<T, V>, ctx: ClassAccessorDecoratorContext<T, V>) => {
       return decorateWithObservable(value, ctx);
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return fn as any;
   }
 
-  return decorateWithObservable(
-    value as unknown as ObservableObjectWithAdmin,
-    context!,
-  );
+  return decorateWithObservable(value as unknown as ObservableObjectWithAdmin, context!);
 }

@@ -1,6 +1,6 @@
 {
   "name": "@fobx/react",
-  "version": "0.3.0",
+  "version": "0.3.3",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "React higher order function reaction.",
@@ -21,9 +21,17 @@
   "bugs": {
     "url": "https://github.com/jereklas/fobx/issues"
   },
-  "main": "dist/index.cjs.js",
+  "type": "module",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./src/index.ts"
+    }
+  },
   "scripts": {
     "build": "node ./build.mjs",
     "tsc": "tsc",

@@ -1,7 +1,7 @@
 import { Bench } from "tinybench";
 
 import * as mobx from "../../../node_modules/mobx/dist/mobx.cjs.production.min";
-import * as fobx from "../dist/fobx.prod.cjs.js";
+import * as fobx from "../dist/fobx.prod";
 
 // import * as mobx from "mobx";
 // import * as t from ".";

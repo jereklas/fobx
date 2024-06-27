@@ -173,7 +173,7 @@ test("should be able to change observed state in an action called from a compute
         a.value = 4;
       })
     ).toMatch(
-      /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(ObservableValue@.*\) outside of an action is forbidden/
+      /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(ObservableValue@.*\) outside of an action is discouraged as reactions run more frequently than necessary/
     );
     expect(a.value).toBe(4);
 

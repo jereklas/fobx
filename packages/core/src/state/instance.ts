@@ -4,7 +4,7 @@ import { Any, ComparisonType, EqualityChecker } from "../types";
 let structuralCompare: EqualityChecker | null = null;
 
 export const instanceState = {
-  enforceActions: false,
+  enforceActions: true,
   actionThrew: false,
 };
 

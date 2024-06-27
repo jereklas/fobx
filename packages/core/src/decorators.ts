@@ -1,6 +1,6 @@
 import type { Any, ObservableObjectWithAdmin, ObservableValueOptions } from "./types";
 
-import { $fobx, createObservableValue, addObservableAdministration } from "./fobx.js";
+import { $fobx, createObservableValue, addObservableAdministration } from "./fobx";
 
 function decorateWithObservable<This, Value>(
   _: unknown,

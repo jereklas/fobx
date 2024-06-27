@@ -1,4 +1,21 @@
 import { observable } from "../../src/observables/observable";
+import { grabConsole } from "../utils";
+
+test("class with non-extensible field causes console warning", () => {
+  class EInner {}
+  class E {
+    b = Object.preventExtensions(new EInner());
+    constructor() {
+      observable(this);
+    }
+  }
+
+  expect(
+    grabConsole(() => {
+      new E();
+    })
+  ).toMatch(/<STDOUT> \[@fobx\/core\] Attempted to make a non-extensible object observable, which is not possible\./);
+});
 
 test("classes with populated map injected into constructor get initialize correctly", () => {
   class M {

@@ -101,14 +101,6 @@ export const extendObservable = <T extends object, E extends object>(
   return observableObject as unknown as T & E;
 };
 
-/**
- * Asserts object is observable
- * @param obj the object to check
- */
-function assertObservableObject(obj: unknown): asserts obj is ObservableObjectWithAdmin {
-  if (!isObservableObject(obj)) throw new Error("Object was not correctly made observable.");
-}
-
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,
   source: E,
@@ -118,7 +110,16 @@ const annotateObject = <T extends object, E extends object>(
     shallow: boolean;
   }
 ) => {
-  assertObservableObject(observableObject);
+  if (!isObservableObject(observableObject)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
+        observableObject
+      );
+    }
+    return;
+  }
+
   const admin = observableObject[$fobx];
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value;
@@ -287,6 +288,8 @@ const getType = (obj: unknown) => {
 };
 
 export function addObservableAdministration<T extends object>(obj: T) {
+  if (!Object.isExtensible(obj)) return;
+
   const adm: IObservableObjectAdmin = {
     name: `ObservableObject@${globalState.getNextId()}`,
     values: new Map<PropertyKey, IObservableValue>(),

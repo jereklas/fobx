@@ -51,7 +51,7 @@ export class ObservableValue<T = Any> implements IObservableValue<T> {
       if (instanceState.enforceActions) {
         if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
           console.warn(
-            `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is forbidden.`
+            `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
           );
         }
       }

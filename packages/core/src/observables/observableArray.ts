@@ -332,7 +332,7 @@ const startFnCall = (admin: IObservableArrayAdmin, prop: string) => {
     admin.observers.size > 0
   ) {
     console.warn(
-      `[@fobx/core] ${admin.name}.${prop}(...) was called outside of an action, this state change could be unpredictable.`
+      `[@fobx/core] ${admin.name}.${prop}(...) was called outside of an action which is discouraged as reactions run more frequently than necessary.`
     );
   }
   admin.runningAction = prop;

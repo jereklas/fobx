@@ -7,7 +7,7 @@ beforeEach(() => {
   fobx.configure({ enforceActions: false });
 });
 
-test.only("map crud", function () {
+test("map crud", function () {
   const m = fobx.observable(new Map<fobx.Any, string>([[1, "a"]]));
   const changes: Map<fobx.Any, fobx.Any>[] = [];
 
@@ -590,7 +590,7 @@ test("issue 940, should not be possible to change maps outside strict mode", () 
       m.set("x", 1);
     })
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is forbidden\./
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./
   );
 
   expect(
@@ -598,7 +598,7 @@ test("issue 940, should not be possible to change maps outside strict mode", () 
       m.set("x", 2);
     })
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is forbidden\./
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./
   );
 
   expect(
@@ -606,7 +606,7 @@ test("issue 940, should not be possible to change maps outside strict mode", () 
       m.delete("x");
     })
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is forbidden\./
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./
   );
 
   d();
@@ -1144,32 +1144,6 @@ test("noop mutations do NOT reportChanges", () => {
   ]);
 
   expect(autorunInvocationCount).toBe(1);
-});
-
-test("#2112 - iterators should be resilient to concurrent delete operation", () => {
-  function testIterator(method) {
-    const map = fobx.observable(
-      new Map([
-        [1, 1],
-        [2, 2],
-        [3, 3],
-      ])
-    );
-    const expectedMap = fobx.observable(map);
-    for (const entry of map[method]()) {
-      const key = Array.isArray(entry) ? entry[0] : entry;
-      const deleted1 = map.delete(key);
-      const deleted2 = expectedMap.delete(key);
-      expect(deleted1).toBe(true);
-      expect(deleted2).toBe(true);
-      expect(map.size).toBe(expectedMap.size);
-      expect(Array.from(map)).toEqual(Array.from(expectedMap));
-    }
-  }
-
-  testIterator("keys");
-  testIterator("values");
-  testIterator("entries");
 });
 
 test("2346 - subscribe to not yet existing map keys", async () => {

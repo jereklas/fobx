@@ -110,10 +110,14 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       entries.forEach(([key, value]) => {
         this.#set(key, value);
       });
-    } else {
+    } else if (Symbol.iterator in entries) {
       for (const [key, val] of entries as Iterable<[K, V]>) {
         this.#set(key, val);
       }
+    } else {
+      Object.entries(entries).forEach(([key, val]) => {
+        this.#set(key as K, val);
+      });
     }
   }
   get size() {
@@ -137,7 +141,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       if (instanceState.enforceActions) {
         if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
           console.warn(
-            `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is forbidden.`
+            `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
           );
         }
       }
@@ -183,7 +187,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions && globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
         console.warn(
-          `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is forbidden.`
+          `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
         );
       }
     }

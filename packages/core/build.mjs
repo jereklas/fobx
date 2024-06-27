@@ -81,7 +81,7 @@ const writeEntrypoint = async (name, extension) => {
     path,
     extension === CJS_EXT
       ? String.fromCharCode.apply(null, contents).replace('require("./fobx.js")', 'require("./fobx.cjs")')
-      : contents
+      : String.fromCharCode.apply(null, contents).replace('from "./fobx"', 'from "./fobx.js"')
   );
 };
 

@@ -3,9 +3,6 @@
 ## TODO List
 
 1. `observableObject` needs to handle property add + delete?
-1. Need to fix ID generations to work with global state instead of instance state.
-1. Need to publish initial packages.
-   1. figure out what bundles need to be included.
 1. Find and address any `TODO:` comments in the code.
 
 ## Notes

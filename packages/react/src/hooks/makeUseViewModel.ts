@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { getGlobalState } from "../state/global";
+import { getGlobalState as getFobxState } from "@fobx/core";
+
+const globalState = getGlobalState();
+const fobxState = getFobxState();
 
 export interface IViewModel<VM extends abstract new (...args: any) => any> {
   update(...args: ConstructorParameters<VM>): void;
@@ -14,10 +19,17 @@ export function makeUseViewModel<T extends Record<string, new (...args: any[]) =
     viewModel: K,
     ...args: ConstructorParameters<(typeof vms)[K]>
   ): ClassType<K> => {
+    const reaction = useRef(fobxState.reactionContext);
     // arrow function ensures we don't create another class on each render (it runs once on first render)
     const [vm] = useState(() => new vms[viewModel](...args));
 
-    vm.update(...args);
+    const prev = globalState.updatingReaction;
+    globalState.updatingReaction = reaction.current;
+    try {
+      vm.update(...args);
+    } finally {
+      globalState.updatingReaction = prev;
+    }
 
     return vm;
   };

@@ -1,5 +1,68 @@
 # @fobx/core
 
+## Getting Started
+
+The behavior of @fobx/core is almost identical to that of mobx with respect to the critical path of behavior. Meaning it
+passes all of the mobx unit tests with respect to observable values, computed values, reactions and transactions (once
+API differences have been accounted for).
+
+Because of this functional equivalence, almost all of the mobx documentation and stack overflow questions found for mobx
+are applicable to @fobx/core. The following are the notable differences that are needed in order to get started:
+
+1. Fobx has a single way to create observable state, which is the `observable` function.
+
+   ```js
+   import { observable } from "@fobx/core";
+
+   const num = observable(1);
+   const str = observable("hello fobx");
+   const bool = observable(true);
+   const arr = observable([1, 2, 3]);
+   const map = observable(
+     new Map([
+       ["a", "a"],
+       ["b", "b"],
+     ])
+   );
+   const set = observable(new Set([1, 2, 3]));
+   const obj = observable({ a: 1, b: 2 });
+   class A {
+     a = 1;
+     constructor() {
+       this.b = 2;
+       // acts like mobx's makeAutoObservable
+       observable(this);
+     }
+   }
+   ```
+
+2. If a primitive type was made observable, you get and set the value through the `.value` property.
+
+   ```js
+   import { observable } from "@fobx/core";
+
+   const a = observable(1);
+   console.log(a.value); // prints 1
+   a.value = 5;
+   console.log(a.value); // prints 5
+   ```
+
+3. Observable values are tracked immediately instead of waiting until the end of the reaction body.
+
+   ```js
+   const o = observable(0);
+   const seen: number[] = [];
+
+   autorun(() => {
+      seen.push(o.value);
+      if (o.value < 3) o.value += 1;
+   });
+
+   console.log(seen); // prints [0,1,2,3] ... mobx will have [0]
+   o.value += 1;
+   console.log(seen) // prints [0,1,2,3,4] ... mobx will have [0,2,3,4]
+   ```
+
 ## TODO List
 
 1. `observableObject` needs to handle property add + delete?

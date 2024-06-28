@@ -85,14 +85,16 @@ export class ReactionAdmin implements IReactionAdmin {
         break;
     }
 
-    this.addToPendingReactions();
-  }
-  addToPendingReactions() {
     if (!this.isPending && this.dependenciesChanged) {
       this.isPending = true;
-      globalState.pendingReactions.push(this);
+      this.addToPendingReactions();
     }
   }
+
+  addToPendingReactions() {
+    globalState.pendingReactions.push(this);
+  }
+
   dispose() {
     const { pendingReactions } = globalState;
     let idx: number;
@@ -115,6 +117,15 @@ export class Reaction implements IReaction {
   }
   dispose(this: Reaction) {
     (this as ReactionWithAdmin)[$fobx].dispose();
+  }
+}
+
+export class ReactionWithoutBatch extends Reaction {
+  constructor(admin: ReactionAdmin) {
+    super(admin);
+  }
+  track(this: ReactionWithoutBatch, fn: () => void) {
+    runWithTracking(fn, (this as ReactionWithAdmin)[$fobx]);
   }
 }
 

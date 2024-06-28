@@ -1,5 +1,8 @@
 import { Reaction, ReactionAdmin } from "@fobx/core";
 import { useSyncExternalStore } from "react";
+import { getGlobalState } from "../state/global";
+
+const globalState = getGlobalState();
 
 export type ObserverAdministration = {
   reaction: Reaction | null;
@@ -11,16 +14,25 @@ export type ObserverAdministration = {
 };
 
 class ObserverReactionAdmin extends ReactionAdmin {
+  preventRun = false;
   constructor(effectFn: () => void, name?: string) {
     super(effectFn, name);
   }
-  // TODO: find way to make this work
+
   run(): void {
-    // this.dependenciesChanged = false;
-    // if (!globalState.preventAddingToPendingReactions) {
-    super.run();
-    // }
-    // globalState.preventAddingToPendingReactions = false;
+    if (this.preventRun) {
+      this.dependenciesChanged = false;
+      this.preventRun = false;
+    } else {
+      super.run();
+    }
+  }
+
+  addToPendingReactions(): void {
+    if (globalState.updatingReaction === this) {
+      this.preventRun = true;
+    }
+    super.addToPendingReactions();
   }
 }
 

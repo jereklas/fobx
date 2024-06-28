@@ -1,9 +1,8 @@
 interface GlobalState {
   /**
-   * This flag is significant to prevent a secondary render when a state change occurs during an
-   * active render cycle.
+   * Tracks the current observer reaction that is in the process of updating (i.e. in middle of react render)
    */
-  preventAddingToPendingReactions: boolean;
+  updatingReaction: unknown;
 }
 
 const $react = Symbol.for("fobx-react");
@@ -13,7 +12,7 @@ export function getGlobalState(): GlobalState {
   if (globalThis[$react] !== undefined) return globalThis[$react];
 
   const state: GlobalState = {
-    preventAddingToPendingReactions: false,
+    updatingReaction: null,
   };
 
   Object.defineProperty(globalThis, $react, {

@@ -7,12 +7,12 @@ export { observable } from "./observables/observable";
 export { when } from "./reactions/when";
 export { flow } from "./transactions/flow";
 
-export { $fobx } from "./state/global";
+export { $fobx, getGlobalState } from "./state/global";
 export { configure } from "./state/instance";
 export { action, runInAction } from "./transactions/action";
 export { createObservableValue } from "./observables/observableValue";
 export { extendObservable, addObservableAdministration } from "./observables/observableObject";
-export { Reaction, ReactionAdmin, reaction } from "./reactions/reaction";
+export { ReactionAdmin, ReactionWithoutBatch, reaction } from "./reactions/reaction";
 export { computed } from "./reactions/computed";
 
 // TODO: need to update these typescript defs so they just return true/false for public api

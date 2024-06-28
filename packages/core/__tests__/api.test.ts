@@ -11,6 +11,7 @@ test("library has expected exports", () => {
     "extendObservable",
     "flow",
     "getDependencyTree",
+    "getGlobalState",
     "getObserverTree",
     "isAction",
     "isComputed",

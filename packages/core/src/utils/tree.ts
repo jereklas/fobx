@@ -1,7 +1,7 @@
-import type { IComputedAdmin, IObservableValueAdmin, IFobxAdmin } from "../types";
-
+import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IComputedAdmin } from "../reactions/computed";
+import { $fobx, type IFobxAdmin } from "../state/global";
 import { isObject } from "./predicates";
-import { $fobx } from "../state/global";
 
 export interface IDependencyTree {
   name: string;

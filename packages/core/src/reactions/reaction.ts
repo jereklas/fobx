@@ -1,23 +1,23 @@
-import type {
-  Disposer,
-  IObservableValueAdmin,
-  IFobxAdmin,
-  StateNotification,
-  ComparisonType,
-  EqualityChecker,
-} from "../types";
-
 // eslint-disable-next-line import/no-cycle
 import { action } from "../transactions/action";
-import { getGlobalState, $fobx } from "../state/global";
+import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { StateNotification } from "../observables/notifications";
+import { isObservableCollection } from "../utils/predicates";
 import { isDifferent } from "../state/instance";
+import {
+  getGlobalState,
+  $fobx,
+  type Disposer,
+  type IFobxAdmin,
+  type ComparisonType,
+  type EqualityChecker,
+} from "../state/global";
 import {
   removeAllDependencies,
   reportExceptionInReaction,
   runWithTracking,
   trackObservable,
 } from "../transactions/tracking";
-import { isObservableCollection } from "../utils/predicates";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

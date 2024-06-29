@@ -407,8 +407,9 @@ describe("observableObject", () => {
     const o = fobx.observable(a);
 
     // observability is not shallow
-    expect(fobx.isObservable(o.b)).toBe(true);
-    expect(fobx.isObservable(o.b.c)).toBe(true);
+    expect(fobx.isObservable(o, "b")).toBe(true);
+    expect(fobx.isObservable(o.b, "c")).toBe(true);
+    expect(fobx.isObservable(o.b.c, "a")).toBe(true);
 
     const reactionFn = jest.fn();
     fobx.reaction(() => o.b.c.a, reactionFn);
@@ -419,7 +420,7 @@ describe("observableObject", () => {
 
     // replacing with non-observable object converts to observable and re-maps observers
     o.b.c = { a: 1 };
-    expect(fobx.isObservable(o.b.c)).toBe(true);
+    expect(fobx.isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).not.toHaveBeenCalled(); // not called because a value is still same
     expect(fobx.getObserverTree(originalA).observers.length).toBe(0);
     const secondA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
@@ -433,7 +434,7 @@ describe("observableObject", () => {
 
     // replacing with object with new 'a' value causes reaction to run + re-mapped reactions
     o.b.c = { a: 3 };
-    expect(fobx.isObservable(o.b.c)).toBe(true);
+    expect(fobx.isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).toHaveBeenCalledTimes(2);
     expect(reactionFn).toHaveBeenCalledWith(3, 2, expect.anything());
     expect(fobx.getObserverTree(secondA).observers.length).toBe(0);

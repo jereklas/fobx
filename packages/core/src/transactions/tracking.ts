@@ -1,7 +1,6 @@
-import type { IObservableValueAdmin, IReactionAdmin } from "../types";
-
+import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IReactionAdmin } from "../reactions/reaction";
 import { isComputedValueAdmin } from "../utils/predicates";
-
 import { getGlobalState } from "../state/global";
 import { instanceState } from "../state/instance";
 

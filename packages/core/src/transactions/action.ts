@@ -1,9 +1,7 @@
-import type { IReactionAdmin } from "../types";
-
+// eslint-disable-next-line import/no-cycle
+import { startBatch, endBatch, type IReactionAdmin } from "../reactions/reaction";
 import { $fobx, getGlobalState } from "../state/global";
 import { instanceState } from "../state/instance";
-// eslint-disable-next-line import/no-cycle
-import { startBatch, endBatch } from "../reactions/reaction";
 import { setReactionContext } from "./tracking";
 
 const globalState = /* @__PURE__ */ getGlobalState();

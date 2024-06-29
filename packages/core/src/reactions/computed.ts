@@ -1,19 +1,10 @@
-import type {
-  StateNotification,
-  IReactionAdmin,
-  IObservableValue,
-  IObservableValueAdmin,
-  Any,
-  EqualityChecker,
-  ComparisonType,
-} from "../types";
-
+import { $fobx, getGlobalState, type Any, type EqualityChecker, type ComparisonType } from "../state/global";
 import { removeAllDependencies, runWithTracking, trackObservable } from "../transactions/tracking";
-import { startBatch, endBatch } from "./reaction";
-import { $fobx, getGlobalState } from "../state/global";
-import { isDifferent } from "../state/instance";
+import type { IObservableValue, IObservableValueAdmin } from "../observables/observableValue";
+import { sendReady, sendStale, type StateNotification } from "../observables/notifications";
+import { startBatch, endBatch, type IReactionAdmin } from "./reaction";
 import { runInAction } from "../transactions/action";
-import { sendReady, sendStale } from "../observables/notifications";
+import { isDifferent } from "../state/instance";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

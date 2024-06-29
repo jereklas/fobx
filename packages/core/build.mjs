@@ -80,7 +80,7 @@ const writeEntrypoint = async (name, extension) => {
   return fs.writeFile(
     path,
     extension === CJS_EXT
-      ? String.fromCharCode.apply(null, contents).replace('require("./fobx.js")', 'require("./fobx.cjs")')
+      ? String.fromCharCode.apply(null, contents).replace('require("./fobx")', 'require("./fobx.cjs")')
       : String.fromCharCode.apply(null, contents).replace('from "./fobx"', 'from "./fobx.js"')
   );
 };

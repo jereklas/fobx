@@ -1,27 +1,20 @@
-import type {
-  IReactionAdmin,
-  Any,
-  IObservable,
-  IObservableCollectionAdmin,
-  IObservableValue,
-  IObservableValueAdmin,
-  ObservableSetWithAdmin,
-  ObservableValueWithAdmin,
-} from "../types";
-import type { ObservableFactory } from "./observable";
-
-import { $fobx, getGlobalState } from "../state/global";
-import { instanceState } from "../state/instance";
-import { runInAction } from "../transactions/action";
-import { sendChange } from "./notifications";
-import { trackObservable } from "../transactions/tracking";
-import { createObservableValue } from "./observableValue";
-
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { isObject, isObservable } from "../utils/predicates";
-
 // eslint-disable-next-line import/no-cycle
-import { observable } from "./observable";
+import { observable, type IObservableCollectionAdmin, type IObservable, type ObservableFactory } from "./observable";
+import type { ObservableSetWithAdmin } from "../observables/observableSet";
+import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
+import { $fobx, getGlobalState, type Any } from "../state/global";
+import { isObject, isObservable } from "../utils/predicates";
+import type { IReactionAdmin } from "../reactions/reaction";
+import { trackObservable } from "../transactions/tracking";
+import { runInAction } from "../transactions/action";
+import { instanceState } from "../state/instance";
+import { sendChange } from "./notifications";
+import {
+  createObservableValue,
+  type IObservableValue,
+  type IObservableValueAdmin,
+  type ObservableValueWithAdmin,
+} from "./observableValue";
 
 export type ObservableMapWithAdmin = ObservableMap & {
   [$fobx]: IObservableCollectionAdmin;

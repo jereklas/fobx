@@ -1,14 +1,9 @@
-import type {
-  Any,
-  IComputedAdmin,
-  IObservableArrayAdmin,
-  IObservableCollectionAdmin,
-  ObservableObjectWithAdmin,
-  IObservableObjectAdmin,
-  IObservableValueAdmin,
-} from "../types";
-
-import { $fobx } from "../state/global";
+import type { IObservableObjectAdmin, ObservableObjectWithAdmin } from "../observables/observableObject";
+import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IObservableArrayAdmin } from "../observables/observableArray";
+import type { IObservableCollectionAdmin } from "../observables/observable";
+import type { IComputedAdmin } from "../reactions/computed";
+import { $fobx, type Any } from "../state/global";
 
 const OBJ_STR = /* @__PURE__ */ Object.toString();
 const FN_STR = "function";
@@ -43,7 +38,7 @@ export const isPlainObject = (obj: unknown) => {
  * @param obj the object to check
  * @returns true if the supplied object is observable, false otherwise
  */
-export const isObservableObject = (obj: unknown): obj is ObservableObjectWithAdmin => {
+export const isObservableObject = (obj: unknown): boolean => {
   if (!isObject(obj)) return false;
   const admin = (obj as Any)[$fobx];
   if (!admin) return false;
@@ -53,8 +48,8 @@ export const isObservableObjectAdmin = (obj: unknown): obj is IObservableObjectA
   if (!isObject(obj)) return false;
   return (obj as Any).values !== undefined;
 };
-export const isObservableProp = (obj: unknown, prop: PropertyKey) => {
-  return isObservableObject(obj) && obj[$fobx].values.has(prop);
+export const isObservableProp = (obj: unknown, prop: PropertyKey): boolean => {
+  return isObservableObject(obj) && (obj as ObservableObjectWithAdmin)[$fobx].values.has(prop);
 };
 
 /**
@@ -78,7 +73,7 @@ export const isComputedValueAdmin = (obj: Any): obj is IComputedAdmin => {
  * @param obj the object to check
  * @returns returns true if the object is an observable value, false otherwise
  */
-export const isObservableValue = (obj: unknown) => {
+export const isObservableValue = (obj: unknown): boolean => {
   if (!isObject(obj)) return false;
   const admin = obj[$fobx];
   if (!admin) return false;
@@ -94,7 +89,7 @@ export const isObservableValueAdmin = (obj: unknown): obj is IObservableValueAdm
  * @param arr the array to check
  * @returns true if the supplied array is observable, false otherwise
  */
-export const isObservableArray = (arr: unknown) => {
+export const isObservableArray = (arr: unknown): boolean => {
   return Array.isArray(arr) && arr[$fobx as unknown as keyof typeof arr] !== undefined;
 };
 export const isObservableArrayAdmin = (obj: unknown): obj is IObservableArrayAdmin => {
@@ -106,7 +101,7 @@ export const isObservableArrayAdmin = (obj: unknown): obj is IObservableArrayAdm
  * @param map the map to check
  * @returns true if the supplied map is observable, false otherwise
  */
-export const isObservableMap = (map: unknown) => {
+export const isObservableMap = (map: unknown): boolean => {
   return map instanceof Map && map[$fobx as unknown as keyof typeof map] !== undefined;
 };
 
@@ -115,7 +110,7 @@ export const isObservableMap = (map: unknown) => {
  * @param set the set to check
  * @returns true if the supplied set is observable, false otherwise
  */
-export const isObservableSet = (set: unknown) => {
+export const isObservableSet = (set: unknown): boolean => {
   return set instanceof Set && set[$fobx as unknown as keyof typeof set] !== undefined;
 };
 
@@ -124,19 +119,18 @@ export const isObservableSet = (set: unknown) => {
  * @param value the value to check
  * @returns true if the supplied value is observable, false otherwise
  */
-export const isObservable = (value: unknown, prop?: PropertyKey) => {
+export const isObservable = (value: unknown, prop?: PropertyKey): boolean => {
   if (!isObject(value)) return false;
   const admin = value[$fobx];
   if (!admin || !isObject(admin)) return false;
-  // TODO: this currently returns true for observable objects, it probably shouldn't (anything using this might need the current behavior)
-  return prop ? admin.values !== undefined && admin.values.has(prop) : "value" in admin || "values" in admin;
+  return prop ? admin.values !== undefined && admin.values.has(prop) : "value" in admin;
 };
 
-export const isAction = (value: unknown) => {
+export const isAction = (value: unknown): boolean => {
   return typeof value === "function" && value[$fobx as unknown as keyof typeof value] === "action";
 };
 
-export const isFlow = (value: unknown) => {
+export const isFlow = (value: unknown): boolean => {
   return typeof value === "function" && value[$fobx as unknown as keyof typeof value] === "flow";
 };
 

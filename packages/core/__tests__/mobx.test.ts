@@ -1,6 +1,8 @@
 import { Bench } from "tinybench";
 
-import * as mobx from "../../../node_modules/mobx/dist/mobx.cjs.production.min";
+//@ts-expect-error - aware of 'missing' type data
+import * as mobx from "mobx/dist/mobx.cjs.production.min";
+//@ts-expect-error - aware of 'missing' type data
 import * as fobx from "../dist/fobx.prod";
 
 // import * as mobx from "mobx";
@@ -17,7 +19,7 @@ test("distance formula", () => {
   const distance = fobx.computed(() => Math.sqrt(xDeltaSq.value + yDeltaSq.value));
   const dispose = fobx.reaction(
     () => distance.value,
-    (newValue) => console.log(`new distance between p1 and p2 is ${newValue}.`)
+    (newValue: unknown) => console.log(`new distance between p1 and p2 is ${newValue}.`)
   );
 
   const adjust = fobx.action((a: { x: number; y: number }, b: { x: number; y: number }) => {

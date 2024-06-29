@@ -1,4 +1,4 @@
-import { IReactionAdmin } from "../types";
+import type { IReactionAdmin } from "../reactions/reaction";
 
 const OVERFLOW = 10_000_000;
 
@@ -43,6 +43,18 @@ interface GlobalState {
    * @returns the next "unique" number
    */
   getNextId: () => number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Any = any;
+
+export type Disposer = () => void;
+
+export type ComparisonType = "default" | "structural";
+export type EqualityChecker = (a: Any, b: Any) => boolean;
+
+export interface IFobxAdmin {
+  name: string;
 }
 
 export const $fobx = Symbol.for("fobx-administration");

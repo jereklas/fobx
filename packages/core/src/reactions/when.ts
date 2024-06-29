@@ -1,5 +1,5 @@
-import { action } from "../transactions/action";
 import { Reaction, ReactionAdmin, type ReactionWithAdmin } from "./reaction";
+import { action } from "../transactions/action";
 import { $fobx } from "../state/global";
 
 const ERR_TIMEOUT = "When reaction hit timeout";

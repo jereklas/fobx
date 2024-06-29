@@ -1,21 +1,15 @@
-/* eslint-disable import/export */
-export type * from "./types";
-
-export { autorun } from "./reactions/autorun";
-export { getDependencyTree, getObserverTree } from "./utils/tree";
-export { observable } from "./observables/observable";
-export { when } from "./reactions/when";
-export { flow } from "./transactions/flow";
-
-export { $fobx, getGlobalState } from "./state/global";
-export { configure } from "./state/instance";
-export { action, runInAction } from "./transactions/action";
-export { createObservableValue } from "./observables/observableValue";
 export { extendObservable, addObservableAdministration } from "./observables/observableObject";
 export { ReactionAdmin, ReactionWithoutBatch, reaction } from "./reactions/reaction";
+export { createObservableValue } from "./observables/observableValue";
+export { getDependencyTree, getObserverTree } from "./utils/tree";
+export { action, runInAction } from "./transactions/action";
+export { $fobx, getGlobalState } from "./state/global";
+export { observable } from "./observables/observable";
 export { computed } from "./reactions/computed";
-
-// TODO: need to update these typescript defs so they just return true/false for public api
+export { autorun } from "./reactions/autorun";
+export { configure } from "./state/instance";
+export { flow } from "./transactions/flow";
+export { when } from "./reactions/when";
 export {
   isObservable,
   isObservableArray,

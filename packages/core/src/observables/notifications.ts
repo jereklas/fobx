@@ -1,4 +1,5 @@
-import type { Any, IObservableValueAdmin } from "../types";
+import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { Any } from "../state/global";
 
 type StaleNotification = {
   type: "stale";
@@ -13,9 +14,7 @@ type ReadyNotification<T> = {
   admin: IObservableValueAdmin<T>;
 };
 
-export type StateNotification<T = Any> =
-  | StaleNotification
-  | ReadyNotification<T>;
+export type StateNotification<T = Any> = StaleNotification | ReadyNotification<T>;
 
 export function sendStale(admin: IObservableValueAdmin) {
   admin.observers.forEach((o) => {
@@ -23,11 +22,7 @@ export function sendStale(admin: IObservableValueAdmin) {
   });
 }
 
-export function sendReady<T>(
-  admin: IObservableValueAdmin<T>,
-  oldValue: unknown,
-  newValue: unknown,
-) {
+export function sendReady<T>(admin: IObservableValueAdmin<T>, oldValue: unknown, newValue: unknown) {
   admin.observers.forEach((o) => {
     o.onStateChange({
       type: "ready",
@@ -39,11 +34,7 @@ export function sendReady<T>(
   });
 }
 
-export function sendChange<T>(
-  admin: IObservableValueAdmin<T>,
-  oldValue: unknown,
-  newValue: unknown,
-) {
+export function sendChange<T>(admin: IObservableValueAdmin<T>, oldValue: unknown, newValue: unknown) {
   admin.observers.forEach((o) => {
     o.onStateChange({
       type: "change",

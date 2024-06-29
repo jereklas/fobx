@@ -1,6 +1,7 @@
-import type { Any, ObservableObjectWithAdmin, ObservableValueOptions } from "./types";
-
 import { $fobx, createObservableValue, addObservableAdministration } from "./fobx";
+import type { ObservableObjectWithAdmin } from "./observables/observableObject";
+import type { ObservableValueOptions } from "./observables/observableValue";
+import type { Any } from "./state/global";
 
 function decorateWithObservable<This, Value>(
   _: unknown,
@@ -16,21 +17,21 @@ function decorateWithObservable<This, Value>(
 
   return {
     get() {
-      // @ts-expect-error
+      // @ts-expect-error - a
       return this[$fobx].values.get(name)!.value;
     },
     set(value) {
-      // @ts-expect-error
+      // @ts-expect-error - a
       this[$fobx].values.get(name)!.value = value;
     },
     init(value) {
       // the first decorator applied to object will need to convert the object to an observable
-      // @ts-expect-error
+      // @ts-expect-error - a
       if (this[$fobx] === undefined) {
-        // @ts-expect-error
+        // @ts-expect-error - a
         addObservableAdministration(this);
       }
-      // @ts-expect-error
+      // @ts-expect-error - a
       this[$fobx].values.set(name, createObservableValue(value, options));
       return value;
     },

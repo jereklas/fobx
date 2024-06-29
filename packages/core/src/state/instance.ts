@@ -1,4 +1,4 @@
-import { Any, ComparisonType, EqualityChecker } from "../types";
+import { Any, ComparisonType, EqualityChecker } from "../state/global";
 
 // structuralCompare isn't on the instanceState object for performance reasons
 let structuralCompare: EqualityChecker | null = null;

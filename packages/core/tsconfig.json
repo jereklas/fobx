@@ -13,5 +13,5 @@
 
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src", "__tests__/mobx.test.ts"]
 }

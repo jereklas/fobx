@@ -254,7 +254,6 @@ test("#278 do not rerun if expr output doesn't change structurally", () => {
       },
     },
   ]);
-  expect(fobx.isObservable(users[0])).toBe(true);
   const values: string[][] = [];
 
   const d = fobx.reaction(

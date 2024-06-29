@@ -1,5 +1,5 @@
-import type { IObservableValueAdmin, IObservableCollectionAdmin } from "../types";
-
+import type { IObservableCollectionAdmin } from "../observables/observable";
+import type { IObservableValueAdmin } from "../observables/observableValue";
 import { trackObservable } from "../transactions/tracking";
 import { getGlobalState } from "../state/global";
 

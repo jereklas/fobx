@@ -1,17 +1,14 @@
 /* eslint-disable no-fallthrough */
-import type { IObservableCollectionAdmin, Any, IReactionAdmin } from "../types";
-
-import { endAction, runInAction, startAction } from "../transactions/action";
-import { sendChange } from "./notifications";
-import { trackObservable } from "../transactions/tracking";
-import { $fobx, getGlobalState } from "../state/global";
-import { instanceState } from "../state/instance";
-
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { isObject, isObservable } from "../utils/predicates";
-
 // eslint-disable-next-line import/no-cycle
-import { observable } from "./observable";
+import { observable, type IObservableCollectionAdmin } from "./observable";
+import { endAction, runInAction, startAction } from "../transactions/action";
+import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
+import { $fobx, getGlobalState, type Any } from "../state/global";
+import { isObject, isObservable } from "../utils/predicates";
+import type { IReactionAdmin } from "../reactions/reaction";
+import { trackObservable } from "../transactions/tracking";
+import { instanceState } from "../state/instance";
+import { sendChange } from "./notifications";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

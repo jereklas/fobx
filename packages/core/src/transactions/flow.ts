@@ -1,8 +1,6 @@
-import type { Any } from "../types";
-
-import { $fobx } from "../state/global";
-import { runInAction } from "./action";
+import { $fobx, type Any } from "../state/global";
 import { isPromise } from "../utils/predicates";
+import { runInAction } from "./action";
 
 export type FlowOptions = {
   name?: string;

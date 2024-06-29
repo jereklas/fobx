@@ -1,6 +1,3 @@
-/* eslint-disable import/export */
-export type * from "./types";
-
 export {
   autorun,
   computed,

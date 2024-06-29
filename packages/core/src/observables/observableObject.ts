@@ -1,5 +1,14 @@
-import type { IObservableValue, IFobxAdmin, Any } from "../types";
-
+// eslint-disable-next-line import/no-cycle
+import { ObservableSet } from "./observableSet";
+// eslint-disable-next-line import/no-cycle
+import { ObservableMap } from "./observableMap";
+// eslint-disable-next-line import/no-cycle
+import { createObservableArray } from "./observableArray";
+import { $fobx, getGlobalState, type IFobxAdmin, type Any } from "../state/global";
+import { createObservableValue, type IObservableValue } from "./observableValue";
+import { createComputedValue } from "../reactions/computed";
+import { action } from "../transactions/action";
+import { flow } from "../transactions/flow";
 import {
   isAction,
   isFlow,
@@ -12,19 +21,6 @@ import {
   isObservableSet,
   isPlainObject,
 } from "../utils/predicates";
-
-import { action } from "../transactions/action";
-import { flow } from "../transactions/flow";
-import { createComputedValue } from "../reactions/computed";
-import { $fobx, getGlobalState } from "../state/global";
-import { createObservableValue } from "./observableValue";
-
-// eslint-disable-next-line import/no-cycle
-import { ObservableSet } from "./observableSet";
-// eslint-disable-next-line import/no-cycle
-import { ObservableMap } from "./observableMap";
-// eslint-disable-next-line import/no-cycle
-import { createObservableArray } from "./observableArray";
 
 export type Annotation = "action" | "action.bound" | "computed" | "flow" | "flow.bound" | "observable" | "none";
 
@@ -120,7 +116,7 @@ const annotateObject = <T extends object, E extends object>(
     return;
   }
 
-  const admin = observableObject[$fobx];
+  const admin = (observableObject as ObservableObjectWithAdmin)[$fobx];
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value;
     const objAnnotations = source === proto ? new Set() : getAnnotations(proto);

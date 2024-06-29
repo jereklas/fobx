@@ -1,6 +1,6 @@
 {
   "name": "@fobx/react",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "React higher order function reaction.",
@@ -38,7 +38,7 @@
     "prepublish": "pnpm tsc && pnpm build"
   },
   "peerDependencies": {
-    "@fobx/core": ">=0.3.0",
+    "@fobx/core": ">=0.4.2",
     "react": ">=18"
   },
   "files": [

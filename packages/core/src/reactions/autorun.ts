@@ -1,6 +1,6 @@
-import { isAction } from "../utils/predicates";
-import { Reaction, ReactionAdmin, ReactionWithAdmin } from "./reaction";
+import { Reaction, ReactionAdmin, type ReactionWithAdmin } from "./reaction";
 import { $fobx, getGlobalState } from "../state/global";
+import { isAction } from "../utils/predicates";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

@@ -1,10 +1,16 @@
-import type { Any, ComparisonType, EqualityChecker, IReactionAdmin, IFobxAdmin } from "../types";
-
-import { runInAction } from "../transactions/action";
-import { $fobx, getGlobalState } from "../state/global";
 import { instanceState, isDifferent } from "../state/instance";
+import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
+import { runInAction } from "../transactions/action";
 import { sendChange } from "./notifications";
+import {
+  $fobx,
+  getGlobalState,
+  type Any,
+  type ComparisonType,
+  type EqualityChecker,
+  type IFobxAdmin,
+} from "../state/global";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

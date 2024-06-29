@@ -1,15 +1,12 @@
-import type { IReactionAdmin, Any, IObservableCollectionAdmin } from "../types";
-
-import { $fobx, getGlobalState } from "../state/global";
+// eslint-disable-next-line import/no-cycle
+import { observable, type IObservableCollectionAdmin } from "./observable";
+import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
+import { $fobx, getGlobalState, type Any } from "../state/global";
+import { isObject, isObservable } from "../utils/predicates";
+import type { IReactionAdmin } from "../reactions/reaction";
+import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
 import { sendChange } from "./notifications";
-import { trackObservable } from "../transactions/tracking";
-
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { isObject, isObservable } from "../utils/predicates";
-
-// eslint-disable-next-line import/no-cycle
-import { observable } from "./observable";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 

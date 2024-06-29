@@ -1,27 +1,44 @@
-import type {
-  ArrayOptions,
-  MapOptions,
-  AnnotationsMap,
-  SetOptions,
-  ObservableValueOptions,
-  ObservableArray,
-  ObservableValue,
-  ObservableObjectOptions,
-  ObservableObject,
-  Any,
-} from "../types";
-
+// eslint-disable-next-line import/no-cycle
+import {
+  createAutoObservableObject,
+  type ObservableObjectWithAdmin,
+  type ObservableObject,
+  type ObservableObjectOptions,
+  type AnnotationsMap,
+} from "./observableObject";
+// eslint-disable-next-line import/no-cycle
+import { ObservableSet, type SetOptions, type ObservableSetWithAdmin } from "./observableSet";
+// eslint-disable-next-line import/no-cycle
+import { ObservableMap, type MapOptions, type ObservableMapWithAdmin } from "./observableMap";
+// eslint-disable-next-line import/no-cycle
+import {
+  createObservableArray,
+  type ObservableArray,
+  type ArrayOptions,
+  type ObservableArrayWithAdmin,
+} from "./observableArray";
 import { isDecoratorContext, isObject, isObservableArray, isObservableMap, isObservableSet } from "../utils/predicates";
-import { createObservableValue } from "./observableValue";
+import type { Any } from "../state/global";
+import {
+  createObservableValue,
+  type ObservableValue,
+  type ObservableValueOptions,
+  type IObservableValueAdmin,
+  type ObservableValueWithAdmin,
+} from "./observableValue";
 
-// eslint-disable-next-line import/no-cycle
-import { createAutoObservableObject } from "./observableObject";
-// eslint-disable-next-line import/no-cycle
-import { ObservableSet } from "./observableSet";
-// eslint-disable-next-line import/no-cycle
-import { ObservableMap } from "./observableMap";
-// eslint-disable-next-line import/no-cycle
-import { createObservableArray } from "./observableArray";
+export interface IObservableCollectionAdmin<T = Any> extends IObservableValueAdmin<T> {
+  changes: number;
+  previous: string;
+  current: string;
+}
+
+export type IObservable =
+  | ObservableValueWithAdmin
+  | ObservableObjectWithAdmin
+  | ObservableArrayWithAdmin
+  | ObservableMapWithAdmin
+  | ObservableSetWithAdmin;
 
 export const observable = ((obj: Any, a?: Any, b?: Any) => {
   if (isDecoratorContext(a)) {

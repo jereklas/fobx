@@ -1,5 +1,5 @@
 import type { IObservableValueAdmin } from "../observables/observableValue";
-import type { IReactionAdmin } from "../reactions/reaction";
+import type { IReactionAdmin, ReactionAdmin } from "../reactions/reaction";
 import { isComputedValueAdmin } from "../utils/predicates";
 import { getGlobalState } from "../state/global";
 import { instanceState } from "../state/instance";
@@ -74,7 +74,7 @@ export function reportExceptionInReaction(reaction: IReactionAdmin, err: unknown
       console.error(`[@fobx/core] "${reaction.name}" threw an exception.`, err);
     }
   }
-  // TODO: call onReactionError
+  instanceState?.onReactionError?.(err, reaction as ReactionAdmin);
 }
 
 export function trackObservable(observable: IObservableValueAdmin) {

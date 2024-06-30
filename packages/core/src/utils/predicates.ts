@@ -1,6 +1,4 @@
-import type { IObservableObjectAdmin, ObservableObjectWithAdmin } from "../observables/observableObject";
-import type { IObservableValueAdmin } from "../observables/observableValue";
-import type { IObservableArrayAdmin } from "../observables/observableArray";
+import type { IObservableObjectAdmin } from "../observables/observableObject";
 import type { IObservableCollectionAdmin } from "../observables/observable";
 import type { IComputedAdmin } from "../reactions/computed";
 import { $fobx, type Any } from "../state/global";
@@ -24,7 +22,7 @@ export const isObject = (obj: unknown): obj is Any => {
  * @returns returns true if object is a plain JS object, false otherwise
  */
 export const isPlainObject = (obj: unknown) => {
-  if (obj === null || typeof obj !== "object") return false;
+  if (!isObject(obj)) return false;
 
   const proto = Object.getPrototypeOf(obj);
   if (proto === null) return true;
@@ -44,12 +42,9 @@ export const isObservableObject = (obj: unknown): boolean => {
   if (!admin) return false;
   return isObservableObjectAdmin(admin);
 };
-export const isObservableObjectAdmin = (obj: unknown): obj is IObservableObjectAdmin => {
+const isObservableObjectAdmin = (obj: unknown): obj is IObservableObjectAdmin => {
   if (!isObject(obj)) return false;
   return (obj as Any).values !== undefined;
-};
-export const isObservableProp = (obj: unknown, prop: PropertyKey): boolean => {
-  return isObservableObject(obj) && (obj as ObservableObjectWithAdmin)[$fobx].values.has(prop);
 };
 
 /**
@@ -69,31 +64,12 @@ export const isComputedValueAdmin = (obj: Any): obj is IComputedAdmin => {
 };
 
 /**
- * Determines if the supplied object is an observable value or not.
- * @param obj the object to check
- * @returns returns true if the object is an observable value, false otherwise
- */
-export const isObservableValue = (obj: unknown): boolean => {
-  if (!isObject(obj)) return false;
-  const admin = obj[$fobx];
-  if (!admin) return false;
-  return isObservableValueAdmin(admin);
-};
-export const isObservableValueAdmin = (obj: unknown): obj is IObservableValueAdmin => {
-  if (!isObject(obj)) return false;
-  return obj.value !== undefined;
-};
-
-/**
  * Determines if supplied array is observable or not.
  * @param arr the array to check
  * @returns true if the supplied array is observable, false otherwise
  */
 export const isObservableArray = (arr: unknown): boolean => {
   return Array.isArray(arr) && arr[$fobx as unknown as keyof typeof arr] !== undefined;
-};
-export const isObservableArrayAdmin = (obj: unknown): obj is IObservableArrayAdmin => {
-  return isObject(obj) && obj.runningAction !== undefined;
 };
 
 /**
@@ -145,7 +121,7 @@ export const isObservableCollection = (obj: unknown): obj is { [$fobx]: IObserva
   if (!admin) return false;
   return isObservableCollectionAdmin(admin);
 };
-export const isObservableCollectionAdmin = (obj: unknown): obj is IObservableCollectionAdmin => {
+const isObservableCollectionAdmin = (obj: unknown): obj is IObservableCollectionAdmin => {
   if (!isObject(obj)) return false;
   return obj.changes !== undefined && obj.previous !== undefined && obj.current !== undefined;
 };

@@ -361,15 +361,8 @@ describe("observableObject", () => {
     expect(reactionFn).toHaveBeenCalledWith([5, 2, 3, 4], [5, 2, 3, 4], r);
 
     const firstArray = o.a as ObservableArrayWithAdmin;
-    expect(fobx.getDependencyTree(r).dependencies.length).toBe(2);
-    expect(
-      fobx
-        .getDependencyTree(r)
-        .dependencies.map((d) => d.name)
-        .includes(firstArray[$fobx].name)
-    ).toBe(true);
-    expect(fobx.getObserverTree(o.a).observers.length).toBe(1);
-    const arrayReactionName = fobx.getObserverTree(o.a).observers[0].name;
+    expect(r[$fobx].dependencies.length).toBe(2);
+    expect(o.a[$fobx].observers.size).toBe(1);
 
     // non observable array being assigned should convert it to an observable array
     o.a = [];
@@ -377,11 +370,10 @@ describe("observableObject", () => {
     expect(fobx.isObservableArray(o.a)).toBe(true);
     expect((o.a as ObservableArrayWithAdmin)[$fobx].name).not.toBe(firstArray[$fobx].name);
     // the observers from the first array should be transferred to the new array
-    expect(fobx.getObserverTree(firstArray).observers.length).toBe(0);
-    expect(fobx.getObserverTree(o.a).observers.length).toBe(1);
-    expect(fobx.getObserverTree(o.a).observers[0].name).toBe(arrayReactionName);
+    expect(firstArray[$fobx].observers.size).toBe(0);
+    expect(o.a[$fobx].observers.size).toBe(1);
     // the reactions observables list should have been adjusted to remove reference to first array
-    const deps = fobx.getDependencyTree(r).dependencies;
+    const deps = r[$fobx].dependencies;
     expect(deps.length).toBe(2);
     expect(deps.map((d) => d.name).includes(firstArray[$fobx].name)).toBe(false);
     expect(deps.map((d) => d.name).includes((o.a as ObservableArrayWithAdmin)[$fobx].name)).toBe(true);
@@ -415,17 +407,18 @@ describe("observableObject", () => {
     fobx.reaction(() => o.b.c.a, reactionFn);
 
     const originalA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
-    expect(fobx.getObserverTree(originalA).observers.length).toBe(1);
-    const reactionName = fobx.getObserverTree(originalA).observers[0].name;
+    expect(originalA[$fobx].observers.size).toBe(1);
+    const [reactionName] = originalA[$fobx].observers;
 
     // replacing with non-observable object converts to observable and re-maps observers
     o.b.c = { a: 1 };
     expect(fobx.isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).not.toHaveBeenCalled(); // not called because a value is still same
-    expect(fobx.getObserverTree(originalA).observers.length).toBe(0);
+    expect(originalA[$fobx].observers.size).toBe(0);
     const secondA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
-    expect(fobx.getObserverTree(secondA).observers.length).toBe(1);
-    expect(fobx.getObserverTree(secondA).observers[0].name).toBe(reactionName);
+    expect(secondA[$fobx].observers.size).toBe(1);
+    const [n] = secondA[$fobx].observers;
+    expect(n).toBe(reactionName);
 
     // verify reaction runs when a changes
     o.b.c.a = 2;
@@ -437,10 +430,11 @@ describe("observableObject", () => {
     expect(fobx.isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).toHaveBeenCalledTimes(2);
     expect(reactionFn).toHaveBeenCalledWith(3, 2, expect.anything());
-    expect(fobx.getObserverTree(secondA).observers.length).toBe(0);
+    expect(secondA[$fobx].observers.size).toBe(0);
     const thirdA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
-    expect(fobx.getObserverTree(thirdA).observers.length).toBe(1);
-    expect(fobx.getObserverTree(thirdA).observers[0].name).toBe(reactionName);
+    expect(thirdA[$fobx].observers.size).toBe(1);
+    const [name] = thirdA[$fobx].observers;
+    expect(name).toBe(reactionName);
 
     // reaction still runs
     o.b.c.a = 4;

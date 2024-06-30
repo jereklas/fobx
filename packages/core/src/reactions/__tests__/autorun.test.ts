@@ -1,15 +1,19 @@
-import * as fobx from "../../src";
+import { observable } from "../../observables/observable";
+import { runInAction } from "../../transactions/action";
+import { configure } from "../../state/instance";
+import { computed } from "../computed";
+import { autorun } from "../autorun";
 
 beforeAll(() => {
-  fobx.configure({ enforceActions: false });
+  configure({ enforceActions: false });
 });
 
 describe("autorun subscriptions happen at end of the autorun body", () => {
   test("autorun with observable", () => {
-    const o = fobx.observable(0);
+    const o = observable(0);
     const seen: number[] = [];
 
-    fobx.autorun(() => {
+    autorun(() => {
       seen.push(o.value);
       if (o.value < 5) o.value += 1;
     });
@@ -22,8 +26,8 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with computed", () => {
-    const o = fobx.observable(0);
-    const c = fobx.computed(
+    const o = observable(0);
+    const c = computed(
       () => o.value,
       (v) => {
         o.value = v;
@@ -32,7 +36,7 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
     const seen: number[] = [];
 
     // make sure computed doesn't behave differently than observables with respect to subscription
-    fobx.autorun(() => {
+    autorun(() => {
       seen.push(c.value);
       if (c.value < 5) c.value += 1;
     });
@@ -45,12 +49,12 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with observables inside of an action", () => {
-    const o = fobx.observable(0);
+    const o = observable(0);
     const seen: number[] = [];
 
     // autorun created inside of action behaves the same as one created outside of an action
-    fobx.runInAction(() => {
-      fobx.autorun(() => {
+    runInAction(() => {
+      autorun(() => {
         seen.push(o.value);
         if (o.value < 5) o.value += 1;
       });
@@ -65,8 +69,8 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with observables inside of an action", () => {
-    const o = fobx.observable(0);
-    const c = fobx.computed(
+    const o = observable(0);
+    const c = computed(
       () => o.value,
       (v) => {
         o.value = v;
@@ -75,8 +79,8 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
     const seen: number[] = [];
 
     // autorun created inside of
-    fobx.runInAction(() => {
-      fobx.autorun(() => {
+    runInAction(() => {
+      autorun(() => {
         seen.push(c.value);
         if (c.value < 5) c.value += 1;
       });

@@ -140,7 +140,7 @@ export function runReactions() {
     if (++iterations === MAX_ITERATIONS) {
       reactions.length = 0;
       if (process.env.NODE_ENV !== "production") {
-        console.error("failed to run reactions");
+        console.error("[@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.");
       }
     }
 

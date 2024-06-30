@@ -1,7 +1,6 @@
 export { extendObservable, addObservableAdministration } from "./observables/observableObject";
 export { ReactionAdmin, ReactionWithoutBatch, reaction } from "./reactions/reaction";
 export { createObservableValue } from "./observables/observableValue";
-export { getDependencyTree, getObserverTree } from "./utils/tree";
 export { action, runInAction } from "./transactions/action";
 export { $fobx, getGlobalState } from "./state/global";
 export { observable } from "./observables/observable";
@@ -18,6 +17,5 @@ export {
   isAction,
   isFlow,
   isObservableObject,
-  isObservableProp,
   isComputed,
 } from "./utils/predicates";

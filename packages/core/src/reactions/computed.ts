@@ -58,7 +58,6 @@ class ComputedAdmin<T> implements IComputedAdmin<T> {
     return true;
   }
   onStateChange(update: StateNotification) {
-    if (this.observers.size === 0) return;
     const { currentlyRunningAction: actionRunning } = globalState;
     switch (update.type) {
       case "stale":

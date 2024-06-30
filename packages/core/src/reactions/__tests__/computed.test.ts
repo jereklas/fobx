@@ -1,26 +1,28 @@
-import type { IObservableValue } from "../../src/types";
-
-import * as fobx from "../../src";
-import { $fobx } from "../../src/state/global";
+import type { IObservableValue, ObservableValueWithAdmin } from "../../observables/observableValue";
+import { observable } from "../../observables/observable";
+import { ComputedWithAdmin, computed } from "../computed";
+import { configure } from "../../state/instance";
+import { $fobx } from "../../state/global";
+import { reaction } from "../reaction";
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false });
+  configure({ enforceActions: false });
 });
 
 describe("Computed", () => {
   test("should not run the computation upon instantiation", () => {
     const fn = jest.fn();
-    fobx.computed(fn);
+    computed(fn);
     expect(fn).not.toHaveBeenCalled();
   });
 });
 
 test("changes to observable array cause computed to re-calculate", () => {
-  const a = fobx.observable([1, 2, 3]);
+  const a = observable([1, 2, 3]);
   const computedFn = jest.fn(() => a[0]);
-  const c = fobx.computed(computedFn);
+  const c = computed(computedFn);
   const reactionFn = jest.fn(() => c.value);
-  const d = fobx.reaction(reactionFn, jest.fn());
+  const d = reaction(reactionFn, jest.fn());
   expect(computedFn).toHaveBeenCalledTimes(1);
   expect(reactionFn).toHaveBeenCalledTimes(1);
 
@@ -45,7 +47,7 @@ test("changes to observable array cause computed to re-calculate", () => {
 describe("computed", () => {
   test("should run computation each time value is accessed when not actively observed", () => {
     const fn = jest.fn();
-    const c = fobx.computed(fn);
+    const c = computed(fn);
     fn.mockClear();
 
     expect(fn).toHaveBeenCalledTimes(0);
@@ -58,14 +60,14 @@ describe("computed", () => {
   });
 
   test("should use cached value each time value is accessed when actively being observed", () => {
-    const obs = fobx.observable(1) as IObservableValue;
+    const obs = observable(1) as IObservableValue;
     const computedFn = jest.fn(() => obs.value + 1);
-    const c = fobx.computed(computedFn);
+    const c = computed(computedFn);
     expect(computedFn).not.toHaveBeenCalled();
 
     // adding computed to reaction causes computed to run
     const reactionFn = jest.fn();
-    const dispose = fobx.reaction(() => c.value, reactionFn);
+    const dispose = reaction(() => c.value, reactionFn);
     expect(computedFn).toHaveBeenCalledTimes(1);
     // subsequent access uses cached value
     expect(c.value).toBe(2);
@@ -76,17 +78,17 @@ describe("computed", () => {
   });
 
   test("should re-compute when any of the observable values change", () => {
-    const o1 = fobx.observable(1) as IObservableValue;
-    const o2 = fobx.observable(2) as IObservableValue;
-    const o3 = fobx.observable(3) as IObservableValue;
+    const o1 = observable(1) as IObservableValue;
+    const o2 = observable(2) as IObservableValue;
+    const o3 = observable(3) as IObservableValue;
     const c1Fn = jest.fn(() => o1.value + o2.value);
-    const c1 = fobx.computed(c1Fn);
+    const c1 = computed(c1Fn);
     const c2Fn = jest.fn(() => c1.value + o3.value);
-    const c2 = fobx.computed(c2Fn);
+    const c2 = computed(c2Fn);
 
     // reaction to make computed run
     const reactionFn = jest.fn();
-    const dispose = fobx.reaction(() => [c1.value, c2.value], reactionFn);
+    const dispose = reaction(() => [c1.value, c2.value], reactionFn);
     expect(c1Fn).toHaveBeenCalledTimes(1);
     expect(c2Fn).toHaveBeenCalledTimes(1);
     expect(c1.value).toBe(3);
@@ -121,9 +123,9 @@ describe("computed", () => {
   });
 
   test("should activate and suspend as expected", () => {
-    const obs = fobx.observable(1) as IObservableValue;
+    const obs = observable(1) as IObservableValue;
     const computedFn = jest.fn(() => obs.value + 1);
-    const c = fobx.computed(computedFn);
+    const c = computed(computedFn) as ComputedWithAdmin;
     computedFn.mockClear();
 
     // computed doesn't run when observable changes because nothing is observing it
@@ -134,7 +136,7 @@ describe("computed", () => {
     expect(c[$fobx].dependencies.length).toBe(0); // computed is lazy so until it's accessed it has no observables
     expect(c[$fobx].observers.size).toBe(0);
     const reactionFn = jest.fn();
-    const d = fobx.reaction(() => c.value, reactionFn);
+    const d = reaction(() => c.value, reactionFn);
     expect(c[$fobx].dependencies.length).toBe(1);
     expect(c[$fobx].observers.size).toBe(1);
     expect(computedFn).toHaveBeenCalledTimes(1);
@@ -169,7 +171,7 @@ describe("computed", () => {
     computedFn.mockClear();
     expect(computedFn).not.toHaveBeenCalled();
     const reactionFn2 = jest.fn();
-    const d2 = fobx.reaction(() => c.value, reactionFn2);
+    const d2 = reaction(() => c.value, reactionFn2);
     expect(c[$fobx].dependencies.length).toBe(1);
     expect(computedFn).toHaveBeenCalledTimes(1);
     // accessing it when active uses cached value
@@ -179,36 +181,54 @@ describe("computed", () => {
   });
 
   test("should dynamically add/remove tracked observables based code branches executed", () => {
-    const a = fobx.observable(10) as IObservableValue;
-    const b = fobx.observable(true) as IObservableValue;
-    const c = fobx.computed(() => {
+    const a = observable(10) as ObservableValueWithAdmin;
+    const b = observable(true) as ObservableValueWithAdmin;
+    const c = computed(() => {
       if (b.value) {
         return a.value;
       }
       return 0;
-    });
+    }) as ComputedWithAdmin;
     expect(c[$fobx].dependencies.length).toBe(0);
 
     // reaction causes computed to run and have both observable values tracked
     const reactionFn = jest.fn();
-    const dispose = fobx.reaction(() => c.value, reactionFn);
+    const dispose = reaction(() => c.value, reactionFn);
     expect(c[$fobx].dependencies.length).toBe(2);
-    expect(c[$fobx].dependencies.includes(a[$fobx])).toBe(true);
-    expect(c[$fobx].dependencies.includes(b[$fobx])).toBe(true);
+    expect(c[$fobx].dependencies.includes(a[$fobx] as never)).toBe(true);
+    expect(c[$fobx].dependencies.includes(b[$fobx] as never)).toBe(true);
 
     // when b is false, a is no longer used
     b.value = false;
     expect(c[$fobx].dependencies.length).toBe(1);
-    expect(c[$fobx].dependencies.includes(a[$fobx])).toBe(false);
+    expect(c[$fobx].dependencies.includes(a[$fobx] as never)).toBe(false);
     expect(a[$fobx].observers.size).toBe(0);
-    expect(c[$fobx].dependencies.includes(b[$fobx])).toBe(true);
+    expect(c[$fobx].dependencies.includes(b[$fobx] as never)).toBe(true);
 
     // returning b to true adds a back to the list of observables
     b.value = true;
     expect(c[$fobx].dependencies.length).toBe(2);
-    expect(c[$fobx].dependencies.includes(a[$fobx])).toBe(true);
+    expect(c[$fobx].dependencies.includes(a[$fobx] as never)).toBe(true);
     expect(a[$fobx].observers.size).toBe(1);
-    expect(c[$fobx].dependencies.includes(b[$fobx])).toBe(true);
+    expect(c[$fobx].dependencies.includes(b[$fobx] as never)).toBe(true);
     dispose();
   });
+});
+
+test("computed value removes references to dependencies", () => {
+  const a = observable(10) as ObservableValueWithAdmin;
+  const c = computed(() => {
+    return a.value + 1;
+  }) as ComputedWithAdmin;
+  expect(c[$fobx].dependencies.length).toBe(0);
+
+  // need a reaction to make computed run
+  const reactionFn = jest.fn();
+  reaction(() => c.value, reactionFn);
+  expect(c[$fobx].dependencies.length).toBe(1);
+  expect(a[$fobx].observers.size).toBe(1);
+
+  c.dispose();
+  expect(c[$fobx].dependencies.length).toBe(0);
+  expect(a[$fobx].observers.size).toBe(0);
 });

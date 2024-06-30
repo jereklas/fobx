@@ -2,7 +2,7 @@ import { Reaction, ReactionAdmin, type ReactionWithAdmin } from "./reaction";
 import { action } from "../transactions/action";
 import { $fobx } from "../state/global";
 
-const ERR_TIMEOUT = "When reaction hit timeout";
+const ERR_TIMEOUT = "When reaction timed out";
 const ERR_CANCEL = "When reaction was canceled";
 const ERR_ABORT = "When reaction was aborted";
 
@@ -23,7 +23,7 @@ export function when(
 ): WhenPromise | (() => void) {
   return typeof effectOrOptions !== "function"
     ? createWhenPromise(predicate, effectOrOptions)
-    : createWhen(predicate, effectOrOptions, options).dispose;
+    : createWhen(predicate, effectOrOptions, options);
 }
 
 function createWhen(predicate: () => boolean, sideEffectFn: () => void, options?: WhenOptions) {
@@ -68,7 +68,9 @@ function createWhen(predicate: () => boolean, sideEffectFn: () => void, options?
     }
   };
   run();
-  return reaction;
+  return () => {
+    reaction.dispose();
+  };
 }
 
 function createWhenPromise(predicate: () => boolean, options?: WhenOptions) {
@@ -79,13 +81,13 @@ function createWhenPromise(predicate: () => boolean, options?: WhenOptions) {
   let cancel!: () => void;
   let abort!: () => void;
   const promise = new Promise((resolve, reject) => {
-    const reaction = createWhen(predicate, resolve as () => void, { ...options, onError: reject });
+    const dispose = createWhen(predicate, resolve as () => void, { ...options, onError: reject });
     cancel = () => {
-      reaction.dispose();
+      dispose();
       reject(new Error(ERR_CANCEL));
     };
     abort = () => {
-      reaction.dispose();
+      dispose();
       reject(new Error(ERR_ABORT));
     };
     options?.signal?.addEventListener("abort", abort);

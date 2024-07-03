@@ -17,6 +17,8 @@ const config = {
   transform: {
     "^.+\\.(t|j)sx?$": ["jest-esbuild", esbuildOptions],
   },
+  // src/fobx.ts and src/index.ts are just barrel exports
+  coveragePathIgnorePatterns: ["src/fobx.ts", "src/index.ts"],
   testPathIgnorePatterns: ["./__tests__/tsc", "./__tests__/perf"],
 };
 module.exports = config;

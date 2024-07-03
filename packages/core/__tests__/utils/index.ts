@@ -55,7 +55,4 @@ test("isObservable correctly identifies observables", () => {
 
   expect(isObservable(observable({}))).toBe(false);
   expect(isObservable(new NonObservableClass())).toBe(false);
-
-  // expect(isObservable(box)).toBe(true);
-  /* here so testing doesn't complain about no tests for this util file */
 });

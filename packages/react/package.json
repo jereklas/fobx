@@ -1,6 +1,6 @@
 {
   "name": "@fobx/react",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "React higher order function reaction.",

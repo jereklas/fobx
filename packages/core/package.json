@@ -1,6 +1,6 @@
 {
   "name": "@fobx/core",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "Fast, reactive state management.",
@@ -39,8 +39,8 @@
     }
   },
   "typesVersions": {
-    "*": {
-      "*": [
+    ".": {
+      ".": [
         "src/index.ts"
       ],
       "decorators": [

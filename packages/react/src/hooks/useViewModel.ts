@@ -8,12 +8,15 @@ const fobxState = getFobxState();
 
 export interface IViewModel<VM extends new (...args: any) => any> {
   update(...args: ConstructorParameters<VM>): void;
-  connected(): void;
-  disconnected(): void;
+  onConnect(): void;
+  onDisconnect(): void;
 }
 
-export class ViewModel<T extends object, E extends HTMLElement = HTMLElement> implements IViewModel<typeof ViewModel> {
-  constructor(props: T) {
+export class ViewModel<T extends object = {}, E extends HTMLElement = HTMLElement>
+  implements IViewModel<typeof ViewModel>
+{
+  // @ts-expect-error - when no props are supplied give default empty object
+  constructor(props: T = {}) {
     const annotations: Record<string, "observable"> = {};
     Object.entries(props).forEach(([key]) => {
       annotations[key] = "observable";
@@ -33,9 +36,9 @@ export class ViewModel<T extends object, E extends HTMLElement = HTMLElement> im
     this.ref = el;
   };
 
-  connected(): void {}
+  onConnect(): void {}
 
-  disconnected(): void {}
+  onDisconnect(): void {}
 
   update(props: T): void {
     Object.assign(this._props, props);
@@ -63,8 +66,8 @@ export function useViewModel<T extends InstanceType<U>, U extends new (...args: 
   isFirstRender.current = false;
 
   useEffect(() => {
-    vm.connected();
-    return () => vm.disconnected();
+    vm.onConnect();
+    return () => vm.onDisconnect();
   }, [vm]);
 
   return vm as InstanceType<T>;

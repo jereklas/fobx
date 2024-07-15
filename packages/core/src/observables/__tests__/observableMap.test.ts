@@ -1,5 +1,6 @@
-import * as fobx from "../../src";
-import { $fobx } from "../../src/state/global";
+import * as fobx from "../..";
+import { $fobx } from "../../state/global";
+import { ObservableMapWithAdmin } from "../observableMap";
 
 beforeEach(() => {
   fobx.configure({ enforceActions: false });
@@ -43,12 +44,14 @@ describe("ObservableMap", () => {
     ${"values"}  | ${"v"}
     ${"keys"}    | ${"a"}
   `("$fn() does not cause reaction unless the iterable.next() is called", ({ fn, expected }) => {
-    const m = fobx.observable(new Map());
+    const m = fobx.observable(new Map()) as ObservableMapWithAdmin;
+    //@ts-expect-error
     fobx.reaction(() => m[fn](), jest.fn());
     expect(m[$fobx].observers.size).toBe(0);
 
     const reactionFn = jest.fn();
     fobx.reaction(() => {
+      // @ts-expect-error
       return m[fn]().next().value;
     }, reactionFn);
     m.set("a", "v");

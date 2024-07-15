@@ -24,11 +24,11 @@ export class ObservableSet<T = Any> extends Set<T> {
   constructor(iterable?: Iterable<unknown> | null | undefined, options?: SetOptions);
   constructor(values: T[] = [], options?: SetOptions) {
     super();
+    const name = `ObservableSet@${globalState.getNextId()}`;
+    this.#deep = options?.deep ?? true;
     values.forEach((v) => {
       this.#add(v);
     });
-    const name = `ObservableSet@${globalState.getNextId()}`;
-    this.#deep = options?.deep ?? true;
     // assigning the constructor to Set allows for deep compares to correctly compare this against other sets
     this.constructor = Set;
     Object.defineProperty(this, $fobx, {

@@ -1,9 +1,7 @@
 import { Bench } from "tinybench";
 
-//@ts-expect-error - aware of 'missing' type data
 import * as mobx from "mobx/dist/mobx.cjs.production.min";
-//@ts-expect-error - aware of 'missing' type data
-import * as fobx from "../dist/fobx.prod";
+import * as fobx from "../../dist/fobx.prod";
 
 // import * as mobx from "mobx";
 // import * as t from ".";

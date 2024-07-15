@@ -1,46 +1,50 @@
-import * as fobx from "../../src";
-import { $fobx } from "../../src/state/global";
-import { ObservableArray } from "../../src/types";
+import { computed } from "../../reactions/computed";
+import { reaction } from "../../reactions/reaction";
+import { $fobx } from "../../state/global";
+import { configure } from "../../state/instance";
+import { isObservableArray } from "../../utils/predicates";
+import { observable } from "../observable";
+import { ObservableArray, ObservableArrayWithAdmin } from "../observableArray";
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false });
+  configure({ enforceActions: false });
 });
 
 test("observable API for arrays successfully constructs arrays", () => {
-  const a = fobx.observable([1, 2, 3]);
+  const a = observable([1, 2, 3]);
   expect(a).toStrictEqual([1, 2, 3]);
-  expect(fobx.isObservableArray(a)).toBe(true);
+  expect(isObservableArray(a)).toBe(true);
 
-  const a2 = fobx.observable([true, false]);
+  const a2 = observable([true, false]);
   expect(a2).toStrictEqual([true, false]);
-  expect(fobx.isObservableArray(a2)).toBe(true);
+  expect(isObservableArray(a2)).toBe(true);
 
-  const a3 = fobx.observable([]);
+  const a3 = observable([]);
   expect(a3).toStrictEqual([]);
-  expect(fobx.isObservableArray(a3)).toBe(true);
+  expect(isObservableArray(a3)).toBe(true);
 
-  const a4 = fobx.observable(["a", "b", "c"]);
+  const a4 = observable(["a", "b", "c"]);
   expect(a4).toStrictEqual(["a", "b", "c"]);
-  expect(fobx.isObservableArray(a4)).toBe(true);
+  expect(isObservableArray(a4)).toBe(true);
 });
 
 describe("ObservableArray", () => {
   test("observing single index of observable array behaves as expected", () => {
-    const a = fobx.observable([1, 2, 3, 4]);
+    const a = observable([1, 2, 3, 4]);
     const computedFn = jest.fn(() => {
       return a[0];
     });
-    const c = fobx.computed(computedFn);
+    const c = computed(computedFn);
     const reactionSideEffect = jest.fn();
     const reactionDataFn = jest.fn(() => a[0]);
-    fobx.reaction(reactionDataFn, reactionSideEffect);
+    reaction(reactionDataFn, reactionSideEffect);
     expect(reactionDataFn).toHaveBeenCalledTimes(1);
     reactionDataFn.mockClear();
 
     // computed runs once something is observing it
     const reactionBasedOnComputed = jest.fn();
     const reactionDataFnBasedOnComputed = jest.fn(() => c.value);
-    fobx.reaction(reactionDataFnBasedOnComputed, reactionBasedOnComputed);
+    reaction(reactionDataFnBasedOnComputed, reactionBasedOnComputed);
     expect(reactionDataFnBasedOnComputed).toHaveBeenCalledTimes(1);
     expect(computedFn).toHaveBeenCalledTimes(1);
     reactionDataFnBasedOnComputed.mockClear();
@@ -93,18 +97,18 @@ describe("ObservableArray", () => {
   });
 
   test("Array.from(observableArray) should always trigger reaction", () => {
-    const a = fobx.observable<number>([]);
+    const a = observable<number>([]);
     const reactionFn = jest.fn();
-    fobx.reaction(() => Array.from(a), reactionFn);
+    reaction(() => Array.from(a), reactionFn);
     a[0] = 1;
     a[0] = 2;
     expect(reactionFn).toHaveBeenCalledTimes(2);
   });
 
   test("a reaction returning an observable array should run reaction when mutation occurs", () => {
-    const a = fobx.observable([] as number[]);
+    const a = observable([] as number[]);
     const reactionFn = jest.fn();
-    fobx.reaction(() => a, reactionFn);
+    reaction(() => a, reactionFn);
     a[0] = 1;
     expect(reactionFn).toHaveBeenCalledTimes(1);
     // assigning same value to index doesn't cause change
@@ -120,11 +124,11 @@ describe("ObservableArray", () => {
   });
 
   test("multiple observable arrays can exist without state bleeding between them", () => {
-    const a = fobx.observable([1, 2, 3]);
-    const b = fobx.observable([4, 5, 6]);
+    const a = observable([1, 2, 3]);
+    const b = observable([4, 5, 6]);
 
     const reactionFn = jest.fn();
-    fobx.reaction(() => {
+    reaction(() => {
       return [a.length, b.length];
     }, reactionFn);
     expect(reactionFn).not.toHaveBeenCalled();
@@ -148,9 +152,9 @@ describe("ObservableArray", () => {
   });
 
   test("previous and current values on reaction are as expected from change to array", () => {
-    const a = fobx.observable([1, 2, 3]);
+    const a = observable([1, 2, 3]);
     const reactionFn = jest.fn();
-    fobx.reaction(() => {
+    reaction(() => {
       return a.map((v) => v * 2);
     }, reactionFn);
     expect(reactionFn).toHaveBeenCalledTimes(0);
@@ -168,14 +172,12 @@ describe("ObservableArray", () => {
   `(
     "$fn() does not cause reaction unless the iterable.next() is called",
     ({ fn, expected }: { fn: keyof Array<number>; expected: number }) => {
-      const a = fobx.observable([] as number[]);
-      //@ts-expect-error - type info can't resolve dynamic function key
-      fobx.reaction(() => a[fn](), jest.fn());
+      const a = observable([] as number[]) as ObservableArrayWithAdmin;
+      reaction(() => a[fn](), jest.fn());
       expect(a[$fobx].observers.size).toBe(0);
 
       const reactionFn = jest.fn();
-      fobx.reaction(() => {
-        //@ts-expect-error - type info can't resolve dynamic function key
+      reaction(() => {
         return a[fn]().next().value;
       }, reactionFn);
       a.push(5);
@@ -194,11 +196,11 @@ describe("ObservableArray", () => {
     ${"slice"}   | ${[]}
     ${"splice"}  | ${[]}
   `("$fn should return non-observable array (it creates a copy)", ({ fn, args }) => {
-    const a = fobx.observable([1, 2, 3]) as ObservableArray;
+    const a = observable([1, 2, 3]) as ObservableArray;
     const result = a[fn](...args);
     // the functions return
     expect(result !== a).toBe(true);
-    expect(!fobx.isObservableArray(result)).toBe(true);
+    expect(!isObservableArray(result)).toBe(true);
   });
 
   test.each`
@@ -208,10 +210,10 @@ describe("ObservableArray", () => {
     ${"toSpliced"}  | ${[]}
     ${"with"}       | ${[]}
   `("$fn should return new Array (non observable)", ({ fn, args }) => {
-    const a = fobx.observable([1, 2, 3]) as ObservableArray;
+    const a = observable([1, 2, 3]) as ObservableArray;
     const result = a[fn](...args);
     // the functions return
     expect(result !== a).toBe(true);
-    expect(!fobx.isObservableArray(result)).toBe(true);
+    expect(!isObservableArray(result)).toBe(true);
   });
 });

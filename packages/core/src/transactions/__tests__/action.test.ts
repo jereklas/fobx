@@ -1,8 +1,12 @@
-import * as fobx from "../../src";
+import { observable } from "../../observables/observable";
+import { computed } from "../../reactions/computed";
+import { reaction } from "../../reactions/reaction";
+import { configure } from "../../state/instance";
+import { action, runInAction } from "../action";
 
 beforeEach(() => {
   // avoid console warnings
-  fobx.configure({ enforceActions: false });
+  configure({ enforceActions: false });
 });
 
 describe("runInAction", () => {
@@ -11,17 +15,17 @@ describe("runInAction", () => {
       return a + b;
     };
 
-    expect(fobx.runInAction(() => a1(1, 2))).toBe(3);
+    expect(runInAction(() => a1(1, 2))).toBe(3);
   });
 
   test("allows multiple observables to be set with only one reaction occurring from those value changes", () => {
-    const o1 = fobx.observable(1);
-    const o2 = fobx.observable(2);
-    const o3 = fobx.observable(3);
+    const o1 = observable(1);
+    const o2 = observable(2);
+    const o3 = observable(3);
     const reactionFn = jest.fn();
     const computedFn = jest.fn(() => o1.value + o2.value + o3.value);
-    const c = fobx.computed(computedFn);
-    const dispose = fobx.reaction(() => {
+    const c = computed(computedFn);
+    const dispose = reaction(() => {
       return [o1.value, o2.value, o3.value, c.value];
     }, reactionFn);
 
@@ -41,7 +45,7 @@ describe("runInAction", () => {
     expect(reactionFn).toHaveBeenCalledTimes(0);
 
     // action changes multiple observables, but the reactions only update once in response
-    const result = fobx.runInAction(() => {
+    const result = runInAction(() => {
       o1.value = 5;
       o2.value = 6;
       o3.value = 7;
@@ -60,6 +64,6 @@ test("action retains original function's prototype", () => {
   Object.defineProperty(fn, "toString", { value: () => "abc" });
   expect(fn.toString()).toBe("abc");
 
-  const a = fobx.action(fn);
+  const a = action(fn);
   expect(a.toString()).toBe("abc");
 });

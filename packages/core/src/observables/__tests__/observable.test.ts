@@ -1,5 +1,5 @@
-import { observable } from "../../src/observables/observable";
-import { grabConsole } from "../utils";
+import { observable } from "../observable";
+import { grabConsole } from "../../../__tests__/utils";
 
 test("class with non-extensible field causes console warning", () => {
   class EInner {}

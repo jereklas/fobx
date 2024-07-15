@@ -7,10 +7,7 @@ export type FlowOptions = {
   getThis?: (that: unknown) => unknown;
 };
 
-export function flow<R, Args extends Any[]>(
-  makeGenerator: (...args: Args) => Generator<unknown, R, unknown>,
-  options?: FlowOptions
-) {
+export function flow<R>(makeGenerator: (...args: Any[]) => Generator<Any, Any, Any>, options?: FlowOptions) {
   const name =
     options?.name && options.name !== ""
       ? options.name
@@ -18,10 +15,10 @@ export function flow<R, Args extends Any[]>(
         ? makeGenerator.name
         : "<unnamed flow>";
 
-  const flow = function (this: unknown, ...args: Args): Promise<R> {
+  const flow = function (this: unknown, ...args: Any[]): Promise<R> {
     const generator = makeGenerator.apply(options?.getThis ? options.getThis(this) : this, args);
 
-    const next = async (value: unknown, resolve: (v: Any) => void, reject: (reason?: Any) => void) => {
+    const next = async (value: Any, resolve: (v: Any) => void, reject: (reason?: Any) => void) => {
       try {
         const result = runInAction(() => generator.next(value));
         value = isPromise(result.value) ? await result.value : result.value;

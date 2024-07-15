@@ -1,17 +1,20 @@
-import { $fobx } from "../../src/state/global";
-import * as fobx from "../../src";
-import { createAutoObservableObject } from "../../src/observables/observableObject";
-import { ObservableArrayWithAdmin, ObservableObjectWithAdmin } from "../../src/types";
+import { reaction, ReactionWithAdmin } from "../../reactions/reaction";
+import { $fobx } from "../../state/global";
+import { configure } from "../../state/instance";
+import { isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
+import { observable } from "../observable";
+import { ObservableArrayWithAdmin } from "../observableArray";
+import { createAutoObservableObject, ObservableObjectWithAdmin } from "../observableObject";
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false });
+  configure({ enforceActions: false });
 });
 
 test("observable API for arrays successfully constructs arrays", () => {
-  const o = fobx.observable({ a: 0 });
+  const o = observable({ a: 0 });
   expect(o).toStrictEqual({ a: 0 });
-  expect(fobx.isObservableObject(o)).toBe(true);
-  expect(fobx.isObservable(o, "a")).toBe(true);
+  expect(isObservableObject(o)).toBe(true);
+  expect(isObservable(o, "a")).toBe(true);
 });
 
 describe("isObservableObject", () => {
@@ -21,7 +24,7 @@ describe("isObservableObject", () => {
     ${"blank object"}                               | ${{}}                                 | ${false}
     ${"fobx administration without 'values' field"} | ${{ [$fobx]: {} }}                    | ${false}
   `("returns $expected when called with $desc", ({ obj, expected }) => {
-    expect(fobx.isObservableObject(obj)).toBe(expected);
+    expect(isObservableObject(obj)).toBe(expected);
   });
 });
 
@@ -46,20 +49,20 @@ describe("observableObject", () => {
   });
 
   test("successfully returns an observable object", () => {
-    const obs = fobx.observable({ a: "a" });
-    expect(fobx.isObservableObject(obs)).toBe(true);
+    const obs = observable({ a: "a" });
+    expect(isObservableObject(obs)).toBe(true);
     expect(obs.a).toBe("a");
   });
 
   test("when called with an observable object returns same object", () => {
-    const obs = fobx.observable({ a: "a" });
-    expect(fobx.observable(obs)).toBe(obs);
+    const obs = observable({ a: "a" });
+    expect(observable(obs)).toBe(obs);
   });
 
   test("computed values recompute as expected", () => {
     let callCount = 0;
-    const o1 = fobx.observable(1);
-    const obj = fobx.observable({
+    const o1 = observable(1);
+    const obj = observable({
       get a() {
         callCount++;
         return o1.value + 1;
@@ -77,7 +80,7 @@ describe("observableObject", () => {
     // hooking it up to a reaction makes it only be called once upon hooking it up to the reaction
     callCount = 0;
     const reactionFn = jest.fn();
-    fobx.reaction(() => obj.a, reactionFn);
+    reaction(() => obj.a, reactionFn);
     expect(callCount).toBe(1);
     expect(obj.a).toBe(3);
     expect(callCount).toBe(1);
@@ -90,7 +93,7 @@ describe("observableObject", () => {
 
   test("computed/action have proper 'this' reference", () => {
     let callCount = 0;
-    const obj = fobx.observable(
+    const obj = observable(
       {
         a: 10,
         inc() {
@@ -105,7 +108,7 @@ describe("observableObject", () => {
       { b: "none" }
     );
     // hooking up reaction to computed causes computed to compute
-    fobx.reaction(() => obj.c, jest.fn());
+    reaction(() => obj.c, jest.fn());
     expect(callCount).toBe(1);
     expect(obj.a).toBe(10);
     expect(obj.b).toBe(1);
@@ -140,13 +143,13 @@ describe("observableObject", () => {
     expect(plainTest()).toBe(undefined);
 
     // 'this' is unbound for object function that isn't marked as an action.
-    const obs = fobx.observable(plain, { test: "none" });
+    const obs = observable(plain, { test: "none" });
     expect(obs.test()).toBe(1);
     const { test: observableTest } = obs;
     expect(observableTest()).toBe(undefined);
 
     // 'this' is unbound for object function marked as an action.
-    const obsWithAction = fobx.observable(plain, { test: "action" });
+    const obsWithAction = observable(plain, { test: "action" });
     expect(obsWithAction.test()).toBe(1);
     const { test: obsWithActionTest } = obsWithAction;
     expect(obsWithActionTest()).toBe(undefined);
@@ -162,7 +165,7 @@ describe("observableObject", () => {
     class WithoutAction {
       b = 1;
       constructor() {
-        fobx.observable(this, { test: "none" });
+        observable(this, { test: "none" });
       }
       test() {
         return this.b;
@@ -171,7 +174,7 @@ describe("observableObject", () => {
     class WithAction {
       b = 1;
       constructor() {
-        fobx.observable(this);
+        observable(this);
       }
       test() {
         return this.b;
@@ -195,7 +198,7 @@ describe("observableObject", () => {
   });
 
   test("$fobx symbol is not writable, configurable, or enumerable", () => {
-    const obj = fobx.observable({ a: "a" });
+    const obj = observable({ a: "a" });
     expect(Object.getOwnPropertyDescriptor(obj, $fobx)).toStrictEqual(
       expect.objectContaining({
         writable: false,
@@ -207,7 +210,7 @@ describe("observableObject", () => {
 
   test("constructing object with computed values defined before the observable works", () => {
     let callCount = 0;
-    const obj = fobx.observable({
+    const obj = observable({
       get a() {
         callCount++;
         return this.c;
@@ -230,7 +233,7 @@ describe("observableObject", () => {
     expect(callCount).toBe(4);
 
     // there is now a non-computed observer, so one more calc happens and now it can cache
-    const d = fobx.reaction(
+    const d = reaction(
       () => obj.b,
       () => {}
     );
@@ -250,7 +253,7 @@ describe("observableObject", () => {
       callCount = 0;
       constructor() {
         this.a = 10;
-        fobx.observable(this, { callCount: "none" });
+        observable(this, { callCount: "none" });
       }
       get b() {
         this.callCount++;
@@ -274,7 +277,7 @@ describe("observableObject", () => {
 
     // adding reaction to a.b causes computed to run again
     const reactionFn = jest.fn();
-    fobx.reaction(() => a.b, reactionFn);
+    reaction(() => a.b, reactionFn);
     expect(a.callCount).toBe(2);
 
     // now that it's observed we cache it
@@ -298,7 +301,7 @@ describe("observableObject", () => {
       a: number;
       constructor() {
         this.a = 10;
-        fobx.observable(this);
+        observable(this);
       }
       get b() {
         timesBCalled++;
@@ -310,7 +313,7 @@ describe("observableObject", () => {
       c = 5;
       constructor() {
         super();
-        fobx.observable(this);
+        observable(this);
       }
       get d() {
         timesDCalled++;
@@ -323,7 +326,7 @@ describe("observableObject", () => {
     expect(timesDCalled).toBe(0);
 
     // connecting to reaction causes it to compute
-    fobx.reaction(() => [b.b, b.d], jest.fn());
+    reaction(() => [b.b, b.d], jest.fn());
     expect(timesBCalled).toBe(1);
     expect(timesDCalled).toBe(1);
 
@@ -341,15 +344,15 @@ describe("observableObject", () => {
   });
 
   test("arrays are turned into ObservableArray as expected", () => {
-    const o = fobx.observable({
+    const o = observable({
       a: [1, 2, 3],
     });
     expect(o.a).toStrictEqual([1, 2, 3]);
-    let r!: fobx.Reaction;
+    let r!: ReactionWithAdmin;
     const reactionFn = jest.fn((o, n, reaction) => {
       r = reaction;
     });
-    fobx.reaction(() => {
+    reaction(() => {
       return o.a;
     }, reactionFn);
 
@@ -362,20 +365,24 @@ describe("observableObject", () => {
 
     const firstArray = o.a as ObservableArrayWithAdmin;
     expect(r[$fobx].dependencies.length).toBe(2);
+    //@ts-expect-error
     expect(o.a[$fobx].observers.size).toBe(1);
 
     // non observable array being assigned should convert it to an observable array
     o.a = [];
     expect(o.a).toStrictEqual([]);
-    expect(fobx.isObservableArray(o.a)).toBe(true);
+    expect(isObservableArray(o.a)).toBe(true);
     expect((o.a as ObservableArrayWithAdmin)[$fobx].name).not.toBe(firstArray[$fobx].name);
     // the observers from the first array should be transferred to the new array
     expect(firstArray[$fobx].observers.size).toBe(0);
+    //@ts-expect-error
     expect(o.a[$fobx].observers.size).toBe(1);
     // the reactions observables list should have been adjusted to remove reference to first array
     const deps = r[$fobx].dependencies;
     expect(deps.length).toBe(2);
+    //@ts-expect-error
     expect(deps.map((d) => d.name).includes(firstArray[$fobx].name)).toBe(false);
+    //@ts-expect-error
     expect(deps.map((d) => d.name).includes((o.a as ObservableArrayWithAdmin)[$fobx].name)).toBe(true);
     // expect the reaction to have run due to value being changed
     expect(reactionFn).toHaveBeenCalledTimes(3);
@@ -396,26 +403,30 @@ describe("observableObject", () => {
         },
       },
     };
-    const o = fobx.observable(a);
+    const o = observable(a);
 
     // observability is not shallow
-    expect(fobx.isObservable(o, "b")).toBe(true);
-    expect(fobx.isObservable(o.b, "c")).toBe(true);
-    expect(fobx.isObservable(o.b.c, "a")).toBe(true);
+    expect(isObservable(o, "b")).toBe(true);
+    expect(isObservable(o.b, "c")).toBe(true);
+    expect(isObservable(o.b.c, "a")).toBe(true);
 
     const reactionFn = jest.fn();
-    fobx.reaction(() => o.b.c.a, reactionFn);
+    reaction(() => o.b.c.a, reactionFn);
 
-    const originalA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
+    const originalA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get(
+      "a"
+    ) as any as ObservableArrayWithAdmin;
     expect(originalA[$fobx].observers.size).toBe(1);
     const [reactionName] = originalA[$fobx].observers;
 
     // replacing with non-observable object converts to observable and re-maps observers
     o.b.c = { a: 1 };
-    expect(fobx.isObservable(o.b, "c")).toBe(true);
+    expect(isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).not.toHaveBeenCalled(); // not called because a value is still same
     expect(originalA[$fobx].observers.size).toBe(0);
-    const secondA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
+    const secondA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get(
+      "a"
+    ) as any as ObservableArrayWithAdmin;
     expect(secondA[$fobx].observers.size).toBe(1);
     const [n] = secondA[$fobx].observers;
     expect(n).toBe(reactionName);
@@ -427,11 +438,13 @@ describe("observableObject", () => {
 
     // replacing with object with new 'a' value causes reaction to run + re-mapped reactions
     o.b.c = { a: 3 };
-    expect(fobx.isObservable(o.b, "c")).toBe(true);
+    expect(isObservable(o.b, "c")).toBe(true);
     expect(reactionFn).toHaveBeenCalledTimes(2);
     expect(reactionFn).toHaveBeenCalledWith(3, 2, expect.anything());
     expect(secondA[$fobx].observers.size).toBe(0);
-    const thirdA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get("a");
+    const thirdA = (o.b.c as unknown as ObservableObjectWithAdmin)[$fobx].values.get(
+      "a"
+    ) as any as ObservableArrayWithAdmin;
     expect(thirdA[$fobx].observers.size).toBe(1);
     const [name] = thirdA[$fobx].observers;
     expect(name).toBe(reactionName);

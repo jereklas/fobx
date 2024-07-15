@@ -1,13 +1,13 @@
 import { isObservable, observable } from "../../src";
 
-export function suppressConsole(block) {
+export function suppressConsole(block: Function) {
   const messages: string[] = [];
   const { warn, error } = console;
   Object.assign(console, {
-    warn(e) {
+    warn(e: any) {
       messages.push("<STDOUT> " + e);
     },
-    error(e) {
+    error(e: any) {
       messages.push("<STDERR> " + e);
     },
   });
@@ -19,7 +19,7 @@ export function suppressConsole(block) {
   return messages;
 }
 
-export function grabConsole(block) {
+export function grabConsole(block: Function) {
   return suppressConsole(block).join("\n");
 }
 

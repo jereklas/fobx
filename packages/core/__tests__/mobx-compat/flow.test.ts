@@ -1,7 +1,7 @@
 import * as fobx from "../../src";
 
-function delay(time, value, shouldThrow = false) {
-  return new Promise((resolve, reject) => {
+function delay<T>(time, value: T, shouldThrow = false) {
+  return new Promise<T>((resolve, reject) => {
     setTimeout(() => {
       if (shouldThrow) reject(value);
       else resolve(value);

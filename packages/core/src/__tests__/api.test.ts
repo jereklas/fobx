@@ -1,4 +1,4 @@
-import * as fobx from "../src";
+import * as fobx from "..";
 
 test("library has expected exports", () => {
   expect(Object.keys(fobx).sort()).toStrictEqual([

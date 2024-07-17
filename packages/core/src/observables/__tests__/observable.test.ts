@@ -1,5 +1,19 @@
 import { observable } from "../observable";
 import { grabConsole } from "../../../__tests__/utils";
+import { isObservable } from "../../fobx";
+
+test("creating an observable object with shallow=true works correctly", () => {
+  const shallow = observable({ a: { b: "c" } }, {}, { shallow: true });
+  const deep = observable({ a: { b: "c" } });
+
+  // first level is always observable
+  expect(isObservable(deep, "a")).toBe(true);
+  expect(isObservable(shallow, "a")).toBe(true);
+
+  // second level is not observable when shallow is used
+  expect(isObservable(deep.a, "b")).toBe(true);
+  expect(isObservable(shallow.a, "b")).toBe(false);
+});
 
 test("class with non-extensible field causes console warning", () => {
   class EInner {}

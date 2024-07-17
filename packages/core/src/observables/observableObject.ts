@@ -74,7 +74,7 @@ export const createAutoObservableObject = <T extends object>(
   overrides: AnnotationsMap<T> = {},
   options?: ObservableObjectOptions
 ) => {
-  options = options ? { ...options, shallow: false } : { shallow: false };
+  options = options ? { shallow: false, ...options } : { shallow: false };
   return createObservableObject(obj, getAutoObservableAnnotationsMap(obj, overrides), options);
 };
 

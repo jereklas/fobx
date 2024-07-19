@@ -12,9 +12,7 @@ export interface IViewModel<VM extends new (...args: any) => any> {
   onDisconnect(): void;
 }
 
-export class ViewModel<T extends object = {}, E extends HTMLElement = HTMLElement>
-  implements IViewModel<typeof ViewModel>
-{
+export class ViewModel<T extends object = {}, E extends Element = HTMLElement> implements IViewModel<typeof ViewModel> {
   // @ts-expect-error - when no props are supplied give default empty object
   constructor(props: T = {}) {
     const annotations: Record<string, "observable"> = {};

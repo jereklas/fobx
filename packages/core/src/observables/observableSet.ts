@@ -14,10 +14,10 @@ export type ObservableSetWithAdmin<T = Any> = ObservableSet<T> & {
   [$fobx]: IObservableCollectionAdmin<T>;
 };
 export type SetOptions = {
-  deep?: boolean;
+  shallow?: boolean;
 };
 export class ObservableSet<T = Any> extends Set<T> {
-  #deep: boolean;
+  #shallow: boolean;
 
   constructor();
   constructor(values?: T[], options?: SetOptions);
@@ -25,7 +25,7 @@ export class ObservableSet<T = Any> extends Set<T> {
   constructor(values: T[] = [], options?: SetOptions) {
     super();
     const name = `ObservableSet@${globalState.getNextId()}`;
-    this.#deep = options?.deep ?? true;
+    this.#shallow = options?.shallow ?? false;
     values.forEach((v) => {
       this.#add(v);
     });
@@ -47,7 +47,7 @@ export class ObservableSet<T = Any> extends Set<T> {
     return `[object ObservableSet]`;
   }
   #add(value: T) {
-    const val = this.#deep && isObject(value) && !isObservable(value) ? (observable(value) as T) : value;
+    const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as T) : value;
     super.add(val);
   }
   add(value: T) {

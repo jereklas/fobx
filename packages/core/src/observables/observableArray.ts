@@ -4,7 +4,7 @@ import { observable, type IObservableCollectionAdmin } from "./observable";
 import { endAction, runInAction, startAction } from "../transactions/action";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
-import { isObject, isObservable } from "../utils/predicates";
+import { isObject, isObservable, isObservableObject } from "../utils/predicates";
 import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { instanceState } from "../state/instance";
@@ -13,7 +13,7 @@ import { sendChange } from "./notifications";
 const globalState = /* @__PURE__ */ getGlobalState();
 
 export type ArrayOptions = {
-  deep?: boolean;
+  shallow?: boolean;
 };
 
 export interface ObservableArrayWithAdmin<T = Any> extends ObservableArray<T> {
@@ -31,12 +31,12 @@ export interface IObservableArrayAdmin<T = Any> extends IObservableCollectionAdm
 }
 
 export function createObservableArray<T = Any>(initialValue: T[] = [], options?: ArrayOptions) {
-  const deep = options?.deep ?? true;
+  const shallow = options?.shallow ?? false;
   const arr: T[] = [];
   // have to use for-loop as forEach ignores empty slots (i.e. observable(new Array(10)) wont correctly be length 10)
   for (let i = 0; i < initialValue.length; i += 1) {
     arr.push(
-      deep && isObject(initialValue[i]) && !isObservable(initialValue[i])
+      !shallow && isObject(initialValue[i]) && !isObservable(initialValue[i])
         ? (observable(initialValue[i]) as T)
         : initialValue[i]
     );
@@ -158,12 +158,12 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
             if (prop === "push" || prop === "unshift" || prop === "splice") {
               const start = prop === "splice" ? 2 : 0;
               for (let i = start; i < args.length; i += 1) {
-                args[i] = convertValue(args[i], deep);
+                args[i] = convertValue(args[i], shallow);
               }
               result = value.apply(target, args);
             } else if (prop === "replace") {
               for (let i = 0; i < args[0].length; i += 1) {
-                args[0][i] = convertValue(args[0][i], deep);
+                args[0][i] = convertValue(args[0][i], shallow);
               }
               result = value.apply(target, args);
             } else {
@@ -187,7 +187,7 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
         incrementChangeCount(admin);
 
         runInAction(() => {
-          target[prop as unknown as number] = prop === "length" ? newValue : convertValue(newValue, deep);
+          target[prop as unknown as number] = prop === "length" ? newValue : convertValue(newValue, shallow);
           sendChange(admin, admin.previous, admin.current);
         });
       }
@@ -228,8 +228,8 @@ const twoArgFns = new Set([
 ]);
 const threeArgFns = new Set(["copyWithin", "fill"]);
 
-function convertValue<T>(value: T, deep: boolean) {
-  if (!deep) return value;
+function convertValue<T>(value: T, shallow: boolean) {
+  if (shallow) return value;
   return isObject(value) && !isObservable(value) ? (observable(value) as T) : value;
 }
 

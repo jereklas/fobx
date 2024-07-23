@@ -1,18 +1,37 @@
 import { observable } from "../observable";
 import { grabConsole } from "../../../__tests__/utils";
-import { isObservable } from "../../fobx";
+import {
+  isObservable,
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet,
+} from "../../utils/predicates";
 
 test("creating an observable object with shallow=true works correctly", () => {
-  const shallow = observable({ a: { b: "c" } }, {}, { shallow: true });
-  const deep = observable({ a: { b: "c" } });
+  const obj = { a: { b: "c" }, arr: [], set: new Set(), map: new Map() };
+  const shallow = observable(obj, {}, { shallow: true });
+  const deep = observable(obj);
 
-  // first level is always observable
+  // the first level props are always observable
   expect(isObservable(deep, "a")).toBe(true);
+  expect(isObservable(deep, "arr")).toBe(true);
+  expect(isObservable(deep, "set")).toBe(true);
+  expect(isObservable(deep, "map")).toBe(true);
   expect(isObservable(shallow, "a")).toBe(true);
+  expect(isObservable(shallow, "arr")).toBe(true);
+  expect(isObservable(shallow, "set")).toBe(true);
+  expect(isObservable(shallow, "map")).toBe(true);
 
-  // second level is not observable when shallow is used
-  expect(isObservable(deep.a, "b")).toBe(true);
-  expect(isObservable(shallow.a, "b")).toBe(false);
+  // the value of those props are not observable on the shallow observable
+  expect(isObservableObject(deep.a)).toBe(true);
+  expect(isObservableArray(deep.arr)).toBe(true);
+  expect(isObservableSet(deep.set)).toBe(true);
+  expect(isObservableMap(deep.map)).toBe(true);
+  expect(isObservableObject(shallow.a)).toBe(false);
+  expect(isObservableArray(shallow.arr)).toBe(false);
+  expect(isObservableSet(shallow.set)).toBe(false);
+  expect(isObservableMap(shallow.map)).toBe(false);
 });
 
 test("class with non-extensible field causes console warning", () => {

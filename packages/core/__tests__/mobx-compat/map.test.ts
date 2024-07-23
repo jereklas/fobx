@@ -8,8 +8,8 @@ beforeEach(() => {
 });
 
 test("map crud", function () {
-  const m = fobx.observable(new Map<fobx.Any, string>([[1, "a"]]));
-  const changes: Map<fobx.Any, fobx.Any>[] = [];
+  const m = fobx.observable(new Map<any, string>([[1, "a"]]));
+  const changes: Map<any, any>[] = [];
 
   fobx.reaction(
     () => m,
@@ -51,7 +51,7 @@ test("map crud", function () {
     [s, "symbol-value"],
   ]);
   expect(new Map(m)).toEqual(
-    new Map<fobx.Any, fobx.Any>([
+    new Map<any, any>([
       [1, "aa"],
       ["1", "b"],
       [k, "arrVal"],
@@ -75,16 +75,16 @@ test("map crud", function () {
 
   expect(changes).toStrictEqual([
     new Map([[1, "aa"]]),
-    new Map<fobx.Any, fobx.Any>([
+    new Map<any, any>([
       [1, "aa"],
       ["1", "b"],
     ]),
-    new Map<fobx.Any, fobx.Any>([
+    new Map<any, any>([
       [1, "aa"],
       ["1", "b"],
       [["arr"], "arrVal"],
     ]),
-    new Map<fobx.Any, fobx.Any>([
+    new Map<any, any>([
       [1, "aa"],
       ["1", "b"],
       [k, "arrVal"],
@@ -259,7 +259,7 @@ test("issue 100", function () {
 });
 
 test("issue 119 - unobserve before delete", function () {
-  const propValues: fobx.Any[] = [];
+  const propValues: any[] = [];
   const myObservable = fobx.observable({
     myMap: fobx.observable(new Map()),
   });
@@ -290,7 +290,7 @@ test("issue 116 - has should not throw on invalid keys", function () {
 });
 
 test("map modifier", () => {
-  let x = fobx.observable(new Map<fobx.Any, fobx.Any>([["a", 1]]));
+  let x = fobx.observable(new Map<any, any>([["a", 1]]));
   expect(fobx.isObservableMap(x)).toBe(true);
   expect(x.get("a")).toBe(1);
   x.set("b", {});
@@ -310,17 +310,17 @@ test("map modifier", () => {
 });
 
 test("map modifier with modifier", () => {
-  let x = fobx.observable(new Map<fobx.Any, fobx.Any>([["a", { c: 3 }]]));
+  let x = fobx.observable(new Map<any, any>([["a", { c: 3 }]]));
   expect(fobx.isObservableObject(x.get("a"))).toBe(true);
   x.set("b", { d: 4 });
   expect(fobx.isObservableObject(x.get("b"))).toBe(true);
 
-  x = fobx.observable(new Map([["a", { c: 3 }]]), { deep: false });
+  x = fobx.observable(new Map([["a", { c: 3 }]]), { shallow: true });
   expect(fobx.isObservableObject(x.get("a"))).toBe(false);
   x.set("b", { d: 4 });
   expect(fobx.isObservableObject(x.get("b"))).toBe(false);
 
-  const y = fobx.observable({ a: fobx.observable(new Map([["b", {}]]), { deep: false }) });
+  const y = fobx.observable({ a: fobx.observable(new Map([["b", {}]]), { shallow: true }) });
   expect(fobx.isObservableObject(y)).toBe(true);
   expect(fobx.isObservableMap(y.a)).toBe(true);
   expect(fobx.isObservableObject(y.a.get("b"))).toBe(false);
@@ -403,7 +403,7 @@ test("map should support iterall / iterable ", () => {
   );
 
   function leech(iter) {
-    const values: fobx.Any[] = [];
+    const values: any[] = [];
     let v;
     do {
       v = iter.next();
@@ -493,7 +493,7 @@ test("using deep map", () => {
   const store = {
     map_deep: fobx.observable(new Map()),
   };
-  const seen: fobx.Any[] = [];
+  const seen: any[] = [];
 
   // Creating autorun triggers one observation, hence -1
   let observed = -1;
@@ -751,7 +751,7 @@ test("can iterate maps", () => {
 });
 
 function iteratorToArray(it) {
-  const res: fobx.Any[] = [];
+  const res: any[] = [];
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const r = it.next();

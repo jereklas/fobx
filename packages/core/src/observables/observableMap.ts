@@ -19,13 +19,13 @@ import {
 export type ObservableMapWithAdmin = ObservableMap & {
   [$fobx]: IObservableCollectionAdmin;
 };
-export type MapOptions = { deep?: boolean };
+export type MapOptions = { shallow?: boolean };
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
 export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   #keys: ObservableSetWithAdmin<K>;
-  #deep = true;
+  #shallow: boolean;
   toString() {
     return `[object ObservableMap]`;
   }
@@ -43,7 +43,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     super();
     const name = `ObservableMap@${globalState.getNextId()}`;
-    this.#deep = options?.deep ?? true;
+    this.#shallow = options?.shallow ?? false;
     this.#keys = observable<K>(new Set<K>()) as ObservableSetWithAdmin;
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
     this.constructor = Map;
@@ -77,7 +77,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     return result;
   }
   #set(this: ObservableMap, key: K, value: V, reusableValues: Map<K, V> = new Map()) {
-    const val = this.#deep && isObject(value) && !isObservable(value) ? (observable(value) as V) : value;
+    const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as V) : value;
     const reused = reusableValues.get(key) as IObservableValue<V>;
     const ov = reused ?? (super.get(key) as IObservableValue<V>);
     this.#keys.add(key);

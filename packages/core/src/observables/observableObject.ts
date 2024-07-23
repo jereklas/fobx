@@ -132,42 +132,46 @@ const annotateObject = <T extends object, E extends object>(
         }
         const value = source[key as keyof typeof source];
         let ov: IObservableValue;
-        if (Array.isArray(value)) {
-          const array = isObservableArray(value) ? value : createObservableArray(value);
-          ov = createObservableValue(array, {
-            valueTransform: (v) => {
-              if (!isObservableArray(v)) return createObservableArray(v);
-              return v;
-            },
-          });
-        } else if (value instanceof Map) {
-          const map = isObservableMap(value) ? value : new ObservableMap(value.entries());
-          ov = createObservableValue(map, {
-            valueTransform: (v) => {
-              if (!isObservableMap(v)) return new ObservableMap(v.entries());
-              return v;
-            },
-          });
-        } else if (value instanceof Set) {
-          const set = isObservableSet(value) ? value : new ObservableSet(value);
-          ov = createObservableValue(set, {
-            valueTransform: (v) => {
-              if (!isObservableSet(v)) return new ObservableSet(v);
-              return v;
-            },
-          });
-        } else if (options?.shallow === false && isObject(value)) {
-          const obj = isObservable(value) ? value : createAutoObservableObject(value as object, {});
-          ov = createObservableValue(obj, {
-            valueTransform: (v) => {
-              if (isObject(v) && !isObservable(v)) {
-                return createAutoObservableObject(v as object, {});
-              }
-              return v;
-            },
-          });
-        } else {
+        if (options.shallow) {
           ov = createObservableValue(value);
+        } else {
+          if (Array.isArray(value)) {
+            const array = isObservableArray(value) ? value : createObservableArray(value);
+            ov = createObservableValue(array, {
+              valueTransform: (v) => {
+                if (!isObservableArray(v)) return createObservableArray(v);
+                return v;
+              },
+            });
+          } else if (value instanceof Map) {
+            const map = isObservableMap(value) ? value : new ObservableMap(value.entries());
+            ov = createObservableValue(map, {
+              valueTransform: (v) => {
+                if (!isObservableMap(v)) return new ObservableMap(v.entries());
+                return v;
+              },
+            });
+          } else if (value instanceof Set) {
+            const set = isObservableSet(value) ? value : new ObservableSet(value);
+            ov = createObservableValue(set, {
+              valueTransform: (v) => {
+                if (!isObservableSet(v)) return new ObservableSet(v);
+                return v;
+              },
+            });
+          } else if (isObject(value)) {
+            const obj = isObservable(value) ? value : createAutoObservableObject(value as object);
+            ov = createObservableValue(obj, {
+              valueTransform: (v) => {
+                if (isObject(v) && !isObservable(v)) {
+                  return createAutoObservableObject(v as object);
+                }
+                return v;
+              },
+            });
+          } else {
+            ov = createObservableValue(value);
+          }
         }
         admin.values.set(key, ov);
         Object.defineProperty(observableObject, key, {

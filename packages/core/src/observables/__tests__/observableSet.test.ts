@@ -80,8 +80,8 @@ test("ObservableSet makes values observable", () => {
   expect(isObservable(values[1], "a")).toBe(true);
 });
 
-test("ObservableSet does not make values observable when deep = false", () => {
-  const set = new ObservableSet([{ a: "a" }], { deep: false });
+test("ObservableSet does not make values observable when shallow = true", () => {
+  const set = new ObservableSet([{ a: "a" }], { shallow: true });
   set.add({ a: "b" });
   const values = Array.from(set);
 

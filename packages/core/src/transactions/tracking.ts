@@ -91,6 +91,8 @@ export function removeAllDependencies(reaction: IReactionAdmin) {
   dependencies.forEach((dep) => {
     dep.observers.delete(reaction);
     if (dep.observers.size === 0 && isComputedValueAdmin(dep)) {
+      // must explicitly reset this so next time computed becomes active is correctly re-computes
+      dep.previousObserverCount = 0;
       removeAllDependencies(dep);
     }
   });

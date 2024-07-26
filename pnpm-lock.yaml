@@ -80,8 +80,8 @@ importers:
   packages/react:
     dependencies:
       '@fobx/core':
-        specifier: '>=0.4.2'
-        version: 0.4.3
+        specifier: '>=0.5.0'
+        version: 0.5.0
       react:
         specifier: '>=18'
         version: 18.3.1
@@ -573,8 +573,8 @@ packages:
     resolution: {integrity: sha512-BsWiH1yFGjXXS2yvrf5LyuoSIIbPrGUWob917o+BTKuZ7qJdxX8aJLRxs1fS9n6r7vESrq1OUqb68dANcFXuQQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@fobx/core@0.4.3':
-    resolution: {integrity: sha512-tQNQ0P9stUXh4vxrPYj1FZ2x4i37HxgXoM/IXLHUzui15CmphYnKcK5DbPLuq6EHS99EM1+dBLGpxzZKPQiN5A==}
+  '@fobx/core@0.5.0':
+    resolution: {integrity: sha512-kNBQOqQvkU+2GbaZNHgnTf1xLulnP2i7tANENkrWJcB1MHlTTA9g6MQUvSVpunOp2VovxUaPtV9U0vVVbeRO8Q==}
 
   '@humanwhocodes/module-importer@1.0.1':
     resolution: {integrity: sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==}
@@ -2939,7 +2939,7 @@ snapshots:
 
   '@eslint/object-schema@2.1.4': {}
 
-  '@fobx/core@0.4.3': {}
+  '@fobx/core@0.5.0': {}
 
   '@humanwhocodes/module-importer@1.0.1': {}
 

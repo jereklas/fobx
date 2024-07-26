@@ -1,13 +1,45 @@
 import { reaction, ReactionWithAdmin } from "../../reactions/reaction";
 import { $fobx } from "../../state/global";
 import { configure } from "../../state/instance";
-import { isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
+import { isComputed, isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
 import { observable } from "../observable";
 import { ObservableArrayWithAdmin } from "../observableArray";
 import { createAutoObservableObject, ObservableObjectWithAdmin } from "../observableObject";
 
 beforeEach(() => {
   configure({ enforceActions: false });
+});
+
+test("observable(this) called in both super and base class does not incorrectly re-assign observables to computeds", () => {
+  class ViewModel<T extends object = {}> {
+    constructor(props: T) {
+      const annotations: Record<string, "observable"> = {};
+      Object.entries(props).forEach(([key]) => {
+        annotations[key] = "observable";
+      });
+      this._props = observable(props, annotations, { shallow: true });
+      observable(this);
+    }
+
+    get props() {
+      return this._props;
+    }
+    private _props: T;
+  }
+
+  class BaseVm extends ViewModel<{ a: number }> {
+    constructor(props: { a: number }) {
+      super(props);
+      observable(this);
+    }
+
+    get classes() {
+      return [this.props.a];
+    }
+  }
+
+  const vm = new BaseVm({ a: 1 });
+  expect(isComputed(vm, "_props")).toBe(false);
 });
 
 test("observable API for arrays successfully constructs arrays", () => {

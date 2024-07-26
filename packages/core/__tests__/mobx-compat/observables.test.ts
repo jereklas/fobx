@@ -1,8 +1,8 @@
 import * as fobx from "../../src";
 import { getGlobalState, $fobx } from "../../src/state/global";
 import { deepEqual } from "fast-equals";
-import { IObservableValue } from "../../src/types";
 import { grabConsole, suppressConsole } from "../utils";
+import { ObservableValue, ObservableValueWithAdmin } from "../../src/observables/observableValue";
 
 beforeAll(() => {
   fobx.configure({ comparer: { structural: deepEqual } });
@@ -179,7 +179,7 @@ test("readme1", function () {
   const b: number[] = [];
 
   const vat = fobx.observable(0.2);
-  const order = {} as { price: fobx.ObservableValue<number>; priceWithVat: fobx.ObservableValue<number> };
+  const order = {} as { price: ObservableValue<number>; priceWithVat: ObservableValue<number> };
   order.price = fobx.observable(10);
   // Prints: New price: 24
   // in TS, just: value(() => this.price() * (1+vat()))
@@ -755,7 +755,7 @@ test("verify array in transaction", function () {
 });
 
 test("prematurely end autorun", function () {
-  const x = fobx.observable(2) as IObservableValue;
+  const x = fobx.observable(2) as ObservableValueWithAdmin;
   let dis1, dis2, r1, r2;
   fobx.runInAction(function () {
     dis1 = fobx.autorun(function (r) {
@@ -837,7 +837,7 @@ test("computed values believe deep NaN === deep NaN when using compareStructural
 
 test("issue 71, transacting running transformation", function () {
   const state = fobx.observable({
-    things: [] as fobx.Any[],
+    things: [] as any[],
   });
 
   function Thing(value) {

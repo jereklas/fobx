@@ -116,23 +116,30 @@ const annotateObject = <T extends object, E extends object>(
     return;
   }
 
+  const { addToPrototype, annotations, shallow } = options;
+  const sourceIsPlainObj = isPlainObject(source);
   const admin = (observableObject as ObservableObjectWithAdmin)[$fobx];
+
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value;
-    const objAnnotations = source === proto ? new Set() : getAnnotations(proto);
-    if (objAnnotations.has(key)) {
+
+    const isPrototype = !sourceIsPlainObj && source === proto;
+    const protoAnnotations = isPrototype ? getAnnotations(proto) : new Set();
+    const objAnnotations = sourceIsPlainObj ? new Set() : getAnnotations(source);
+    if (objAnnotations.has(key) || (addToPrototype && protoAnnotations.has(key))) {
       return;
     }
 
-    const annotation = options.annotations[key as keyof typeof options.annotations];
+    const annotation = annotations[key as keyof typeof annotations];
     switch (annotation) {
       case "observable": {
+        objAnnotations.add(key);
         if (desc.get || desc.set) {
           throw new Error(`[@fobx/core] "observable" cannot be used on getter/setter properties`);
         }
         const value = source[key as keyof typeof source];
         let ov: IObservableValue;
-        if (options.shallow) {
+        if (shallow) {
           ov = createObservableValue(value);
         } else {
           if (Array.isArray(value)) {
@@ -185,6 +192,7 @@ const annotateObject = <T extends object, E extends object>(
         break;
       }
       case "computed": {
+        objAnnotations.add(key);
         if (!desc || !desc.get) {
           throw new Error(`[@fobx/core] "${key}" property was marked as computed but object has no getter.`);
         }
@@ -208,21 +216,23 @@ const annotateObject = <T extends object, E extends object>(
           throw new Error(`[@fobx/core] "${key}" was marked as an action but it is not a function.`);
         }
         // someone used action() directly and assigned it as a instance member of class
-        if (options.addToPrototype && isAction(desc.value)) break;
+        if (addToPrototype && isAction(desc.value)) break;
 
-        Object.defineProperty(options.addToPrototype ? proto : observableObject, key, {
+        Object.defineProperty(addToPrototype ? proto : observableObject, key, {
           value: action(desc.value, {
             name: key,
             getThis: (that: unknown) => {
               if (annotation === "action.bound") return observableObject;
-              return options.addToPrototype && that === globalThis ? undefined : that;
+              return addToPrototype && that === globalThis ? undefined : that;
             },
           }),
           enumerable: true,
           configurable: false,
           writable: true,
         });
-        if (options.addToPrototype) {
+        if (addToPrototype) {
+          protoAnnotations.add(key);
+        } else {
           objAnnotations.add(key);
         }
         break;
@@ -234,21 +244,23 @@ const annotateObject = <T extends object, E extends object>(
         }
 
         // someone used flow() directly and assigned it as a instance member of class
-        if (options.addToPrototype && isFlow(desc.value)) break;
+        if (addToPrototype && isFlow(desc.value)) break;
 
-        Object.defineProperty(options.addToPrototype ? proto : observableObject, key, {
+        Object.defineProperty(addToPrototype ? proto : observableObject, key, {
           value: flow(desc.value, {
             name: key,
             getThis: (that: unknown) => {
               if (annotation === "flow.bound") return observableObject;
-              return options.addToPrototype && that === globalThis ? undefined : that;
+              return addToPrototype && that === globalThis ? undefined : that;
             },
           }),
           enumerable: true,
           configurable: false,
           writable: false,
         });
-        if (options.addToPrototype) {
+        if (addToPrototype) {
+          protoAnnotations.add(key);
+        } else {
           objAnnotations.add(key);
         }
         break;
@@ -258,7 +270,7 @@ const annotateObject = <T extends object, E extends object>(
         if (key !== "constructor" && annotation && annotation !== "none") {
           throw Error(`[@fobx/core] "${annotation}" is not a valid annotation.`);
         }
-        if (!options.addToPrototype) {
+        if (!addToPrototype) {
           Object.defineProperty(observableObject, key, desc);
         }
       }

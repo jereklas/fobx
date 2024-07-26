@@ -16,10 +16,12 @@ export class ViewModel<T extends object = {}, E extends Element = HTMLElement> i
   // @ts-expect-error - when no props are supplied give default empty object
   constructor(props: T = {}) {
     const annotations: Record<string, "observable"> = {};
-    Object.entries(props).forEach(([key]) => {
+    // spreading to remove all non-enumerable props (e.g. react's ref prop)
+    const newProps = { ...props };
+    Object.entries(newProps).forEach(([key]) => {
       annotations[key] = "observable";
     });
-    this._props = observable(props, annotations, { shallow: true });
+    this._props = observable(newProps, annotations, { shallow: true });
     observable(this);
   }
 

@@ -52,11 +52,13 @@ const isObservableObjectAdmin = (obj: unknown): obj is IObservableObjectAdmin =>
  * @param obj the object to check
  * @returns returns true if the object is a computed value, false otherwise
  */
-export const isComputed = (obj: unknown): boolean => {
+export const isComputed = (obj: unknown, prop?: PropertyKey): boolean => {
   if (!isObject(obj)) return false;
   const admin = obj[$fobx];
   if (!admin) return false;
-  return isComputedValueAdmin(admin);
+  return prop
+    ? admin.values !== undefined && admin.values.has(prop) && isComputedValueAdmin(admin.values.get(prop)[$fobx])
+    : isComputedValueAdmin(admin);
 };
 export const isComputedValueAdmin = (obj: Any): obj is IComputedAdmin => {
   if (!isObject(obj)) return false;

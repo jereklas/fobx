@@ -1216,7 +1216,7 @@ test("#558 boxed observables stay boxed observables", function () {
   expect(a.x.value).toBe(3);
 });
 
-test("iscomputed", function () {
+test("isComputed", function () {
   expect(fobx.isComputed(fobx.observable(3))).toBe(false);
   expect(
     fobx.isComputed(
@@ -1226,16 +1226,15 @@ test("iscomputed", function () {
     )
   ).toBe(true);
 
-  // TODO: implement a prop version of predicates?
-  // const x = fobx.observable({
-  //   a: 3,
-  //   get b() {
-  //     return this.a;
-  //   },
-  // });
+  const x = fobx.observable({
+    a: 3,
+    get b() {
+      return this.a;
+    },
+  });
 
-  // expect(fobx.isComputedProp(x, "a")).toBe(false)
-  // expect(fobx.isComputedProp(x, "b")).toBe(true)
+  expect(fobx.isComputed(x, "a")).toBe(false);
+  expect(fobx.isComputed(x, "b")).toBe(true);
 });
 
 test("603 - transaction should not kill reactions", () => {
@@ -1392,11 +1391,10 @@ test("Issue 1092 - We should be able to define observable on all siblings", () =
   }).not.toThrow();
 });
 
-// TODO: add prop version of predicate check?
-// test("Issue 1120 - isComputed should return false for a non existing property", () => {
-//   expect(mobx.isComputedProp({}, "x")).toBe(false)
-//   expect(mobx.isComputedProp(observable({}), "x")).toBe(false)
-// })
+test("Issue 1120 - isComputed should return false for a non existing property", () => {
+  expect(fobx.isComputed({}, "x")).toBe(false);
+  expect(fobx.isComputed(fobx.observable({}), "x")).toBe(false);
+});
 
 // TODO: the next 3 test cases cannot be achieved with current annotation approach I took.
 // TODO: SOLUTION?
@@ -1788,18 +1786,17 @@ test("observable ignores class instances #2579", () => {
 //   expect(getGlobalState().safeDescriptors).toBe(true)
 // })
 
-// TODO: probably should add generator support to help with async?
-// test("generator props are observable flows", () => {
-//   const o = observable({
-//       observable: 0,
-//       *observableFlow() {
-//           return this.observable
-//       }
-//   })
-//   expect(isObservableProp(o, "observable")).toBe(true)
-//   expect(isObservableProp(o, "observableFlow")).toBe(true)
-//   expect(isFlow(o.observableFlow)).toBe(true)
-// })
+test("generator props are observable flows", () => {
+  const o = fobx.observable({
+    observable: 0,
+    *observableFlow() {
+      return this.observable;
+    },
+  });
+  expect(fobx.isObservable(o, "observable")).toBe(true);
+  expect(fobx.isObservable(o, "observableFlow")).toBe(false);
+  expect(fobx.isFlow(o.observableFlow)).toBe(true);
+});
 
 // TODO: should protect against providing options twice?
 // test("options can be provided only once", () => {

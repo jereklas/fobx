@@ -326,7 +326,6 @@ describe("observableObject", () => {
     expect(a2.b).toBe(10);
   });
 
-  // TODO: observable is incorrectly trying to re-apply an annotation on prototype after it's already been applied
   test("both super class and subclass can be annotated", () => {
     let timesBCalled = 0;
     class A {

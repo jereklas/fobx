@@ -3,7 +3,7 @@ import { observable, type IObservableCollectionAdmin, type IObservable, type Obs
 import type { ObservableSetWithAdmin } from "../observables/observableSet";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
-import { isObject, isObservable } from "../utils/predicates";
+import { isMap, isObject, isObservable } from "../utils/predicates";
 import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
@@ -36,7 +36,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   constructor(iterable?: Iterable<readonly [K, V]> | null | undefined, options?: MapOptions);
   constructor(record?: Record<PropertyKey, V>, options?: MapOptions);
   constructor(entries: Any = [], options?: MapOptions) {
-    if (entries instanceof Map && entries.constructor !== Map && entries.constructor !== ObservableMap) {
+    if (isMap(entries) && entries.constructor.name !== "Map" && entries.constructor.name !== "ObservableMap") {
       throw new Error(
         `[@fobx/core] Cannot make observable map from class that inherit from Map: ${entries.constructor.name}`
       );
@@ -46,7 +46,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     this.#shallow = options?.shallow ?? false;
     this.#keys = observable<K>(new Set<K>()) as ObservableSetWithAdmin;
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
-    this.constructor = Map;
+    this.constructor = Object.getPrototypeOf(new Map()).constructor;
     // make sure options are set before we add initial values
     this.#addEntries(entries);
     Object.defineProperty(this, $fobx, {
@@ -95,7 +95,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
   }
   #addEntries(entries: [K, V][] | Map<K, V> | Record<PropertyKey, V> | Iterable<readonly [K, V]>) {
-    if (entries instanceof Map) {
+    if (isMap(entries)) {
       entries.forEach((value, key) => {
         this.#set(key, value);
       });
@@ -210,7 +210,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     const originalKeys = [...this.#keys];
 
     const newKeys = new Set<K>();
-    if (entries instanceof Map) {
+    if (isMap(entries)) {
       entries.forEach((_, key) => {
         newKeys.add(key);
       });
@@ -241,7 +241,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         this.#delete(key);
       });
 
-      if (entries instanceof Map) {
+      if (isMap(entries)) {
         entries.forEach((value, key) => {
           this.#set(key, value, reusedValues);
         });

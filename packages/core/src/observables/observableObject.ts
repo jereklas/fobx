@@ -13,6 +13,7 @@ import {
   isAction,
   isFlow,
   isGenerator,
+  isMap,
   isObject,
   isObservable,
   isObservableArray,
@@ -20,6 +21,7 @@ import {
   isObservableObject,
   isObservableSet,
   isPlainObject,
+  isSet,
 } from "../utils/predicates";
 
 export type Annotation = "action" | "action.bound" | "computed" | "flow" | "flow.bound" | "observable" | "none";
@@ -150,7 +152,7 @@ const annotateObject = <T extends object, E extends object>(
                 return v;
               },
             });
-          } else if (value instanceof Map) {
+          } else if (isMap(value)) {
             const map = isObservableMap(value) ? value : new ObservableMap(value.entries());
             ov = createObservableValue(map, {
               valueTransform: (v) => {
@@ -158,7 +160,7 @@ const annotateObject = <T extends object, E extends object>(
                 return v;
               },
             });
-          } else if (value instanceof Set) {
+          } else if (isSet(value)) {
             const set = isObservableSet(value) ? value : new ObservableSet(value);
             ov = createObservableValue(set, {
               valueTransform: (v) => {
@@ -292,8 +294,8 @@ const getType = (obj: unknown) => {
   if (typeof obj === "object") {
     if (obj === null) return "null";
     if (Array.isArray(obj)) return "array";
-    if (obj instanceof Map) return "map";
-    if (obj instanceof Set) return "set";
+    if (isMap(obj)) return "map";
+    if (isSet(obj)) return "set";
     return "object";
   }
   return typeof obj;

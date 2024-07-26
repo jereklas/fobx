@@ -17,7 +17,15 @@ import {
   type ArrayOptions,
   type ObservableArrayWithAdmin,
 } from "./observableArray";
-import { isDecoratorContext, isObject, isObservableArray, isObservableMap, isObservableSet } from "../utils/predicates";
+import {
+  isDecoratorContext,
+  isMap,
+  isObject,
+  isObservableArray,
+  isObservableMap,
+  isObservableSet,
+  isSet,
+} from "../utils/predicates";
 import type { Any } from "../state/global";
 import {
   createObservableValue,
@@ -45,10 +53,10 @@ export const observable = ((obj: Any, a?: Any, b?: Any) => {
     throw new Error('[@fobx/core] @observable decorator must be imported from "@fobx/core/decorators"');
   }
 
-  if (obj instanceof Map) {
+  if (isMap(obj)) {
     if (isObservableMap(obj)) return obj;
     return new ObservableMap(obj, a);
-  } else if (obj instanceof Set) {
+  } else if (isSet(obj)) {
     if (isObservableSet(obj)) return obj;
     return new ObservableSet(obj, a);
   } else if (Array.isArray(obj)) {

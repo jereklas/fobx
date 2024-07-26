@@ -74,22 +74,29 @@ export const isObservableArray = (arr: unknown): boolean => {
   return Array.isArray(arr) && arr[$fobx as unknown as keyof typeof arr] !== undefined;
 };
 
+export const isMap = (thing: unknown): thing is Map<any, any> => {
+  return thing != null && Object.prototype.toString.call(thing) === "[object Map]";
+};
+
 /**
  * Determines if the supplied map is observable or not.
  * @param map the map to check
  * @returns true if the supplied map is observable, false otherwise
  */
 export const isObservableMap = (map: unknown): boolean => {
-  return map instanceof Map && map[$fobx as unknown as keyof typeof map] !== undefined;
+  return isMap(map) && map[$fobx as unknown as keyof typeof map] !== undefined;
 };
 
+export const isSet = (thing: unknown): thing is Set<any> => {
+  return thing != null && Object.prototype.toString.call(thing) === "[object Set]";
+};
 /**
  * Determines if the supplied set is observable or not.
  * @param set the set to check
  * @returns true if the supplied set is observable, false otherwise
  */
 export const isObservableSet = (set: unknown): boolean => {
-  return set instanceof Set && set[$fobx as unknown as keyof typeof set] !== undefined;
+  return isSet(set) && set[$fobx as unknown as keyof typeof set] !== undefined;
 };
 
 /**

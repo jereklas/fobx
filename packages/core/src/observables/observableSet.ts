@@ -2,7 +2,7 @@
 import { observable, type IObservableCollectionAdmin } from "./observable";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
-import { isObject, isObservable } from "../utils/predicates";
+import { isObject, isObservable, isSet } from "../utils/predicates";
 import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
@@ -30,7 +30,7 @@ export class ObservableSet<T = Any> extends Set<T> {
       this.#add(v);
     });
     // assigning the constructor to Set allows for deep compares to correctly compare this against other sets
-    this.constructor = Set;
+    this.constructor = Object.getPrototypeOf(new Set()).constructor;
     Object.defineProperty(this, $fobx, {
       value: {
         value: this,
@@ -91,7 +91,7 @@ export class ObservableSet<T = Any> extends Set<T> {
   replace(this: ObservableSet, entries: Set<T> | T[]) {
     const admin = (this as ObservableSetWithAdmin)[$fobx];
     const removed = new Set(this);
-    if (!Array.isArray(entries) && !(entries instanceof Set)) {
+    if (!Array.isArray(entries) && !isSet(entries)) {
       throw new Error(`[@fobx/core] Supplied entries was not a Set or an Array.`);
     }
 

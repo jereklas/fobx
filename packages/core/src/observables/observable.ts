@@ -48,7 +48,36 @@ export type IObservable =
   | ObservableMapWithAdmin
   | ObservableSetWithAdmin;
 
-export const observable = ((obj: Any, a?: Any, b?: Any) => {
+export function observable<T extends any = any>(set: Set<T>, options?: SetOptions): ObservableSet<T>;
+export function observable<T extends any = any>(arr: T[], options?: ArrayOptions): ObservableArray<T>;
+export function observable<K extends any = any, V extends any = any>(
+  map: Map<K, V>,
+  options?: MapOptions
+): ObservableMap<K, V>;
+export function observable<T extends number | string | boolean | bigint | symbol | undefined | null>(
+  value: T,
+  options?: ObservableValueOptions<T>
+): ObservableValue<
+  T extends number
+    ? number
+    : T extends string
+      ? string
+      : T extends boolean
+        ? boolean
+        : T extends bigint
+          ? bigint
+          : T extends symbol
+            ? symbol
+            : T extends undefined | null
+              ? any
+              : never
+>;
+export function observable<T extends Object, AdditionalFields extends PropertyKey>(
+  obj: T,
+  annotations?: AnnotationsMap<T, AdditionalFields>,
+  options?: ObservableObjectOptions
+): ObservableObject<T>;
+export function observable(obj: Any, a?: Any, b?: Any) {
   if (isDecoratorContext(a)) {
     throw new Error('[@fobx/core] @observable decorator must be imported from "@fobx/core/decorators"');
   }
@@ -66,50 +95,4 @@ export const observable = ((obj: Any, a?: Any, b?: Any) => {
     return createAutoObservableObject(obj, a, b);
   }
   return createObservableValue(obj, a);
-}) as ObservableFactory;
-
-export interface ObservableFactory {
-  /**
-   * Creates a new observable array based on the supplied array.
-   * @param array the array to make observable.
-   * @param options the array options.
-   * @returns an observable array.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(array: Array<T>, options?: ArrayOptions): ObservableArray<T>;
-  /**
-   * Creates a new observable map based on the supplied map.
-   * @param map the map to make observable.
-   * @param options the map options.
-   * @returns an observable map
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <K = any, V = any>(map: Map<K, V>, options?: MapOptions): ObservableMap<K, V>;
-  /**
-   * Creates a new observable set based on the supplied set.
-   * @param set the set to make observable.
-   * @param options the set options.
-   * @returns an observable set.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <T = any>(set: Set<T>, options?: SetOptions): ObservableSet<T>;
-  /**
-   * Creates a new observable object based on the supplied object.
-   * @param obj the object to make observable
-   * @param annotationOverrides overrides if the auto assigned annotations are not correct
-   * @param options the object options
-   * @returns an observable object.
-   */
-  <T extends object>(
-    obj: T,
-    annotationOverrides?: AnnotationsMap<T>,
-    options?: ObservableObjectOptions
-  ): ObservableObject<T>;
-  /**
-   * Creates a new observable value.
-   * @param value the initial value for the observable.
-   * @param options the observable value options.
-   * @returns an observable value.
-   */
-  <T>(value: T, options?: ObservableValueOptions<T>): ObservableValue<T>;
 }

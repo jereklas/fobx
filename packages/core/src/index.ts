@@ -1,3 +1,5 @@
+export type * from "./fobx";
+
 export {
   autorun,
   computed,

@@ -26,9 +26,9 @@ import {
 
 export type Annotation = "action" | "action.bound" | "computed" | "flow" | "flow.bound" | "observable" | "none";
 
-export type AnnotationsMap<T> = {
+export type AnnotationsMap<T, AdditionalFields extends PropertyKey> = {
   [P in keyof T]?: Annotation;
-};
+} & Record<AdditionalFields, Annotation>;
 
 export type ObservableObjectOptions = {
   shallow?: boolean;
@@ -46,7 +46,7 @@ const globalState = /* @__PURE__ */ getGlobalState();
 
 export const createObservableObject = <T extends object>(
   obj: T,
-  annotations: AnnotationsMap<T>,
+  annotations: AnnotationsMap<T, any>,
   options?: ObservableObjectOptions
 ) => {
   const type = getType(obj);
@@ -73,7 +73,7 @@ export const createObservableObject = <T extends object>(
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
-  overrides: AnnotationsMap<T> = {},
+  overrides: AnnotationsMap<T, any> = {},
   options?: ObservableObjectOptions
 ) => {
   options = options ? { shallow: false, ...options } : { shallow: false };
@@ -83,7 +83,7 @@ export const createAutoObservableObject = <T extends object>(
 export const extendObservable = <T extends object, E extends object>(
   source: T,
   extension: E,
-  annotations: AnnotationsMap<E> = {}
+  annotations: AnnotationsMap<E, any> = {}
 ): T & E => {
   if (!isPlainObject(extension)) {
     throw new Error("[@fobx/core] 2nd argument to extendObservable must be a plain js object.");
@@ -104,7 +104,7 @@ const annotateObject = <T extends object, E extends object>(
   source: E,
   options: {
     addToPrototype: boolean;
-    annotations: AnnotationsMap<E>;
+    annotations: AnnotationsMap<E, any>;
     shallow: boolean;
   }
 ) => {
@@ -338,7 +338,7 @@ const getPropertyDescriptors = <T extends object>(obj: T) => {
   return descriptorsByName;
 };
 
-const getAutoObservableAnnotationsMap = <T extends object>(obj: T, overrides: AnnotationsMap<T> = {}) => {
+const getAutoObservableAnnotationsMap = <T extends object>(obj: T, overrides: AnnotationsMap<T, any> = {}) => {
   if (!isObject(obj)) return {};
   const annotations: Record<PropertyKey, Annotation> = {};
   getPropertyDescriptors(obj).forEach((value, key) => {

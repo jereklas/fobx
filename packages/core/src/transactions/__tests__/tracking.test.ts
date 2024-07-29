@@ -1,5 +1,8 @@
 import { observable } from "../../observables/observable";
 import { autorun } from "../../reactions/autorun";
+import { configure } from "../../state/instance";
+
+configure({ enforceActions: false });
 
 test("computed values correctly re-compute after a suspended state", () => {
   const o = observable({
@@ -27,4 +30,36 @@ test("computed values correctly re-compute after a suspended state", () => {
     value = o.a;
   });
   expect(value).toBe(4);
+});
+
+test("computed values correctly re-compute after a suspended state #2", () => {
+  const o = observable({
+    _a: 1,
+    c: false,
+    get a() {
+      if (this.c) {
+        return this._a;
+      }
+      return this.b;
+    },
+
+    get b() {
+      return this._b;
+    },
+    _b: 2,
+  });
+
+  let value = 0;
+  autorun(() => {
+    value = o.a;
+  });
+  expect(value).toBe(2);
+
+  o.c = true;
+  expect(value).toBe(1);
+
+  // the underlying observable changes, make sure the value isn't cached
+  o._b = 3;
+  o.c = false;
+  expect(value).toBe(3);
 });

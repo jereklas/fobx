@@ -1,3 +1,8 @@
+export type { ObservableArray } from "./observables/observableArray";
+export type { ObservableMap } from "./observables/observableMap";
+export type { ObservableSet } from "./observables/observableSet";
+export type { ObservableValue } from "./observables/observableValue";
+
 export { extendObservable, addObservableAdministration } from "./observables/observableObject";
 export { ReactionAdmin, ReactionWithoutBatch, reaction } from "./reactions/reaction";
 export { createObservableValue } from "./observables/observableValue";

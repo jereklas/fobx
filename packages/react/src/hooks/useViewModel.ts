@@ -22,7 +22,7 @@ export class ViewModel<T extends object = {}, E extends Element = HTMLElement> i
       annotations[key] = "observable";
     });
     this._props = observable(newProps, annotations, { shallow: true });
-    observable(this);
+    observable(this, {}, { shallow: true });
   }
 
   get props() {

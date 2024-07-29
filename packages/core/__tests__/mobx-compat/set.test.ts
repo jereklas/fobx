@@ -3,8 +3,8 @@ import * as iterall from "iterall";
 import { deepEqual } from "fast-equals";
 
 test("set crud", function () {
-  const s = fobx.observable(new Set<fobx.Any>([1]));
-  const changes: Set<fobx.Any>[] = [];
+  const s = fobx.observable(new Set<any>([1]));
+  const changes: Set<any>[] = [];
 
   fobx.reaction(
     () => s,

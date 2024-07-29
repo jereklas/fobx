@@ -46,7 +46,7 @@ export class ObservableSet<T = Any> extends Set<T> {
   toString() {
     return `[object ObservableSet]`;
   }
-  #add(value: T) {
+  #add(value: T extends any ? any : never) {
     const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as T) : value;
     super.add(val);
   }

@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-cycle
-import { observable, type IObservableCollectionAdmin, type IObservable, type ObservableFactory } from "./observable";
+import { observable, type IObservableCollectionAdmin, type IObservable } from "./observable";
 import type { ObservableSetWithAdmin } from "../observables/observableSet";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
@@ -29,7 +29,6 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   toString() {
     return `[object ObservableMap]`;
   }
-  createObservable!: ObservableFactory;
 
   constructor();
   constructor(entries: readonly (readonly [K, V])[], options?: MapOptions);
@@ -44,7 +43,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     super();
     const name = `ObservableMap@${globalState.getNextId()}`;
     this.#shallow = options?.shallow ?? false;
-    this.#keys = observable<K>(new Set<K>()) as ObservableSetWithAdmin;
+    this.#keys = observable(new Set<K>()) as ObservableSetWithAdmin;
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
     this.constructor = Object.getPrototypeOf(new Map()).constructor;
     // make sure options are set before we add initial values
@@ -76,7 +75,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     return result;
   }
-  #set(this: ObservableMap, key: K, value: V, reusableValues: Map<K, V> = new Map()) {
+  #set(this: ObservableMap, key: K, value: V extends any ? any : never, reusableValues: Map<K, V> = new Map()) {
     const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as V) : value;
     const reused = reusableValues.get(key) as IObservableValue<V>;
     const ov = reused ?? (super.get(key) as IObservableValue<V>);

@@ -18,7 +18,7 @@ test("nested computeds should not run unnecessary", () => {
   }
 
   const store = fobx.observable({
-    items: [] as unknown as fobx.ObservableArray<fobx.Any>,
+    items: [] as unknown as fobx.ObservableArray<any>,
     get asString(): string {
       return this.items.map((item) => item.index + ":" + item.name).join(",");
     },
@@ -62,7 +62,7 @@ test("fix #1535: stale observables", (cb) => {
 
   function brokenIncrement() {
     fobx.runInAction(() => (x.value += 1));
-    // Acessing computed outside of action causes staleness
+    // Accessing computed outside of action causes staleness
     // NOTE IT DOESN'T MATTER WHICH COMPUTED IS ACCESSED
     derived1.value;
     derived2.value;

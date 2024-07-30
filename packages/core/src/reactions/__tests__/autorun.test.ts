@@ -1,8 +1,8 @@
-import { observable } from "../../observables/observable";
 import { runInAction } from "../../transactions/action";
 import { configure } from "../../state/instance";
 import { computed } from "../computed";
 import { autorun } from "../autorun";
+import { observableBox } from "../../observables/observableBox";
 
 beforeAll(() => {
   configure({ enforceActions: false });
@@ -10,7 +10,7 @@ beforeAll(() => {
 
 describe("autorun subscriptions happen at end of the autorun body", () => {
   test("autorun with observable", () => {
-    const o = observable(0);
+    const o = observableBox(0);
     const seen: number[] = [];
 
     autorun(() => {
@@ -26,7 +26,7 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with computed", () => {
-    const o = observable(0);
+    const o = observableBox(0);
     const c = computed(
       () => o.value,
       (v) => {
@@ -49,7 +49,7 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with observables inside of an action", () => {
-    const o = observable(0);
+    const o = observableBox(0);
     const seen: number[] = [];
 
     // autorun created inside of action behaves the same as one created outside of an action
@@ -69,7 +69,7 @@ describe("autorun subscriptions happen at end of the autorun body", () => {
   });
 
   test("autorun with observables inside of an action", () => {
-    const o = observable(0);
+    const o = observableBox(0);
     const c = computed(
       () => o.value,
       (v) => {

@@ -39,7 +39,7 @@ test("fix #1535: stale observables", (cb) => {
   // see https://codesandbox.io/s/k92o2jmz63
   const snapshots: string[] = [];
 
-  const x = fobx.observable(1);
+  const x = fobx.observableBox(1);
 
   // Depends on observable x
   const derived1 = fobx.computed(() => {

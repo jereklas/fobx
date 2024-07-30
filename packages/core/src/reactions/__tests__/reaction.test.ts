@@ -1,7 +1,6 @@
 import { ReactionAdmin, ReactionWithoutBatch, reaction, runReactions, type ReactionWithAdmin } from "../reaction";
-import type { ObservableValueWithAdmin } from "../../observables/observableValue";
+import { observableBox, type ObservableBoxWithAdmin } from "../../observables/observableBox";
 import { $fobx, getGlobalState } from "../../state/global";
-import { observable } from "../../observables/observable";
 import { grabConsole } from "../../../__tests__/utils";
 import { configure } from "../../state/instance";
 
@@ -15,9 +14,9 @@ beforeEach(() => {
 describe("Reaction", () => {
   test("observables are tracked as expected", () => {
     const sideEffectFn = jest.fn();
-    const val1 = observable("a") as ObservableValueWithAdmin;
-    const val2 = observable(1) as ObservableValueWithAdmin;
-    const val3 = observable(true) as ObservableValueWithAdmin;
+    const val1 = observableBox("a") as ObservableBoxWithAdmin;
+    const val2 = observableBox(1) as ObservableBoxWithAdmin;
+    const val3 = observableBox(true) as ObservableBoxWithAdmin;
     const dispose = reaction(() => {
       return [val1.value, val2.value, val3.value];
     }, sideEffectFn);
@@ -31,8 +30,8 @@ describe("Reaction", () => {
 
 describe("reaction", () => {
   test("side effect function is ran when observable value(s) change", () => {
-    const val1 = observable(1);
-    const val2 = observable(2);
+    const val1 = observableBox(1);
+    const val2 = observableBox(2);
     const sideEffectFn1 = jest.fn();
     let dispose = reaction(() => {
       return [val1.value, val2.value];
@@ -61,7 +60,7 @@ describe("reaction", () => {
   });
 
   test("side effect function is not ran when observable is re-assigned same value", () => {
-    const obs = observable(1);
+    const obs = observableBox(1);
     const sideEffectFn = jest.fn();
     const dispose = reaction(() => obs.value, sideEffectFn);
     obs.value = 1;
@@ -70,7 +69,7 @@ describe("reaction", () => {
   });
 
   test("dispose removes observables from being tracked and prevents sideEffectFn from being called", () => {
-    const val = observable(0) as ObservableValueWithAdmin;
+    const val = observableBox(0) as ObservableBoxWithAdmin;
     let r!: ReactionWithAdmin;
     const sideEffectFn = jest.fn((o, n, reaction) => {
       r = reaction;
@@ -99,7 +98,7 @@ describe("reaction", () => {
 });
 
 test("An exception thrown in the side effect gets logged to stderr", () => {
-  const a = observable(0);
+  const a = observableBox(0);
   reaction(
     () => a.value,
     () => {
@@ -116,7 +115,7 @@ test("An exception thrown in the side effect gets logged to stderr", () => {
 });
 
 test("The non batching reaction runs as expected", () => {
-  const a = observable(0);
+  const a = observableBox(0);
   let called = -1;
   const reaction = new ReactionWithoutBatch(new ReactionAdmin(() => run()));
 

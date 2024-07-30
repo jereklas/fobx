@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-cycle
 import { action } from "../transactions/action";
-import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IObservableAdmin } from "../observables/observableBox";
 import type { StateNotification } from "../observables/notifications";
 import { isObservableCollection } from "../utils/predicates";
 import { isDifferent } from "../state/instance";
@@ -36,8 +36,8 @@ export interface IReactionAdmin extends IFobxAdmin {
   isDisposed: boolean;
   isPending: boolean;
   hasToRun?: true;
-  dependencies: IObservableValueAdmin[];
-  newDependencies: IObservableValueAdmin[];
+  dependencies: IObservableAdmin[];
+  newDependencies: IObservableAdmin[];
   onStateChange: (update: StateNotification) => void;
   run: () => void;
   dispose: Disposer;

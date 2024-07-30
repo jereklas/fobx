@@ -1,5 +1,7 @@
-import { $fobx } from "../../fobx";
-import { isComputed, isObservableCollection, isObservableObject, isPlainObject } from "../predicates";
+import { $fobx } from "../../state/global";
+import { observableBox } from "../../observables/observableBox";
+import { isComputed, isObservable, isObservableCollection, isObservableObject, isPlainObject } from "../predicates";
+import { observable } from "../../observables/observable";
 
 describe("isPlainObject", () => {
   test("returns false when non-object is passed", () => {
@@ -37,4 +39,38 @@ describe("isObservableCollection", () => {
     Object.defineProperty(arr, $fobx, { value: "str" });
     expect(isObservableCollection(arr)).toBe(false);
   });
+});
+
+test("isObservable works as expected", () => {
+  const primitives = [0, "a", true, Symbol(), BigInt(Number.MAX_SAFE_INTEGER)];
+
+  primitives.forEach((i) => {
+    expect(isObservable(i)).toBe(false);
+  });
+
+  primitives.forEach((i) => {
+    const obs = observableBox(i);
+    expect(isObservable(obs)).toBe(true);
+  });
+
+  // objects/collections
+  class NonObservableClass {}
+  const objects = [[], new Set(), new Map(), new NonObservableClass(), {}];
+
+  objects.forEach((i) => {
+    expect(isObservable(i)).toBe(false);
+  });
+
+  // remove the object and class as they become a container of observable values but they
+  // themselves are not observable
+  objects.pop();
+  objects.pop();
+
+  objects.forEach((i) => {
+    const obs = observable(i);
+    expect(isObservable(obs)).toBe(true);
+  });
+
+  expect(isObservable(observable({}))).toBe(false);
+  expect(isObservable(new NonObservableClass())).toBe(false);
 });

@@ -2,7 +2,7 @@ import * as fobx from "../../src";
 import { getGlobalState, $fobx } from "../../src/state/global";
 import { deepEqual } from "fast-equals";
 import { grabConsole, suppressConsole } from "../utils";
-import { ObservableValue, ObservableValueWithAdmin } from "../../src/observables/observableValue";
+import { ObservableBox, ObservableBoxWithAdmin } from "../../src/observables/observableBox";
 
 beforeAll(() => {
   fobx.configure({ comparer: { structural: deepEqual } });
@@ -12,15 +12,15 @@ beforeEach(() => {
   fobx.configure({ enforceActions: false });
 });
 
-test("argumentless observable", () => {
-  const a = fobx.observable(undefined);
+test("argument-less observable", () => {
+  const a = fobx.observableBox(undefined);
 
   expect(fobx.isObservable(a)).toBe(true);
   expect(a.value).toBe(undefined);
 });
 
 test("basic", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const b: number[] = [];
   fobx.reaction(
     () => x.value,
@@ -37,7 +37,7 @@ test("basic", function () {
 });
 
 test("basic2", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const z = fobx.computed(function () {
     return x.value * 2;
   });
@@ -57,8 +57,8 @@ test("basic2", function () {
 });
 
 test("computed with asStructure modifier", function () {
-  const x1 = fobx.observable(3);
-  const x2 = fobx.observable(5);
+  const x1 = fobx.observableBox(3);
+  const x2 = fobx.observableBox(5);
   const y = fobx.computed(
     function () {
       return {
@@ -89,7 +89,7 @@ test("computed with asStructure modifier", function () {
 });
 
 test("dynamic", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const y = fobx.computed(function () {
     return x.value;
   });
@@ -107,7 +107,7 @@ test("dynamic", function () {
 });
 
 test("dynamic2", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const y = fobx.computed(function () {
     return x.value * x.value;
   });
@@ -128,7 +128,7 @@ test("dynamic2", function () {
 });
 
 test("box uses equals", function () {
-  const x = fobx.observable("a", {
+  const x = fobx.observableBox("a", {
     equals: (oldValue, newValue) => {
       return oldValue.toLowerCase() === newValue.toLowerCase();
     },
@@ -150,7 +150,7 @@ test("box uses equals", function () {
 });
 
 test("box uses equals2", function () {
-  const x = fobx.observable("01", {
+  const x = fobx.observableBox("01", {
     equals: (oldValue, newValue) => {
       return parseInt(oldValue) === parseInt(newValue);
     },
@@ -178,9 +178,9 @@ test("box uses equals2", function () {
 test("readme1", function () {
   const b: number[] = [];
 
-  const vat = fobx.observable(0.2);
-  const order = {} as { price: ObservableValue<number>; priceWithVat: ObservableValue<number> };
-  order.price = fobx.observable(10);
+  const vat = fobx.observableBox(0.2);
+  const order = {} as { price: ObservableBox<number>; priceWithVat: ObservableBox<number> };
+  order.price = fobx.observableBox(10);
   // Prints: New price: 24
   // in TS, just: value(() => this.price() * (1+vat()))
   order.priceWithVat = fobx.computed(function () {
@@ -201,8 +201,8 @@ test("readme1", function () {
 
 test("batch", function () {
   const buf: number[] = [];
-  const a = fobx.observable(2);
-  const b = fobx.observable(3);
+  const a = fobx.observableBox(2);
+  const b = fobx.observableBox(3);
   const c = fobx.computed(function () {
     return a.value * b.value;
   });
@@ -235,7 +235,7 @@ test("batch", function () {
 });
 
 test("transaction with inspection", function () {
-  const a = fobx.observable(2);
+  const a = fobx.observableBox(2);
   let calcs = 0;
   const b = fobx.computed(function () {
     calcs++;
@@ -262,7 +262,7 @@ test("transaction with inspection", function () {
 });
 
 test("transaction with inspection 2", function () {
-  const a = fobx.observable(2);
+  const a = fobx.observableBox(2);
   let calcs = 0;
   let b;
   fobx.autorun(function () {
@@ -290,10 +290,10 @@ test("transaction with inspection 2", function () {
 });
 
 test("scope", function () {
-  const vat = fobx.observable(0.2);
+  const vat = fobx.observableBox(0.2);
   const Order = function () {
-    this.price = fobx.observable(20);
-    this.amount = fobx.observable(2);
+    this.price = fobx.observableBox(20);
+    this.amount = fobx.observableBox(2);
     this.total = fobx.computed(
       function () {
         return (1 + vat.value) * this.price.value * this.amount.value;
@@ -311,7 +311,7 @@ test("scope", function () {
 });
 
 test("props1", function () {
-  const vat = fobx.observable(0.2);
+  const vat = fobx.observableBox(0.2);
   const Order = function () {
     fobx.extendObservable(this, {
       price: 20,
@@ -341,7 +341,7 @@ test("props1", function () {
 });
 
 test("props2", function () {
-  const vat = fobx.observable(0.2);
+  const vat = fobx.observableBox(0.2);
   const Order = function () {
     fobx.extendObservable(this, {
       price: 20,
@@ -476,7 +476,7 @@ test("observe property", function () {
 test("change count optimization", function () {
   let bCalcs = 0;
   let cCalcs = 0;
-  const a = fobx.observable(3);
+  const a = fobx.observableBox(3);
   const b = fobx.computed(function () {
     bCalcs += 1;
     return 4 + a.value - a.value;
@@ -505,8 +505,8 @@ test("change count optimization", function () {
 
 test("observables removed", function () {
   let calcs = 0;
-  const a = fobx.observable(1);
-  const b = fobx.observable(2);
+  const a = fobx.observableBox(1);
+  const b = fobx.observableBox(2);
   const c = fobx.computed(function () {
     calcs++;
     if (a.value === 1) return b.value * a.value * b.value;
@@ -538,7 +538,7 @@ test("lazy evaluation", function () {
   let dCalcs = 0;
   let observerChanges = 0;
 
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const b = fobx.computed(function () {
     bCalcs += 1;
     return a.value + 1;
@@ -612,12 +612,12 @@ test("lazy evaluation", function () {
 test("multiple view dependencies", function () {
   let bCalcs = 0;
   let dCalcs = 0;
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const b = fobx.computed(function () {
     bCalcs++;
     return 2 * a.value;
   });
-  const c = fobx.observable(2);
+  const c = fobx.observableBox(2);
   const d = fobx.computed(function () {
     dCalcs++;
     return 3 * c.value;
@@ -654,8 +654,8 @@ test("multiple view dependencies", function () {
 });
 
 test("nested observable2", function () {
-  const factor = fobx.observable(0);
-  const price = fobx.observable(100);
+  const factor = fobx.observableBox(0);
+  const price = fobx.observableBox(100);
   let totalCalcs = 0;
   let innerCalcs = 0;
 
@@ -692,7 +692,7 @@ test("nested observable2", function () {
 });
 
 test("observe", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const x2 = fobx.computed(function () {
     return x.value * 2;
   });
@@ -711,7 +711,7 @@ test("observe", function () {
 });
 
 test("when", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
 
   let called = 0;
   fobx.when(
@@ -755,7 +755,7 @@ test("verify array in transaction", function () {
 });
 
 test("prematurely end autorun", function () {
-  const x = fobx.observable(2) as ObservableValueWithAdmin;
+  const x = fobx.observableBox(2) as ObservableBoxWithAdmin;
   let dis1, dis2, r1, r2;
   fobx.runInAction(function () {
     dis1 = fobx.autorun(function (r) {
@@ -786,8 +786,8 @@ test("prematurely end autorun", function () {
 });
 
 test("computed values believe NaN === NaN", function () {
-  const a = fobx.observable(2);
-  const b = fobx.observable(3);
+  const a = fobx.observableBox(2);
+  const b = fobx.observableBox(3);
   const c = fobx.computed(function () {
     return String(a.value * b.value);
   });
@@ -924,7 +924,7 @@ test("eval in transaction", function () {
 });
 
 test("autoruns created in autoruns should kick off", function () {
-  const x = fobx.observable(3);
+  const x = fobx.observableBox(3);
   const x2: number[] = [];
   let d;
 
@@ -957,9 +957,9 @@ test("#502 extendObservable throws on objects created with Object.create(null)",
 });
 
 test("prematurely ended autoruns are cleaned up properly", () => {
-  const a = fobx.observable(1);
-  const b = fobx.observable(2);
-  const c = fobx.observable(3);
+  const a = fobx.observableBox(1);
+  const b = fobx.observableBox(2);
+  const c = fobx.observableBox(3);
   let called = 0;
 
   let aa;
@@ -991,8 +991,8 @@ test("prematurely ended autoruns are cleaned up properly", () => {
 });
 
 test("unoptimizable subscriptions are diffed correctly", () => {
-  const a = fobx.observable(1);
-  const b = fobx.observable(1);
+  const a = fobx.observableBox(1);
+  const b = fobx.observableBox(1);
   const c = fobx.computed(() => {
     a.value;
     return 3;
@@ -1043,7 +1043,7 @@ test("unoptimizable subscriptions are diffed correctly", () => {
 
 test("verify calculation count", () => {
   const calcs: string[] = [];
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const b = fobx.computed(() => {
     calcs.push("b");
     return a.value;
@@ -1209,7 +1209,7 @@ test("helpful error for self referencing setter", function () {
 
 test("#558 boxed observables stay boxed observables", function () {
   const a = fobx.observable({
-    x: fobx.observable(3),
+    x: fobx.observableBox(3),
   });
 
   expect(typeof a.x).toBe("object");
@@ -1217,7 +1217,7 @@ test("#558 boxed observables stay boxed observables", function () {
 });
 
 test("isComputed", function () {
-  expect(fobx.isComputed(fobx.observable(3))).toBe(false);
+  expect(fobx.isComputed(fobx.observableBox(3))).toBe(false);
   expect(
     fobx.isComputed(
       fobx.computed(function () {
@@ -1238,7 +1238,7 @@ test("isComputed", function () {
 });
 
 test("603 - transaction should not kill reactions", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   let b = 1;
   let d;
   fobx.autorun((r) => {
@@ -1274,8 +1274,8 @@ test("computed equals function only invoked when necessary", () => {
       return from === to;
     };
 
-    const left = fobx.observable("A");
-    const right = fobx.observable("B");
+    const left = fobx.observableBox("A");
+    const right = fobx.observableBox("B");
     const combinedToLowerCase = fobx.computed(
       () => {
         return left.value.toLowerCase() + right.value.toLowerCase();
@@ -1705,7 +1705,7 @@ test("can make non-extensible objects observable", () => {
 test("tuples", () => {
   // See #1391
   function tuple(a: number, b: number) {
-    const res = new Array(2);
+    const res = Array.from<number>({ length: 2 });
     fobx.extendObservable(res, { [0]: a });
     fobx.extendObservable(res, { [1]: b });
     return res;
@@ -1790,7 +1790,7 @@ test("generator props are observable flows", () => {
   const o = fobx.observable({
     observable: 0,
     *observableFlow() {
-      return this.observable;
+      yield this.observable;
     },
   });
   expect(fobx.isObservable(o, "observable")).toBe(true);
@@ -1822,51 +1822,51 @@ test("ObservableArray.replace", () => {
 
   // the replacement is large
   ar = fobx.observable([1]);
-  del = ar.replace(new Array(MAX_SPLICE_SIZE));
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE }));
   expect(ar.length).toEqual(MAX_SPLICE_SIZE);
   expect(del).toEqual([1]);
 
   // the original is large
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE }));
   del = ar.replace([2]);
   expect(ar).toEqual([2]);
   expect(del.length).toEqual(MAX_SPLICE_SIZE);
 
   // both are large; original larger than replacement
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE + 1));
-  del = ar.replace(new Array(MAX_SPLICE_SIZE));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE }));
   expect(ar.length).toEqual(MAX_SPLICE_SIZE);
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1);
 
   // both are large; replacement larger than original
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE));
-  del = ar.replace(new Array(MAX_SPLICE_SIZE + 1));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE }));
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE + 1 }));
   expect(ar.length).toEqual(MAX_SPLICE_SIZE + 1);
   expect(del.length).toEqual(MAX_SPLICE_SIZE);
 });
 
 test("ObservableArray.splice", () => {
   // Deleting 1 item from a large list
-  let ar = fobx.observable(new Array(MAX_SPLICE_SIZE + 1));
+  let ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
   let del = ar.splice(1, 1);
   expect(ar.length).toEqual(MAX_SPLICE_SIZE);
   expect(del.length).toEqual(1);
 
   // Deleting many items from a large list
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE + 2));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 2 }));
   del = ar.splice(1, MAX_SPLICE_SIZE + 1);
   expect(ar.length).toEqual(1);
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1);
 
   // Deleting 1 item from a large list and inserting many items
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE + 1));
-  del = ar.splice(1, 1, ...new Array(MAX_SPLICE_SIZE + 1));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
+  del = ar.splice(1, 1, ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
   expect(ar.length).toEqual(MAX_SPLICE_SIZE * 2 + 1);
   expect(del.length).toEqual(1);
 
   // Deleting many items from a large list and inserting many items
-  ar = fobx.observable(new Array(MAX_SPLICE_SIZE + 10));
-  del = ar.splice(1, MAX_SPLICE_SIZE + 1, ...new Array(MAX_SPLICE_SIZE + 1));
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 10 }));
+  del = ar.splice(1, MAX_SPLICE_SIZE + 1, ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
   expect(ar.length).toEqual(MAX_SPLICE_SIZE + 10);
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1);
 });
@@ -1942,7 +1942,7 @@ test("ObservableArray.splice", () => {
 
 test("#3747", () => {
   fobx.runInAction(() => {
-    const o = fobx.observable(0);
+    const o = fobx.observableBox(0);
     const c = fobx.computed(() => o.value);
     expect(c.value).toBe(0);
     o.value = 1;

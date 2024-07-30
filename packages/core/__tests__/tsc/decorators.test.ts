@@ -32,8 +32,8 @@ class C {
 test("@observable accessor a = 10; is correctly observable", () => {
   const a = new C();
   const b = new C();
-  expect(fobx.isObservableProp(b, "a")).toBe(true);
-  expect(fobx.isObservableProp(a, "a")).toBe(true);
+  expect(fobx.isObservable(b, "a")).toBe(true);
+  expect(fobx.isObservable(a, "a")).toBe(true);
 
   let count = -1;
   fobx.autorun(() => {

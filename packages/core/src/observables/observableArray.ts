@@ -4,7 +4,7 @@ import { observable, type IObservableCollectionAdmin } from "./observable";
 import { endAction, runInAction, startAction } from "../transactions/action";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
-import { isObject, isObservable, isObservableObject } from "../utils/predicates";
+import { isObject, isObservable } from "../utils/predicates";
 import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { instanceState } from "../state/instance";
@@ -37,7 +37,7 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
   for (let i = 0; i < initialValue.length; i += 1) {
     arr.push(
       !shallow && isObject(initialValue[i]) && !isObservable(initialValue[i])
-        ? (observable(initialValue[i] as any) as T)
+        ? (observable(initialValue[i] as Any) as T)
         : initialValue[i]
     );
   }
@@ -230,7 +230,7 @@ const threeArgFns = new Set(["copyWithin", "fill"]);
 
 function convertValue<T>(value: T, shallow: boolean) {
   if (shallow) return value;
-  return isObject(value) && !isObservable(value) ? (observable(value as any) as T) : value;
+  return isObject(value) && !isObservable(value) ? (observable(value as Any) as T) : value;
 }
 
 function toJSON<T>(this: ObservableArrayWithAdmin<T>) {

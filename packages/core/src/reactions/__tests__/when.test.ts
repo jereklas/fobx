@@ -1,4 +1,4 @@
-import { observable } from "../../observables/observable";
+import { observableBox } from "../../observables/observableBox";
 import { configure } from "../../state/instance";
 import { when } from "../when";
 
@@ -7,7 +7,7 @@ beforeAll(() => {
 });
 
 test("when reaction dispose itself once condition is met", () => {
-  const a = observable(0);
+  const a = observableBox(0);
   let runs = 0;
 
   when(
@@ -29,7 +29,7 @@ test("when reaction dispose itself once condition is met", () => {
 
 test("when reaction throws timeout error if timeout was hit", () => {
   jest.useFakeTimers();
-  const a = observable(0);
+  const a = observableBox(0);
   let runs = 0;
 
   when(
@@ -49,7 +49,7 @@ test("when reaction throws timeout error if timeout was hit", () => {
 
 test("when reaction calls onError function on timeout if one is provided", () => {
   jest.useFakeTimers();
-  const a = observable(0);
+  const a = observableBox(0);
   const onError = jest.fn();
   let runs = 0;
 

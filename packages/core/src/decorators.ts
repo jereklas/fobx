@@ -1,12 +1,12 @@
-import { $fobx, createObservableValue, addObservableAdministration } from "./fobx";
+import { $fobx, observableBox, addObservableAdministration } from "./fobx";
 import type { ObservableObjectWithAdmin } from "./observables/observableObject";
-import type { ObservableValueOptions } from "./observables/observableValue";
+import type { ObservableBoxOptions } from "./observables/observableBox";
 import type { Any } from "./state/global";
 
 function decorateWithObservable<This, Value>(
   _: unknown,
   context: DecoratorContext,
-  options?: ObservableValueOptions<Value>
+  options?: ObservableBoxOptions<Value>
 ): ClassAccessorDecoratorResult<This, Value> {
   if (context.kind !== "accessor") {
     throw new Error(
@@ -32,7 +32,7 @@ function decorateWithObservable<This, Value>(
         addObservableAdministration(this);
       }
       // @ts-expect-error - a
-      this[$fobx].values.set(name, createObservableValue(value, options));
+      this[$fobx].values.set(name, observableBox(value, options));
       return value;
     },
   };
@@ -68,7 +68,7 @@ type ClassAccessorDecorator<This, Value> = (
   context: ClassAccessorDecoratorContext<This, Value>
 ) => ClassAccessorDecoratorResult<This, Value>;
 
-export function obs<T, V, O extends ObservableValueOptions<Any>>(options: O): ClassAccessorDecorator<T, V>;
+export function obs<T, V, O extends ObservableBoxOptions<Any>>(options: O): ClassAccessorDecorator<T, V>;
 export function obs<T, V>(
   value: ClassAccessorDecoratorTarget<T, V>,
   context?: ClassAccessorDecoratorContext<T, V>

@@ -7,7 +7,7 @@ beforeAll(() => {
 });
 
 test("basic", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[][] = [];
 
   const d = fobx.reaction(
@@ -29,7 +29,7 @@ test("basic", () => {
 });
 
 test("effect fireImmediately is honored", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[] = [];
 
   const d = fobx.reaction(
@@ -49,8 +49,8 @@ test("effect fireImmediately is honored", () => {
 });
 
 test("effect is untracked", () => {
-  const a = fobx.observable(1);
-  const b = fobx.observable(2);
+  const a = fobx.observableBox(1);
+  const b = fobx.observableBox(2);
   const values: number[] = [];
 
   const d = fobx.reaction(
@@ -71,7 +71,7 @@ test("effect is untracked", () => {
 });
 
 test("passes Reaction as an argument to expression function", () => {
-  const a = fobx.observable<number | string>(1);
+  const a = fobx.observableBox<number | string>(1);
   const values: (number | string)[] = [];
 
   fobx.reaction(
@@ -95,7 +95,7 @@ test("passes Reaction as an argument to expression function", () => {
 });
 
 test("passes Reaction as an argument to effect function", () => {
-  const a = fobx.observable<number | string>(1);
+  const a = fobx.observableBox<number | string>(1);
   const values: (number | string)[] = [];
 
   fobx.reaction(
@@ -117,7 +117,7 @@ test("passes Reaction as an argument to effect function", () => {
 });
 
 test("can dispose reaction on first run", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
 
   const valuesExpr1st: number[][] = [];
   fobx.reaction(
@@ -214,7 +214,7 @@ test("can dispose reaction on first run", () => {
 // })
 
 test("#278 do not rerun if expr output doesn't change", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[] = [];
 
   const d = fobx.reaction(
@@ -283,7 +283,7 @@ test("#278 do not rerun if expr output doesn't change structurally", () => {
 });
 
 test("do not rerun if prev & next expr output is NaN", () => {
-  const v = fobx.observable<string | typeof NaN>("a");
+  const v = fobx.observableBox<string | typeof NaN>("a");
   const values: string[] = [];
   const valuesS: string[] = [];
 
@@ -315,7 +315,7 @@ test("do not rerun if prev & next expr output is NaN", () => {
 });
 
 test("reaction uses equals", () => {
-  const o = fobx.observable("a");
+  const o = fobx.observableBox("a");
   const values: string[] = [];
   const disposeReaction = fobx.reaction(
     () => o.value,
@@ -341,8 +341,8 @@ test("reaction equals function only invoked when necessary", () => {
       return from === to;
     };
 
-    const left = fobx.observable("A");
-    const right = fobx.observable("B");
+    const left = fobx.observableBox("A");
+    const right = fobx.observableBox("B");
 
     const values: string[] = [];
     const disposeReaction = fobx.reaction(

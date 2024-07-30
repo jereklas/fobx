@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-cycle
-import { observable, type IObservableCollectionAdmin, type IObservable } from "./observable";
+import { observable, type IObservableCollectionAdmin } from "./observable";
 import type { ObservableSetWithAdmin } from "../observables/observableSet";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
 import { $fobx, getGlobalState, type Any } from "../state/global";
@@ -9,12 +9,7 @@ import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
 import { instanceState } from "../state/instance";
 import { sendChange } from "./notifications";
-import {
-  createObservableValue,
-  type IObservableValue,
-  type IObservableValueAdmin,
-  type ObservableValueWithAdmin,
-} from "./observableValue";
+import { observableBox, type IObservable, type IObservableAdmin, type ObservableBoxWithAdmin } from "./observableBox";
 
 export type ObservableMapWithAdmin = ObservableMap & {
   [$fobx]: IObservableCollectionAdmin;
@@ -75,10 +70,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     return result;
   }
-  #set(this: ObservableMap, key: K, value: V extends any ? any : never, reusableValues: Map<K, V> = new Map()) {
+  #set(this: ObservableMap, key: K, value: V extends Any ? Any : never, reusableValues: Map<K, V> = new Map()) {
     const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as V) : value;
-    const reused = reusableValues.get(key) as IObservableValue<V>;
-    const ov = reused ?? (super.get(key) as IObservableValue<V>);
+    const reused = reusableValues.get(key) as IObservable<V>;
+    const ov = reused ?? (super.get(key) as IObservable<V>);
     this.#keys.add(key);
 
     if (ov) {
@@ -90,7 +85,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       }
       ov.value = val;
     } else {
-      super.set(key, createObservableValue(val) as V);
+      super.set(key, observableBox(val) as V);
     }
   }
   #addEntries(entries: [K, V][] | Map<K, V> | Record<PropertyKey, V> | Iterable<readonly [K, V]>) {
@@ -127,7 +122,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   }
   delete(this: ObservableMap, key: K) {
     const admin = (this as ObservableMapWithAdmin)[$fobx];
-    const ov = super.get(key) as IObservableValue<V | undefined> | undefined;
+    const ov = super.get(key) as IObservable<V | undefined> | undefined;
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
@@ -154,7 +149,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   forEach(this: ObservableMap, callbackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown) {
     trackObservable((this as ObservableMapWithAdmin)[$fobx]);
     const cb = (value: V, key: K, map: Map<K, V>) => {
-      callbackFn((value as IObservableValue<V>).value, key, map);
+      callbackFn((value as IObservable<V>).value, key, map);
     };
     super.forEach(cb, thisArg);
   }
@@ -163,7 +158,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     return super.has(key);
   }
   get(this: ObservableMap, key: K) {
-    const ov = super.get(key) as ObservableValueWithAdmin<V> | undefined;
+    const ov = super.get(key) as ObservableBoxWithAdmin<V> | undefined;
     if (ov) {
       trackObservable(ov[$fobx]);
     } else {
@@ -172,7 +167,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     return ov?.value;
   }
   set(key: K, value: V) {
-    const oldValue = (super.get(key) as IObservableValue<V> | undefined)?.value;
+    const oldValue = (super.get(key) as IObservable<V> | undefined)?.value;
     if (oldValue === value) return this;
     const admin = (this as unknown as ObservableMapWithAdmin)[$fobx];
 
@@ -194,7 +189,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   }
   merge(this: ObservableMap, entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>) {
     if (isObservable(entries)) {
-      trackObservable((entries as IObservable)[$fobx] as IObservableValueAdmin);
+      trackObservable((entries as Any as { [$fobx]: IObservableAdmin })[$fobx]);
     }
     const admin = (this as ObservableMapWithAdmin)[$fobx];
     runInAction(() => {
@@ -235,8 +230,8 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
           this.#delete(key, { preventNotification: true });
           return;
         }
-        oldValue.set(key, (ov as IObservableValue).value);
-        (ov as IObservableValue).value = undefined;
+        oldValue.set(key, (ov as IObservable).value);
+        (ov as IObservable).value = undefined;
         this.#delete(key);
       });
 

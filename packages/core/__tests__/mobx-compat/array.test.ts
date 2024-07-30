@@ -339,7 +339,7 @@ test("react to sort changes", function () {
 });
 
 test("autoextend buffer length", function () {
-  const ar = fobx.observable(new Array(1000));
+  const ar = fobx.observable(Array.from({ length: 1000 }));
   let changesCount = -1;
   fobx.autorun(() => {
     ar.length;

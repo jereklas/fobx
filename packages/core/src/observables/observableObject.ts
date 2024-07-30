@@ -5,7 +5,7 @@ import { ObservableMap } from "./observableMap";
 // eslint-disable-next-line import/no-cycle
 import { createObservableArray } from "./observableArray";
 import { $fobx, getGlobalState, type IFobxAdmin, type Any } from "../state/global";
-import { createObservableValue, type IObservableValue } from "./observableValue";
+import { observableBox, type IObservable } from "./observableBox";
 import { createComputedValue } from "../reactions/computed";
 import { action } from "../transactions/action";
 import { flow } from "../transactions/flow";
@@ -39,14 +39,14 @@ export interface ObservableObjectWithAdmin {
   [$fobx]: IObservableObjectAdmin;
 }
 export interface IObservableObjectAdmin extends IFobxAdmin {
-  values: Map<PropertyKey, IObservableValue>;
+  values: Map<PropertyKey, IObservable>;
 }
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
 export const createObservableObject = <T extends object>(
   obj: T,
-  annotations: AnnotationsMap<T, any>,
+  annotations: AnnotationsMap<T, Any>,
   options?: ObservableObjectOptions
 ) => {
   const type = getType(obj);
@@ -73,7 +73,7 @@ export const createObservableObject = <T extends object>(
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
-  overrides: AnnotationsMap<T, any> = {},
+  overrides: AnnotationsMap<T, Any> = {},
   options?: ObservableObjectOptions
 ) => {
   options = options ? { shallow: false, ...options } : { shallow: false };
@@ -83,7 +83,7 @@ export const createAutoObservableObject = <T extends object>(
 export const extendObservable = <T extends object, E extends object>(
   source: T,
   extension: E,
-  annotations: AnnotationsMap<E, any> = {}
+  annotations: AnnotationsMap<E, Any> = {}
 ): T & E => {
   if (!isPlainObject(extension)) {
     throw new Error("[@fobx/core] 2nd argument to extendObservable must be a plain js object.");
@@ -104,7 +104,7 @@ const annotateObject = <T extends object, E extends object>(
   source: E,
   options: {
     addToPrototype: boolean;
-    annotations: AnnotationsMap<E, any>;
+    annotations: AnnotationsMap<E, Any>;
     shallow: boolean;
   }
 ) => {
@@ -140,13 +140,13 @@ const annotateObject = <T extends object, E extends object>(
           throw new Error(`[@fobx/core] "observable" cannot be used on getter/setter properties`);
         }
         const value = source[key as keyof typeof source];
-        let ov: IObservableValue;
+        let box: IObservable;
         if (shallow) {
-          ov = createObservableValue(value);
+          box = observableBox(value);
         } else {
           if (Array.isArray(value)) {
             const array = isObservableArray(value) ? value : createObservableArray(value);
-            ov = createObservableValue(array, {
+            box = observableBox(array, {
               valueTransform: (v) => {
                 if (!isObservableArray(v)) return createObservableArray(v);
                 return v;
@@ -154,7 +154,7 @@ const annotateObject = <T extends object, E extends object>(
             });
           } else if (isMap(value)) {
             const map = isObservableMap(value) ? value : new ObservableMap(value.entries());
-            ov = createObservableValue(map, {
+            box = observableBox(map, {
               valueTransform: (v) => {
                 if (!isObservableMap(v)) return new ObservableMap(v.entries());
                 return v;
@@ -162,7 +162,7 @@ const annotateObject = <T extends object, E extends object>(
             });
           } else if (isSet(value)) {
             const set = isObservableSet(value) ? value : new ObservableSet(value);
-            ov = createObservableValue(set, {
+            box = observableBox(set, {
               valueTransform: (v) => {
                 if (!isObservableSet(v)) return new ObservableSet(v);
                 return v;
@@ -170,7 +170,7 @@ const annotateObject = <T extends object, E extends object>(
             });
           } else if (isObject(value)) {
             const obj = isObservable(value) ? value : createAutoObservableObject(value as object);
-            ov = createObservableValue(obj, {
+            box = observableBox(obj, {
               valueTransform: (v) => {
                 if (isObject(v) && !isObservable(v)) {
                   return createAutoObservableObject(v as object);
@@ -179,14 +179,14 @@ const annotateObject = <T extends object, E extends object>(
               },
             });
           } else {
-            ov = createObservableValue(value);
+            box = observableBox(value);
           }
         }
-        admin.values.set(key, ov);
+        admin.values.set(key, box);
         Object.defineProperty(observableObject, key, {
-          get: () => ov.value,
+          get: () => box.value,
           set: (v) => {
-            ov.value = v;
+            box.value = v;
           },
           enumerable: true,
           configurable: true,
@@ -306,7 +306,7 @@ export function addObservableAdministration<T extends object>(obj: T) {
 
   const adm: IObservableObjectAdmin = {
     name: `ObservableObject@${globalState.getNextId()}`,
-    values: new Map<PropertyKey, IObservableValue>(),
+    values: new Map<PropertyKey, IObservable>(),
   };
   Object.defineProperty(obj, $fobx, { value: adm });
 }
@@ -338,7 +338,7 @@ const getPropertyDescriptors = <T extends object>(obj: T) => {
   return descriptorsByName;
 };
 
-const getAutoObservableAnnotationsMap = <T extends object>(obj: T, overrides: AnnotationsMap<T, any> = {}) => {
+const getAutoObservableAnnotationsMap = <T extends object>(obj: T, overrides: AnnotationsMap<T, Any> = {}) => {
   if (!isObject(obj)) return {};
   const annotations: Record<PropertyKey, Annotation> = {};
   getPropertyDescriptors(obj).forEach((value, key) => {

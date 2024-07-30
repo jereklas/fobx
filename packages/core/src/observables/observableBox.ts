@@ -14,30 +14,30 @@ import {
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
-export type ObservableValueWithAdmin<T = Any> = ObservableValue<T> & {
-  [$fobx]: IObservableValueAdmin<T> & { options: ObservableValueOptions<T> };
+export type ObservableBoxWithAdmin<T = Any> = ObservableBox<T> & {
+  [$fobx]: IObservableAdmin<T> & { options: ObservableBoxOptions<T> };
 };
 
-export interface IObservableValue<T = Any> {
+export interface IObservable<T = Any> {
   value: T;
 }
 
-export interface IObservableValueAdmin<T = Any> extends IFobxAdmin {
+export interface IObservableAdmin<T = Any> extends IFobxAdmin {
   value: T;
   observers: Set<IReactionAdmin>;
   seen: boolean;
 }
-export type ObservableValueOptions<T> = {
+export type ObservableBoxOptions<T> = {
   valueTransform?: (value: T) => Any;
   equals?: EqualityChecker;
   comparer?: ComparisonType;
 };
 
-export class ObservableValue<T = Any> implements IObservableValue<T> {
-  constructor(val?: T, options?: ObservableValueOptions<T>) {
+export class ObservableBox<T = Any> implements IObservable<T> {
+  constructor(val?: T, options?: ObservableBoxOptions<T>) {
     Object.defineProperty(this, $fobx, {
       value: {
-        name: `ObservableValue@${globalState.getNextId()}`,
+        name: `ObservableBox@${globalState.getNextId()}`,
         value: val as T,
         observers: new Set<IReactionAdmin>(),
         seen: false,
@@ -46,12 +46,12 @@ export class ObservableValue<T = Any> implements IObservableValue<T> {
     });
   }
   get value() {
-    const admin = (this as unknown as ObservableValueWithAdmin)[$fobx];
+    const admin = (this as unknown as ObservableBoxWithAdmin)[$fobx];
     trackObservable(admin);
     return admin.value;
   }
   set value(newValue: T) {
-    const admin = (this as unknown as ObservableValueWithAdmin)[$fobx];
+    const admin = (this as unknown as ObservableBoxWithAdmin)[$fobx];
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
@@ -76,6 +76,6 @@ export class ObservableValue<T = Any> implements IObservableValue<T> {
   }
 }
 
-export function createObservableValue<T>(val?: T, options?: ObservableValueOptions<T>) {
-  return new ObservableValue(val, options);
+export function observableBox<T>(val?: T, options?: ObservableBoxOptions<T>) {
+  return new ObservableBox(val, options);
 }

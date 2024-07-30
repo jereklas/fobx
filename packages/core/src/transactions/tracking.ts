@@ -1,4 +1,4 @@
-import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IObservableAdmin } from "../observables/observableBox";
 import type { IReactionAdmin, ReactionAdmin } from "../reactions/reaction";
 import { isComputedValueAdmin } from "../utils/predicates";
 import { getGlobalState } from "../state/global";
@@ -15,7 +15,7 @@ export function setReactionContext(reaction: IReactionAdmin | null) {
 export function runWithTracking(fn: () => void, reaction: IReactionAdmin) {
   const previousDependencies = reaction.dependencies;
   // TODO: make this a pre-allocated and directly assign values to index instead of push (see if it improves performance)
-  const dependencies: IObservableValueAdmin[] = [];
+  const dependencies: IObservableAdmin[] = [];
   reaction.newDependencies = dependencies;
   let caughtException: unknown;
 
@@ -79,7 +79,7 @@ export function reportExceptionInReaction(reaction: IReactionAdmin, err: unknown
   instanceState?.onReactionError?.(err, reaction as ReactionAdmin);
 }
 
-export function trackObservable(observable: IObservableValueAdmin) {
+export function trackObservable(observable: IObservableAdmin) {
   // no reaction context means there's nothing to connect the observable to
   const reaction = globalState.reactionContext;
   if (!reaction || reaction.isDisposed) return;

@@ -6,6 +6,7 @@ export {
   flow,
   getGlobalState,
   observable,
+  observableBox,
   reaction,
   when,
   configure,

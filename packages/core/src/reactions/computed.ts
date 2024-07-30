@@ -1,6 +1,6 @@
 import { $fobx, getGlobalState, type Any, type EqualityChecker, type ComparisonType } from "../state/global";
 import { removeAllDependencies, runWithTracking, trackObservable } from "../transactions/tracking";
-import type { IObservableValue, IObservableValueAdmin } from "../observables/observableValue";
+import type { IObservable, IObservableAdmin } from "../observables/observableBox";
 import { sendReady, sendStale, type StateNotification } from "../observables/notifications";
 import { startBatch, endBatch, type IReactionAdmin } from "./reaction";
 import { runInAction } from "../transactions/action";
@@ -11,11 +11,11 @@ const globalState = /* @__PURE__ */ getGlobalState();
 export type ComputedWithAdmin<T = Any> = Computed<T> & {
   [$fobx]: ComputedAdmin<T>;
 };
-export interface IComputedValue<T> extends IObservableValue<T> {
+export interface IComputedValue<T> extends IObservable<T> {
   dispose: () => void;
 }
 
-export interface IComputedAdmin<T = Any> extends IReactionAdmin, IObservableValueAdmin<T> {
+export interface IComputedAdmin<T = Any> extends IReactionAdmin, IObservableAdmin<T> {
   previousObserverCount: number;
   lastActionComputedIn: number | null;
   hasComputedBefore: boolean;
@@ -212,7 +212,7 @@ export function createComputedValue<T>(
   get: () => T,
   set?: (newValue: T) => void,
   options?: ComputedOptions
-): IComputedValue<T> {
+): Computed<T> {
   return new Computed(get, set, options);
 }
 
@@ -224,7 +224,7 @@ export function computed<T>(
   options?: ComputedOptions
 ): IComputedValue<T> {
   if (typeof setOrOpts === "function") {
-    return createComputedValue(getFn, setOrOpts, options);
+    return new Computed(getFn, setOrOpts, options);
   }
-  return createComputedValue(getFn, undefined, setOrOpts);
+  return new Computed(getFn, undefined, setOrOpts);
 }

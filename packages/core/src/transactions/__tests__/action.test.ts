@@ -1,4 +1,4 @@
-import { observable } from "../../observables/observable";
+import { observableBox } from "../../observables/observableBox";
 import { computed } from "../../reactions/computed";
 import { reaction } from "../../reactions/reaction";
 import { configure } from "../../state/instance";
@@ -19,9 +19,9 @@ describe("runInAction", () => {
   });
 
   test("allows multiple observables to be set with only one reaction occurring from those value changes", () => {
-    const o1 = observable(1);
-    const o2 = observable(2);
-    const o3 = observable(3);
+    const o1 = observableBox(1);
+    const o2 = observableBox(2);
+    const o3 = observableBox(3);
     const reactionFn = jest.fn();
     const computedFn = jest.fn(() => o1.value + o2.value + o3.value);
     const c = computed(computedFn);

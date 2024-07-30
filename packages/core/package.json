@@ -1,6 +1,6 @@
 {
   "name": "@fobx/core",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "Fast, reactive state management.",
@@ -54,6 +54,7 @@
     "benchmark:set": "tsx ./benchmark/set.ts",
     "build": "node ./build.mjs",
     "tsc": "tsc -p ./tsconfig.build.json",
+    "lint": "oxlint -c=../../.oxlint.json --tsconfig=./tsconfig.json --import-plugin",
     "prepublish": "pnpm tsc && pnpm build",
     "test": "jest --watchAll",
     "test:perf": "pnpm build && pnpm jest --watchAll -c ./jest-perf.config.cjs ./__tests__/perf/mobx.test.ts",

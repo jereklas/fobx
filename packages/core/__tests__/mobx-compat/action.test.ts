@@ -7,7 +7,7 @@ beforeEach(() => {
 });
 
 test("multiple state changes can occur within an action with only 1 side effect", () => {
-  const obs = fobx.observable(0);
+  const obs = fobx.observableBox(0);
 
   const increment = fobx.action((by: number) => {
     obs.value += by * 2;
@@ -25,7 +25,7 @@ test("multiple state changes can occur within an action with only 1 side effect"
 });
 
 test("actions can safely use externally scoped variables", () => {
-  const obs = fobx.observable(1);
+  const obs = fobx.observableBox(1);
   let i = 3;
   let b = 0;
 
@@ -49,7 +49,7 @@ test("actions can safely use externally scoped variables", () => {
 });
 
 test("actions setting observables read by computed result in correct value", () => {
-  const obs = fobx.observable(1);
+  const obs = fobx.observableBox(1);
   const double = fobx.computed(() => obs.value * 2);
   let b = 0;
 
@@ -74,8 +74,8 @@ test("actions setting observables read by computed result in correct value", () 
 });
 
 test("action is untracked", () => {
-  const a = fobx.observable(3);
-  const b = fobx.observable(4);
+  const a = fobx.observableBox(3);
+  const b = fobx.observableBox(4);
 
   let latest = 0;
   let runs = 0;
@@ -116,7 +116,7 @@ test("action is untracked", () => {
 });
 
 test("should be able to create autorun within action", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[] = [];
 
   const adder = fobx.action((inc: number) => {
@@ -139,7 +139,7 @@ test("should be able to create autorun within action", () => {
 });
 
 test("should be able to change unobserved state in an action called from a computed", () => {
-  const a = fobx.observable(2);
+  const a = fobx.observableBox(2);
   const testAction = fobx.action(() => {
     a.value = 3;
   });
@@ -157,7 +157,7 @@ test("should be able to change unobserved state in an action called from a compu
 test("should be able to change observed state in an action called from a computed", () => {
   fobx.configure({ enforceActions: true });
 
-  const a = fobx.observable(2);
+  const a = fobx.observableBox(2);
   const d = fobx.autorun(() => {
     a.value;
   });
@@ -173,7 +173,7 @@ test("should be able to change observed state in an action called from a compute
         a.value = 4;
       })
     ).toMatch(
-      /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(ObservableValue@.*\) outside of an action is discouraged as reactions run more frequently than necessary/
+      /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(ObservableBox@.*\) outside of an action is discouraged as reactions run more frequently than necessary/
     );
     expect(a.value).toBe(4);
 
@@ -251,7 +251,7 @@ test("runInAction", () => {
   fobx.configure({ enforceActions: true });
   const values: number[] = [];
 
-  const obs = fobx.observable(0);
+  const obs = fobx.observableBox(0);
   const d = fobx.autorun(() => values.push(obs.value));
 
   let result = fobx.runInAction(() => {
@@ -309,7 +309,7 @@ test("action in autorun does not keep / make computed values alive", () => {
 test("computed values and actions", () => {
   let calls = 0;
 
-  const number = fobx.observable(1);
+  const number = fobx.observableBox(1);
   const squared = fobx.computed(() => {
     calls++;
     return number.value * number.value;
@@ -425,7 +425,7 @@ test("make sure extendObservable correctly annotates action if source isn't an o
 test("reaction errors should be suppressed if action threw an error first", () => {
   const messages = suppressConsole(() => {
     try {
-      const a = fobx.observable(3);
+      const a = fobx.observableBox(3);
       fobx.autorun(() => {
         if (a.value === 4) throw new Error("Reaction error");
       });
@@ -448,7 +448,7 @@ test("reaction errors should be suppressed if action threw an error first", () =
 
 test("reaction errors should not be suppressed if action didn't throw an error", () => {
   const message = grabConsole(() => {
-    const a = fobx.observable(3);
+    const a = fobx.observableBox(3);
     fobx.autorun(() => {
       if (a.value === 4) throw new Error("Reaction error");
     });

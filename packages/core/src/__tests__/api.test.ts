@@ -20,6 +20,7 @@ test("library has expected exports", () => {
     "isObservableObject",
     "isObservableSet",
     "observable",
+    "observableBox",
     "reaction",
     "runInAction",
     "when",

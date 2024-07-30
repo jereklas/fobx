@@ -1,22 +1,16 @@
 // eslint-disable-next-line import/no-cycle
 import {
   createAutoObservableObject,
-  type ObservableObjectWithAdmin,
   type ObservableObject,
   type ObservableObjectOptions,
   type AnnotationsMap,
 } from "./observableObject";
 // eslint-disable-next-line import/no-cycle
-import { ObservableSet, type SetOptions, type ObservableSetWithAdmin } from "./observableSet";
+import { ObservableSet, type SetOptions } from "./observableSet";
 // eslint-disable-next-line import/no-cycle
-import { ObservableMap, type MapOptions, type ObservableMapWithAdmin } from "./observableMap";
+import { ObservableMap, type MapOptions } from "./observableMap";
 // eslint-disable-next-line import/no-cycle
-import {
-  createObservableArray,
-  type ObservableArray,
-  type ArrayOptions,
-  type ObservableArrayWithAdmin,
-} from "./observableArray";
+import { createObservableArray, type ObservableArray, type ArrayOptions } from "./observableArray";
 import {
   isDecoratorContext,
   isMap,
@@ -27,52 +21,21 @@ import {
   isSet,
 } from "../utils/predicates";
 import type { Any } from "../state/global";
-import {
-  createObservableValue,
-  type ObservableValue,
-  type ObservableValueOptions,
-  type IObservableValueAdmin,
-  type ObservableValueWithAdmin,
-} from "./observableValue";
+import { type IObservableAdmin } from "./observableBox";
 
-export interface IObservableCollectionAdmin<T = Any> extends IObservableValueAdmin<T> {
+export interface IObservableCollectionAdmin<T = Any> extends IObservableAdmin<T> {
   changes: number;
   previous: string;
   current: string;
 }
 
-export type IObservable =
-  | ObservableValueWithAdmin
-  | ObservableObjectWithAdmin
-  | ObservableArrayWithAdmin
-  | ObservableMapWithAdmin
-  | ObservableSetWithAdmin;
-
-export function observable<T extends any = any>(set: Set<T>, options?: SetOptions): ObservableSet<T>;
-export function observable<T extends any = any>(arr: T[], options?: ArrayOptions): ObservableArray<T>;
-export function observable<K extends any = any, V extends any = any>(
+export function observable<T extends Any = Any>(set: Set<T>, options?: SetOptions): ObservableSet<T>;
+export function observable<T extends Any = Any>(arr: T[], options?: ArrayOptions): ObservableArray<T>;
+export function observable<K extends Any = Any, V extends Any = Any>(
   map: Map<K, V>,
   options?: MapOptions
 ): ObservableMap<K, V>;
-export function observable<T extends number | string | boolean | bigint | symbol | undefined | null>(
-  value: T,
-  options?: ObservableValueOptions<T>
-): ObservableValue<
-  T extends number
-    ? number
-    : T extends string
-      ? string
-      : T extends boolean
-        ? boolean
-        : T extends bigint
-          ? bigint
-          : T extends symbol
-            ? symbol
-            : T extends undefined | null
-              ? any
-              : never
->;
-export function observable<T extends Object, AdditionalFields extends PropertyKey>(
+export function observable<T extends object, AdditionalFields extends PropertyKey>(
   obj: T,
   annotations?: AnnotationsMap<T, AdditionalFields>,
   options?: ObservableObjectOptions
@@ -94,5 +57,9 @@ export function observable(obj: Any, a?: Any, b?: Any) {
   } else if (isObject(obj)) {
     return createAutoObservableObject(obj, a, b);
   }
-  return createObservableValue(obj, a);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[@fobx/core] observable() was called with a primitive value, primitives must use observableBox().");
+  }
+  return undefined;
 }

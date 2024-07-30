@@ -1,11 +1,11 @@
 import type { IObservableCollectionAdmin } from "../observables/observable";
-import type { IObservableValueAdmin } from "../observables/observableValue";
+import type { IObservableAdmin } from "./observableBox";
 import { trackObservable } from "../transactions/tracking";
 import { getGlobalState } from "../state/global";
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
-export const wrapIteratorForTracking = <T>(iterator: IterableIterator<T>, admin: IObservableValueAdmin) => {
+export const wrapIteratorForTracking = <T>(iterator: IterableIterator<T>, admin: IObservableAdmin) => {
   const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(iterator), "next");
   if (desc && typeof desc.value === "function") {
     Object.defineProperty(iterator, "next", {

@@ -4,6 +4,7 @@ import { configure } from "../../state/instance";
 import { isComputed, isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
 import { observable } from "../observable";
 import { ObservableArrayWithAdmin } from "../observableArray";
+import { observableBox } from "../observableBox";
 import { createAutoObservableObject, ObservableObjectWithAdmin } from "../observableObject";
 
 beforeEach(() => {
@@ -93,7 +94,7 @@ describe("observableObject", () => {
 
   test("computed values recompute as expected", () => {
     let callCount = 0;
-    const o1 = observable(1);
+    const o1 = observableBox(1);
     const obj = observable({
       get a() {
         callCount++;
@@ -396,7 +397,7 @@ describe("observableObject", () => {
 
     const firstArray = o.a as ObservableArrayWithAdmin;
     expect(r[$fobx].dependencies.length).toBe(2);
-    //@ts-expect-error
+    //@ts-expect-error - test
     expect(o.a[$fobx].observers.size).toBe(1);
 
     // non observable array being assigned should convert it to an observable array
@@ -406,14 +407,14 @@ describe("observableObject", () => {
     expect((o.a as ObservableArrayWithAdmin)[$fobx].name).not.toBe(firstArray[$fobx].name);
     // the observers from the first array should be transferred to the new array
     expect(firstArray[$fobx].observers.size).toBe(0);
-    //@ts-expect-error
+    //@ts-expect-error - test
     expect(o.a[$fobx].observers.size).toBe(1);
     // the reactions observables list should have been adjusted to remove reference to first array
     const deps = r[$fobx].dependencies;
     expect(deps.length).toBe(2);
-    //@ts-expect-error
+    //@ts-expect-error - test
     expect(deps.map((d) => d.name).includes(firstArray[$fobx].name)).toBe(false);
-    //@ts-expect-error
+    //@ts-expect-error - test
     expect(deps.map((d) => d.name).includes((o.a as ObservableArrayWithAdmin)[$fobx].name)).toBe(true);
     // expect the reaction to have run due to value being changed
     expect(reactionFn).toHaveBeenCalledTimes(3);

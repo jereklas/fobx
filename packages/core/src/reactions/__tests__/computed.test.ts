@@ -1,4 +1,4 @@
-import type { IObservableValue, ObservableValueWithAdmin } from "../../observables/observableValue";
+import { observableBox, type IObservable, type ObservableBoxWithAdmin } from "../../observables/observableBox";
 import { observable } from "../../observables/observable";
 import { ComputedWithAdmin, computed } from "../computed";
 import { configure } from "../../state/instance";
@@ -60,7 +60,7 @@ describe("computed", () => {
   });
 
   test("should use cached value each time value is accessed when actively being observed", () => {
-    const obs = observable(1) as IObservableValue;
+    const obs = observableBox(1) as IObservable;
     const computedFn = jest.fn(() => obs.value + 1);
     const c = computed(computedFn);
     expect(computedFn).not.toHaveBeenCalled();
@@ -78,9 +78,9 @@ describe("computed", () => {
   });
 
   test("should re-compute when any of the observable values change", () => {
-    const o1 = observable(1) as IObservableValue;
-    const o2 = observable(2) as IObservableValue;
-    const o3 = observable(3) as IObservableValue;
+    const o1 = observableBox(1) as IObservable;
+    const o2 = observableBox(2) as IObservable;
+    const o3 = observableBox(3) as IObservable;
     const c1Fn = jest.fn(() => o1.value + o2.value);
     const c1 = computed(c1Fn);
     const c2Fn = jest.fn(() => c1.value + o3.value);
@@ -123,7 +123,7 @@ describe("computed", () => {
   });
 
   test("should activate and suspend as expected", () => {
-    const obs = observable(1) as IObservableValue;
+    const obs = observableBox(1) as IObservable;
     const computedFn = jest.fn(() => obs.value + 1);
     const c = computed(computedFn) as ComputedWithAdmin;
     computedFn.mockClear();
@@ -181,8 +181,8 @@ describe("computed", () => {
   });
 
   test("should dynamically add/remove tracked observables based code branches executed", () => {
-    const a = observable(10) as ObservableValueWithAdmin;
-    const b = observable(true) as ObservableValueWithAdmin;
+    const a = observableBox(10) as ObservableBoxWithAdmin;
+    const b = observableBox(true) as ObservableBoxWithAdmin;
     const c = computed(() => {
       if (b.value) {
         return a.value;
@@ -216,7 +216,7 @@ describe("computed", () => {
 });
 
 test("computed value removes references to dependencies", () => {
-  const a = observable(10) as ObservableValueWithAdmin;
+  const a = observableBox(10) as ObservableBoxWithAdmin;
   const c = computed(() => {
     return a.value + 1;
   }) as ComputedWithAdmin;

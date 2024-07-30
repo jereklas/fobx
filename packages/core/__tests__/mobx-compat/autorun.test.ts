@@ -6,7 +6,7 @@ beforeEach(() => {
 });
 
 test("autorun passes Reaction as an argument to view function", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[] = [];
 
   fobx.autorun((r) => {
@@ -26,7 +26,7 @@ test("autorun passes Reaction as an argument to view function", () => {
 });
 
 test("autorun can be disposed on first run", () => {
-  const a = fobx.observable(1);
+  const a = fobx.observableBox(1);
   const values: number[] = [];
 
   fobx.autorun((r) => {
@@ -86,8 +86,8 @@ test("autorun batches automatically", () => {
 });
 
 test("autorun tracks invalidation of unbound dependencies", () => {
-  const a = fobx.observable(0);
-  const b = fobx.observable(0);
+  const a = fobx.observableBox(0);
+  const b = fobx.observableBox(0);
   const c = fobx.computed(() => a.value + b.value);
   const values: number[] = [];
 
@@ -102,7 +102,7 @@ test("autorun tracks invalidation of unbound dependencies", () => {
 
 test("when effect is an action", async () => {
   jest.useFakeTimers();
-  const a = fobx.observable(0);
+  const a = fobx.observableBox(0);
 
   let messages;
 

@@ -1,7 +1,7 @@
 import { reaction, ReactionWithAdmin } from "../../reactions/reaction";
 import { $fobx } from "../../state/global";
 import { configure } from "../../state/instance";
-import { isComputed, isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
+import { isAction, isComputed, isObservable, isObservableArray, isObservableObject } from "../../utils/predicates";
 import { observable } from "../observable";
 import { ObservableArrayWithAdmin } from "../observableArray";
 import { observableBox } from "../observableBox";
@@ -486,4 +486,50 @@ describe("observableObject", () => {
     expect(reactionFn).toHaveBeenCalledTimes(3);
     expect(reactionFn).toHaveBeenCalledWith(4, 3, expect.anything());
   });
+});
+
+test("annotations work as expected in inheritance", () => {
+  class GrandParent {
+    g = 3;
+    constructor() {
+      observable(this, {}, { shallow: true });
+    }
+    get g2() {
+      return this.g;
+    }
+
+    gfn() {}
+  }
+
+  class Parent extends GrandParent {
+    p = 2;
+    constructor() {
+      super();
+      observable(this, { g: "none", p2: "none", pfn: "none" });
+    }
+    get p2() {
+      return this.p;
+    }
+
+    pfn() {}
+  }
+
+  class Child extends Parent {
+    c = 1;
+    constructor() {
+      super();
+      observable(this);
+    }
+    get c2() {
+      return this.c;
+    }
+    cfn() {}
+  }
+
+  const c = new Child();
+  expect(isAction(c.pfn)).toBe(false);
+  expect(isComputed(c, "p2")).toBe(false);
+  expect(c.p2).toBe(2);
+  expect(isObservable(c, "g")).toBe(false);
+  expect(c.g).toBe(3);
 });

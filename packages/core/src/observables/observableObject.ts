@@ -5,8 +5,8 @@ import { ObservableMap } from "./observableMap";
 // eslint-disable-next-line import/no-cycle
 import { createObservableArray } from "./observableArray";
 import { $fobx, getGlobalState, type IFobxAdmin, type Any } from "../state/global";
-import { observableBox, type IObservable } from "./observableBox";
-import { createComputedValue } from "../reactions/computed";
+import { observableBox, ObservableBoxWithAdmin, type IObservable } from "./observableBox";
+import { ComputedWithAdmin, createComputedValue } from "../reactions/computed";
 import { action } from "../transactions/action";
 import { flow } from "../transactions/flow";
 import {
@@ -44,11 +44,12 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
-export const createObservableObject = <T extends object>(
+export const createAutoObservableObject = <T extends object>(
   obj: T,
-  annotations: AnnotationsMap<T, Any>,
+  overrides: AnnotationsMap<T, Any> = {},
   options?: ObservableObjectOptions
 ) => {
+  options = options ? { shallow: false, ...options } : { shallow: false };
   const type = getType(obj);
   if (type !== "object") {
     throw new Error(`[@fobx/core] Cannot make an observable object out of type "${type}"`);
@@ -64,20 +65,11 @@ export const createObservableObject = <T extends object>(
 
   annotateObject(observableObject, obj, {
     addToPrototype: !isPlainObj,
-    annotations,
+    annotations: overrides,
     shallow: options?.shallow ?? false,
   });
 
   return observableObject as T;
-};
-
-export const createAutoObservableObject = <T extends object>(
-  obj: T,
-  overrides: AnnotationsMap<T, Any> = {},
-  options?: ObservableObjectOptions
-) => {
-  options = options ? { shallow: false, ...options } : { shallow: false };
-  return createObservableObject(obj, getAutoObservableAnnotationsMap(obj, overrides), options);
 };
 
 export const extendObservable = <T extends object, E extends object>(
@@ -93,11 +85,13 @@ export const extendObservable = <T extends object, E extends object>(
   annotateObject(observableObject, extension, {
     // extending should always add to instance instead of prototype
     addToPrototype: false,
-    annotations: getAutoObservableAnnotationsMap(extension, annotations),
+    annotations,
     shallow: false,
   });
   return observableObject as unknown as T & E;
 };
+
+const explicitAnnotations = new Map<any, Set<PropertyKey>>();
 
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,
@@ -118,27 +112,36 @@ const annotateObject = <T extends object, E extends object>(
     return;
   }
 
-  const { addToPrototype, annotations, shallow } = options;
-  const sourceIsPlainObj = isPlainObject(source);
+  const { addToPrototype, shallow } = options;
   const admin = (observableObject as ObservableObjectWithAdmin)[$fobx];
+  const annotatedKeys = admin.values;
 
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value;
 
-    const isPrototype = !sourceIsPlainObj && source === proto;
-    const protoAnnotations = isPrototype ? getAnnotations(proto) : new Set();
-    const objAnnotations = sourceIsPlainObj ? new Set() : getAnnotations(source);
-    if (objAnnotations.has(key) || (addToPrototype && protoAnnotations.has(key))) {
-      return;
+    let annotation = options.annotations[key as keyof typeof options.annotations];
+    let isExplicitlyAnnotated = false;
+    if (annotation) {
+      isExplicitlyAnnotated = true;
+    } else if ("value" in desc) {
+      annotation =
+        typeof desc.value === "function"
+          ? isFlow(desc.value) || isGenerator(desc.value)
+            ? "flow"
+            : "action"
+          : "observable";
+    } else {
+      annotation = "computed";
     }
 
-    const annotation = annotations[key as keyof typeof annotations];
     switch (annotation) {
       case "observable": {
-        objAnnotations.add(key);
         if (desc.get || desc.set) {
           throw new Error(`[@fobx/core] "observable" cannot be used on getter/setter properties`);
         }
+        if (explicitAnnotations.get(observableObject)?.has(key) === true) break;
+        if (annotatedKeys.has(key)) break;
+
         const value = source[key as keyof typeof source];
         let box: IObservable;
         if (shallow) {
@@ -194,10 +197,12 @@ const annotateObject = <T extends object, E extends object>(
         break;
       }
       case "computed": {
-        objAnnotations.add(key);
         if (!desc || !desc.get) {
           throw new Error(`[@fobx/core] "${key}" property was marked as computed but object has no getter.`);
         }
+        if (explicitAnnotations.get(observableObject)?.has(key) === true) break;
+        if (annotatedKeys.has(key)) break;
+
         const computed = createComputedValue(desc.get, desc.set, {
           thisArg: observableObject,
         });
@@ -219,6 +224,7 @@ const annotateObject = <T extends object, E extends object>(
         }
         // someone used action() directly and assigned it as a instance member of class
         if (addToPrototype && isAction(desc.value)) break;
+        if (explicitAnnotations.get(addToPrototype ? proto : observableObject)?.has(key) === true) break;
 
         Object.defineProperty(addToPrototype ? proto : observableObject, key, {
           value: action(desc.value, {
@@ -232,11 +238,6 @@ const annotateObject = <T extends object, E extends object>(
           configurable: false,
           writable: true,
         });
-        if (addToPrototype) {
-          protoAnnotations.add(key);
-        } else {
-          objAnnotations.add(key);
-        }
         break;
       }
       case "flow":
@@ -244,7 +245,7 @@ const annotateObject = <T extends object, E extends object>(
         if (desc.value === undefined || !isGenerator(desc.value)) {
           throw new Error(`[@fobx/core] "${key}" was marked as a flow but is not a generator function.`);
         }
-
+        if (explicitAnnotations.get(addToPrototype ? proto : observableObject)?.has(key) === true) break;
         // someone used flow() directly and assigned it as a instance member of class
         if (addToPrototype && isFlow(desc.value)) break;
 
@@ -258,36 +259,68 @@ const annotateObject = <T extends object, E extends object>(
           }),
           enumerable: true,
           configurable: false,
-          writable: false,
+          writable: true,
         });
-        if (addToPrototype) {
-          protoAnnotations.add(key);
-        } else {
-          objAnnotations.add(key);
-        }
         break;
       }
       case "none":
       default: {
-        if (key !== "constructor" && annotation && annotation !== "none") {
+        if (annotation && annotation !== "none") {
           throw Error(`[@fobx/core] "${annotation}" is not a valid annotation.`);
         }
-        if (!addToPrototype) {
+        if (explicitAnnotations.get(addToPrototype ? proto : observableObject)?.has(key) === true) break;
+
+        // it's possible with inheritance for something to be annotated incorrectly before the correct
+        // annotation gets applied, if that happens we undo it here.
+        const val = admin.values.get(key);
+        if (val) {
+          admin.values.delete(key);
+          if ("dispose" in val) {
+            const computed = val as ComputedWithAdmin;
+            computed.dispose();
+            const { getter, setter } = computed[$fobx];
+            Object.defineProperty(observableObject, key, {
+              get: getter,
+              set: setter,
+              enumerable: true,
+              configurable: true,
+            });
+          } else {
+            const box = val as ObservableBoxWithAdmin;
+            Object.defineProperty(observableObject, key, {
+              value: box[$fobx].value,
+              enumerable: true,
+              configurable: true,
+            });
+          }
+        } else if ((typeof desc.value === "function" || isObject(desc.value)) && $fobx in desc.value) {
+          if (isAction(desc.value) || isFlow(desc.value)) {
+            Object.defineProperty(addToPrototype ? proto : observableObject, key, {
+              value: Object.getPrototypeOf(desc.value),
+              enumerable: true,
+              configurable: false,
+              writable: true,
+            });
+            break;
+          }
+          if (process.env.NODE_ENV !== "production") {
+            console.error(`key: ${key} was marked as "none" but is currently annotated`);
+          }
+        } else if (!addToPrototype) {
           Object.defineProperty(observableObject, key, desc);
         }
       }
     }
-  });
-};
 
-const annotated = /* @__PURE__ */ Symbol("annotated");
-const getAnnotations = (obj: unknown) => {
-  if (!Object.getOwnPropertyDescriptor(obj, annotated)) {
-    Object.defineProperty(obj, annotated, {
-      value: new Set<string | symbol>(),
-    });
-  }
-  return (obj as { [annotated]: Set<string | symbol> })[annotated];
+    if (isExplicitlyAnnotated) {
+      const p = explicitAnnotations.get(proto);
+      if (!p) {
+        explicitAnnotations.set(proto, new Set([key]));
+      } else {
+        p.add(key);
+      }
+    }
+  });
 };
 
 const getType = (obj: unknown) => {
@@ -330,33 +363,10 @@ const getPropertyDescriptors = <T extends object>(obj: T) => {
 
   do {
     Object.entries(Object.getOwnPropertyDescriptors(curr)).forEach(([key, descriptor]) => {
-      if (!descriptorsByName.has(key)) {
+      if (!descriptorsByName.has(key) && key !== "constructor") {
         descriptorsByName.set(key, { owner: curr, desc: descriptor });
       }
     });
   } while ((curr = Object.getPrototypeOf(curr)) && curr !== Object.prototype);
   return descriptorsByName;
-};
-
-const getAutoObservableAnnotationsMap = <T extends object>(obj: T, overrides: AnnotationsMap<T, Any> = {}) => {
-  if (!isObject(obj)) return {};
-  const annotations: Record<PropertyKey, Annotation> = {};
-  getPropertyDescriptors(obj).forEach((value, key) => {
-    if (key === "constructor") return;
-    const { desc } = value;
-    const override = overrides[key as keyof typeof overrides];
-    if (override) {
-      annotations[key] = override;
-    } else if ("value" in desc) {
-      annotations[key] =
-        typeof desc.value === "function"
-          ? isFlow(desc.value) || isGenerator(desc.value)
-            ? "flow"
-            : "action"
-          : "observable";
-    } else if (desc.get) {
-      annotations[key] = "computed";
-    }
-  });
-  return annotations;
 };

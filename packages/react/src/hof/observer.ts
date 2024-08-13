@@ -55,9 +55,16 @@ export function observer<P extends object, TRef = object>(
     render = (baseComponent as any)["render"];
   }
 
-  let ObserverComponent = (props: any, ref: React.Ref<TRef>) => {
-    return useObserver(() => render(props, ref), baseComponentName);
-  };
+  // this conditional is true when consumers are using this library with Preact.
+  let ObserverComponent = baseComponent.prototype?.isReactComponent
+    ? (props: any, ref: React.Ref<TRef>) => {
+        // need to re-assign ref to props so that the nested forwardRef call has it on props
+        props.ref = ref;
+        return useObserver(() => render(props, ref), baseComponentName);
+      }
+    : (props: any, ref: React.Ref<TRef>) => {
+        return useObserver(() => render(props, ref), baseComponentName);
+      };
 
   // Inherit original name and displayName
   (ObserverComponent as React.FunctionComponent).displayName = baseComponent.displayName;

@@ -1,9 +1,10 @@
 {
   "name": "@fobx/core",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "Fast, reactive state management.",
+  "sideEffects": false,
   "keywords": [
     "fobx",
     "reactive",

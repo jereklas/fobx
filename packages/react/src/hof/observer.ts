@@ -38,7 +38,10 @@ export function observer<P extends object, TRef = object>(
     | React.FunctionComponent<P>
     | React.ForwardRefExoticComponent<React.PropsWithoutRef<P> & React.RefAttributes<TRef>>
 ) {
-  if (ReactMemoSymbol && (baseComponent as TypeOf)["$$typeof"] === ReactMemoSymbol) {
+  if (
+    (ReactMemoSymbol && (baseComponent as TypeOf)["$$typeof"] === ReactMemoSymbol) ||
+    (baseComponent.prototype?.isReactComponent && (baseComponent.displayName ?? "").toLowerCase().startsWith("memo"))
+  ) {
     throw new Error(
       `[@fobx/react] You are trying to use "observer" on a function component wrapped in either another "observer" or "React.memo". The "observer" already applies "React.memo" for you.`
     );

@@ -112,6 +112,9 @@ const annotateObject = <T extends object, E extends object>(
     return;
   }
 
+  // remove prototype from the annotations object so prototype functions are not considered as an annotation
+  Object.setPrototypeOf(options.annotations, null);
+
   const { addToPrototype, shallow } = options;
   const admin = (observableObject as ObservableObjectWithAdmin)[$fobx];
   const annotatedKeys = admin.values;

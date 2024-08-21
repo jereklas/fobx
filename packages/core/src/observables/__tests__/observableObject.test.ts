@@ -11,6 +11,18 @@ beforeEach(() => {
   configure({ enforceActions: false });
 });
 
+test.each`
+  fn
+  ${"hasOwnProperty"}
+  ${"isPrototypeOf"}
+  ${"propertyIsEnumerable"}
+  ${"toLocaleString"}
+  ${"toString"}
+  ${"valueOf"}
+`("calling observable on an object with '$fn' defined does not throw", ({ fn }) => {
+  expect(() => observable({ [fn]: () => "string" })).not.toThrow();
+});
+
 test("observable(this) called in both super and base class does not incorrectly re-assign observables to computeds", () => {
   class ViewModel<T extends object = {}> {
     constructor(props: T) {

@@ -7,7 +7,7 @@ const globalState = getGlobalState();
 const fobxState = getFobxState();
 
 export interface IViewModel<VM extends new (...args: any) => any> {
-  update(...args: ConstructorParameters<VM>): void;
+  update(...args: Partial<ConstructorParameters<VM>>): void;
   onConnect(): void;
   onDisconnect(): void;
 }
@@ -40,7 +40,7 @@ export class ViewModel<T extends object = {}, E extends Element = HTMLElement> i
 
   onDisconnect(): void {}
 
-  update(props: T): void {
+  update(props: Partial<T>): void {
     Object.assign(this._props, props);
   }
 }

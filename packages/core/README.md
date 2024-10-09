@@ -9,14 +9,14 @@ API differences have been accounted for).
 Because of this functional equivalence, almost all of the mobx documentation and stack overflow questions found for mobx
 are applicable to @fobx/core. The following are the notable differences that are needed in order to get started:
 
-1. Fobx has a single way to create observable state, which is the `observable` function.
+1. Fobx has two methods for creating observable state, which is the `observable` and `observableBox` functions.
 
    ```js
-   import { observable } from "@fobx/core";
+   import { observable, observableBox } from "@fobx/core";
 
-   const num = observable(1);
-   const str = observable("hello fobx");
-   const bool = observable(true);
+   const num = observableBox(1);
+   const str = observableBox("hello fobx");
+   const bool = observableBox(true);
    const arr = observable([1, 2, 3]);
    const map = observable(
      new Map([
@@ -36,12 +36,13 @@ are applicable to @fobx/core. The following are the notable differences that are
    }
    ```
 
-2. If a primitive type was made observable, you get and set the value through the `.value` property.
+2. `observableBox` is needed when making a primitive type observable. When this happens you get and set the value
+   through the `.value` property.
 
    ```js
-   import { observable } from "@fobx/core";
+   import { observableBox } from "@fobx/core";
 
-   const a = observable(1);
+   const a = observableBox(1);
    console.log(a.value); // prints 1
    a.value = 5;
    console.log(a.value); // prints 5
@@ -50,7 +51,7 @@ are applicable to @fobx/core. The following are the notable differences that are
 3. Observable values are tracked immediately instead of waiting until the end of the reaction body.
 
    ```js
-   const o = observable(0);
+   const o = observableBox(0);
    const seen: number[] = [];
 
    autorun(() => {

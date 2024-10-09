@@ -40,7 +40,7 @@ export class ViewModel<T extends object = {}, E extends Element = HTMLElement> i
 
   onDisconnect(): void {}
 
-  update(props: T): void {
+  update(props: Partial<T>): void {
     Object.assign(this._props, props);
   }
 }

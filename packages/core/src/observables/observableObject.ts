@@ -44,6 +44,9 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
 
 const globalState = /* @__PURE__ */ getGlobalState();
 
+const preventGlobalThis = (that: unknown) => (that === globalThis ? undefined : that);
+const identityFunction = (that: unknown) => that;
+
 export const createAutoObservableObject = <T extends object>(
   obj: T,
   overrides: AnnotationsMap<T, Any> = {},
@@ -91,7 +94,7 @@ export const extendObservable = <T extends object, E extends object>(
   return observableObject as unknown as T & E;
 };
 
-const explicitAnnotations = new Map<any, Set<PropertyKey>>();
+const explicitAnnotations = new WeakMap<any, Set<PropertyKey>>();
 
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,
@@ -232,10 +235,12 @@ const annotateObject = <T extends object, E extends object>(
         Object.defineProperty(addToPrototype ? proto : observableObject, key, {
           value: action(desc.value, {
             name: key,
-            getThis: (that: unknown) => {
-              if (annotation === "action.bound") return observableObject;
-              return addToPrototype && that === globalThis ? undefined : that;
-            },
+            getThis:
+              annotation === "action.bound"
+                ? () => observableObject
+                : addToPrototype
+                  ? preventGlobalThis
+                  : identityFunction,
           }),
           enumerable: true,
           configurable: false,
@@ -255,10 +260,12 @@ const annotateObject = <T extends object, E extends object>(
         Object.defineProperty(addToPrototype ? proto : observableObject, key, {
           value: flow(desc.value, {
             name: key,
-            getThis: (that: unknown) => {
-              if (annotation === "flow.bound") return observableObject;
-              return addToPrototype && that === globalThis ? undefined : that;
-            },
+            getThis:
+              annotation === "flow.bound"
+                ? () => observableObject
+                : addToPrototype
+                  ? preventGlobalThis
+                  : identityFunction,
           }),
           enumerable: true,
           configurable: false,

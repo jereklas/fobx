@@ -91,7 +91,7 @@ export const extendObservable = <T extends object, E extends object>(
   return observableObject as unknown as T & E;
 };
 
-const explicitAnnotations = new Map<any, Set<PropertyKey>>();
+const explicitAnnotations = new WeakMap<any, Set<PropertyKey>>();
 
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,

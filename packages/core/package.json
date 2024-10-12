@@ -1,6 +1,6 @@
 {
   "name": "@fobx/core",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "license": "BSD-3-Clause",
   "author": "Jeremy Klas",
   "description": "Fast, reactive state management.",
@@ -26,26 +26,26 @@
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
-      "types": "./src/index.ts"
+      "types": "./dist/index.d.ts"
     },
     "./decorators": {
       "import": "./dist/decorators.js",
       "require": "./dist/decorators.cjs",
-      "types": "./src/decorators.ts"
+      "types": "./dist/decorators.d.ts"
     }
   },
   "typesVersions": {
     ".": {
       ".": [
-        "src/index.ts"
+        "dist/index.d.ts"
       ],
       "decorators": [
-        "src/decorators.ts"
+        "dist/decorators.d.ts"
       ]
     }
   },
@@ -56,7 +56,7 @@
     "build": "node ./build.mjs",
     "tsc": "tsc -p ./tsconfig.build.json",
     "lint": "oxlint -c=../../.oxlint.json --tsconfig=./tsconfig.json --import-plugin",
-    "prepublish": "pnpm tsc && pnpm build",
+    "prepublish": "pnpm build && pnpm tsc",
     "test": "jest --watchAll",
     "test:perf": "pnpm build && pnpm jest --watchAll -c ./jest-perf.config.cjs ./__tests__/perf/mobx.test.ts",
     "test:tsc": "pnpm build && jest --watchAll -c ./__tests__/tsc/jest.config.cjs ./__tests__/tsc",
@@ -64,7 +64,6 @@
     "coverage:ci": "jest --coverage"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ]
 }

@@ -6,13 +6,16 @@
     /* Modules */
     "module": "ES2022",
     "moduleResolution": "Bundler",
-    "noEmit": true,
     "jsx": "react-jsx",
 
     /* Type Checking */
     "strict": true,
+    "skipLibCheck": true,
 
-    "skipLibCheck": true
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.*"]
 }

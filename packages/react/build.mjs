@@ -33,7 +33,7 @@ const writeBundle = (extension) => {
       // TODO: we want the following define for NODE_ENV for bundles that target consumers using bundlers
       // TODO: we would want these to be true/false for non-bundler consumers (true for develop build, false for production)
       // makes string persist in final bundle instead of replacing with environment variable value
-      "process.env.NODE_ENV": '"production"',
+      "process.env.NODE_ENV": "process.env.NODE_ENV",
     },
     external: ["@fobx/core", "react"],
     minify: false,
@@ -50,4 +50,8 @@ await Promise.all([writeBundle(ESM_EXT), writeBundle(CJS_EXT)]).catch((e) => {
 const path = `${DIR}/${NAME}${ESM_EXT}`;
 const buffer = await fs.readFile(path);
 const gz = await gzip(buffer);
-console.log(`size [gzip]: ${(buffer.byteLength / 1024).toFixed(2)}kb [${(gz.byteLength / 1024).toFixed(2)}kb]`);
+console.log(
+  `size [gzip]: ${(buffer.byteLength / 1024).toFixed(2)}kb [${
+    (gz.byteLength / 1024).toFixed(2)
+  }kb]`,
+);

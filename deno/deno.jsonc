@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "install": "deno install --allow-read --allow-write --import-map=importMap.json -f -g -n convert-types main.ts",
+    "dev": "deno run --watch main.ts"
+  }
+}

@@ -6,12 +6,14 @@
     /* Modules */
     "module": "ES2022",
     "moduleResolution": "Bundler",
-    "noEmit": true,
 
     /* Type Checking */
     "strict": true,
+    "skipLibCheck": true,
 
-    "skipLibCheck": true
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true
   },
   "include": ["src", "__tests__/mobx.test.ts"]
 }

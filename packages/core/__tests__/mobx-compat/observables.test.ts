@@ -1,8 +1,11 @@
 import * as fobx from "../../src";
-import { getGlobalState, $fobx } from "../../src/state/global";
+import { $fobx, getGlobalState } from "../../src/state/global";
 import { deepEqual } from "fast-equals";
 import { grabConsole, suppressConsole } from "../utils";
-import { ObservableBox, ObservableBoxWithAdmin } from "../../src/observables/observableBox";
+import {
+  ObservableBox,
+  ObservableBoxWithAdmin,
+} from "../../src/observables/observableBox";
 
 beforeAll(() => {
   fobx.configure({ comparer: { structural: deepEqual } });
@@ -26,7 +29,7 @@ test("basic", function () {
     () => x.value,
     (v) => {
       b.push(v);
-    }
+    },
   );
   expect(3).toBe(x.value);
 
@@ -65,7 +68,7 @@ test("computed with asStructure modifier", function () {
         sum: x1.value + x2.value,
       };
     },
-    { comparer: "structural" }
+    { comparer: "structural" },
   );
   const b: { sum: number }[] = [];
 
@@ -116,7 +119,7 @@ test("dynamic2", function () {
   const b: number[] = [];
   fobx.reaction(
     () => y.value,
-    (v) => b.push(v)
+    (v) => b.push(v),
   );
 
   x.value = 5;
@@ -137,7 +140,7 @@ test("box uses equals", function () {
   const b: string[] = [];
   fobx.reaction(
     () => x.value,
-    (v) => b.push(v)
+    (v) => b.push(v),
   );
 
   x.value = "A";
@@ -163,7 +166,7 @@ test("box uses equals2", function () {
   const b: number[] = [];
   fobx.reaction(
     () => y.value,
-    (v) => b.push(v)
+    (v) => b.push(v),
   );
 
   x.value = "2";
@@ -179,7 +182,10 @@ test("readme1", function () {
   const b: number[] = [];
 
   const vat = fobx.observableBox(0.2);
-  const order = {} as { price: ObservableBox<number>; priceWithVat: ObservableBox<number> };
+  const order = {} as {
+    price: ObservableBox<number>;
+    priceWithVat: ObservableBox<number>;
+  };
   order.price = fobx.observableBox(10);
   // Prints: New price: 24
   // in TS, just: value(() => this.price() * (1+vat()))
@@ -189,7 +195,7 @@ test("readme1", function () {
 
   fobx.reaction(
     () => order.priceWithVat.value,
-    (v) => b.push(v)
+    (v) => b.push(v),
   );
 
   order.price.value = 20;
@@ -213,7 +219,7 @@ test("batch", function () {
     () => d.value,
     (v) => {
       buf.push(v);
-    }
+    },
   );
 
   a.value = 4;
@@ -298,7 +304,7 @@ test("scope", function () {
       function () {
         return (1 + vat.value) * this.price.value * this.amount.value;
       },
-      { thisArg: this }
+      { thisArg: this },
     );
   };
 
@@ -576,7 +582,7 @@ test("lazy evaluation", function () {
     () => d.value,
     function () {
       observerChanges += 1;
-    }
+    },
   );
   expect(bCalcs).toBe(4);
   expect(cCalcs).toBe(3);
@@ -675,7 +681,7 @@ test("nested observable2", function () {
     () => total.value,
     function (x) {
       b.push(x);
-    }
+    },
   );
   expect(total.value).toBe(100);
 
@@ -720,7 +726,7 @@ test("when", function () {
     },
     function () {
       called += 1;
-    }
+    },
   );
 
   x.value = 5;
@@ -768,19 +774,19 @@ test("prematurely end autorun", function () {
       x.value;
     });
 
-    expect(x[$fobx].observers.size).toBe(0);
+    expect(x[$fobx].observers.length).toBe(0);
     // neither autorun runs while inside the action
     expect(r1).toBe(undefined);
     expect(r2).toBe(undefined);
 
     dis1();
   });
-  expect(x[$fobx].observers.size).toBe(1);
+  expect(x[$fobx].observers.length).toBe(1);
   expect(r1).toBe(undefined);
   expect(r2[$fobx].dependencies.length).toBe(1);
   dis2();
 
-  expect(x[$fobx].observers.size).toBe(0);
+  expect(x[$fobx].observers.length).toBe(0);
   expect(r1).toBe(undefined);
   expect(r2[$fobx].dependencies.length).toBe(0);
 });
@@ -794,7 +800,7 @@ test("computed values believe NaN === NaN", function () {
   const buf: string[] = [];
   fobx.reaction(
     () => c.value,
-    (v) => buf.push(v)
+    (v) => buf.push(v),
   );
 
   a.value = NaN;
@@ -812,7 +818,7 @@ test("computed values believe deep NaN === deep NaN when using compareStructural
     function () {
       return a.b;
     },
-    { comparer: "structural" }
+    { comparer: "structural" },
   );
 
   const buf: { a: number }[] = [];
@@ -820,7 +826,7 @@ test("computed values believe deep NaN === deep NaN when using compareStructural
     () => c.value,
     (newValue) => {
       buf.push(newValue);
-    }
+    },
   );
 
   a.b = { a: NaN };
@@ -859,7 +865,7 @@ test("issue 71, transacting running transformation", function () {
         if (this.pos < 4) {
           state.things.push(new Thing(value + 1));
         }
-      }
+      },
     );
   }
 
@@ -976,17 +982,17 @@ test("prematurely ended autoruns are cleaned up properly", () => {
   });
 
   expect(called).toBe(1);
-  expect(a[$fobx].observers.size).toBe(1);
-  expect(b[$fobx].observers.size).toBe(0);
-  expect(c[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(1);
+  expect(b[$fobx].observers.length).toBe(0);
+  expect(c[$fobx].observers.length).toBe(1);
   expect(aa[$fobx].dependencies.length).toBe(2);
 
   a.value = 2;
 
   expect(called).toBe(2);
-  expect(a[$fobx].observers.size).toBe(0);
-  expect(b[$fobx].observers.size).toBe(0);
-  expect(c[$fobx].observers.size).toBe(0);
+  expect(a[$fobx].observers.length).toBe(0);
+  expect(b[$fobx].observers.length).toBe(0);
+  expect(c[$fobx].observers.length).toBe(0);
   expect(aa[$fobx].dependencies.length).toBe(0);
 });
 
@@ -1009,33 +1015,34 @@ test("unoptimizable subscriptions are diffed correctly", () => {
     val = a.value;
     if (
       b.value === 1 // only on first run
-    )
+    ) {
       a.value; // second run: one read less for a
+    }
   });
 
   expect(called).toBe(1);
   expect(val).toBe(1);
-  expect(a[$fobx].observers.size).toBe(2);
-  expect(b[$fobx].observers.size).toBe(1);
-  expect(c[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(2);
+  expect(b[$fobx].observers.length).toBe(1);
+  expect(c[$fobx].observers.length).toBe(1);
   expect(aa[$fobx].dependencies.length).toBe(3); // 3 would be better!
 
   b.value = 2;
 
   expect(called).toBe(2);
   expect(val).toBe(1);
-  expect(a[$fobx].observers.size).toBe(2);
-  expect(b[$fobx].observers.size).toBe(1);
-  expect(c[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(2);
+  expect(b[$fobx].observers.length).toBe(1);
+  expect(c[$fobx].observers.length).toBe(1);
   expect(aa[$fobx].dependencies.length).toBe(3); // c was cached so accessing a was optimizable
 
   a.value = 2;
 
   expect(called).toBe(3);
   expect(val).toBe(2);
-  expect(a[$fobx].observers.size).toBe(2);
-  expect(b[$fobx].observers.size).toBe(1);
-  expect(c[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(2);
+  expect(b[$fobx].observers.length).toBe(1);
+  expect(c[$fobx].observers.length).toBe(1);
   expect(aa[$fobx].dependencies.length).toBe(3); // c was cached so accessing a was optimizable
 
   d();
@@ -1136,9 +1143,9 @@ test("support computed property getters / setters", () => {
     grabConsole(() => {
       // @ts-expect-error - purposefully testing error case
       a.volume = 9;
-    })
+    }),
   ).toBe(
-    "<STDOUT> [@fobx/core] There was an attempt to set a value on a computed value without any setter. Nothing was set."
+    "<STDOUT> [@fobx/core] There was an attempt to set a value on a computed value without any setter. Nothing was set.",
   );
 
   const b = fobx.extendObservable(
@@ -1151,7 +1158,7 @@ test("support computed property getters / setters", () => {
       set volume(v) {
         this.size = Math.sqrt(v);
       },
-    }
+    },
   );
 
   const values: number[] = [];
@@ -1203,7 +1210,7 @@ test("helpful error for self referencing setter", function () {
   });
 
   expect(() => (a.y = 2)).toThrowError(
-    "[@fobx/core] Computed setter is assigning to itself, this will cause an infinite loop."
+    "[@fobx/core] Computed setter is assigning to itself, this will cause an infinite loop.",
   );
 });
 
@@ -1222,8 +1229,8 @@ test("isComputed", function () {
     fobx.isComputed(
       fobx.computed(function () {
         return 3;
-      })
-    )
+      }),
+    ),
   ).toBe(true);
 
   const x = fobx.observable({
@@ -1255,7 +1262,7 @@ test("603 - transaction should not kill reactions", () => {
     // empty
   }
 
-  expect(a[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(1);
   expect(d[$fobx].dependencies.length).toBe(1);
   expect(getGlobalState().batchedActionsCount).toEqual(0);
   expect(getGlobalState().pendingReactions.length).toEqual(0);
@@ -1282,11 +1289,13 @@ test("computed equals function only invoked when necessary", () => {
       },
       {
         equals: loggingComparer,
-      }
+      },
     );
 
     const values: string[] = [];
-    let disposeAutorun = fobx.autorun(() => values.push(combinedToLowerCase.value));
+    let disposeAutorun = fobx.autorun(() =>
+      values.push(combinedToLowerCase.value)
+    );
 
     // No comparison should be made on the first value
     expect(comparisons).toEqual([]);
@@ -1529,7 +1538,7 @@ test("can create computed with setter", () => {
     () => y,
     (v: number) => {
       y = v * 2;
-    }
+    },
   );
   expect(x.value).toBe(1);
   x.value = 3;
@@ -1716,7 +1725,7 @@ test("tuples", () => {
 
   fobx.reaction(
     () => myStuff[0],
-    (val) => events.push(val)
+    (val) => events.push(val),
   );
   myStuff[1] = 17; // should not react
   myStuff[0] = 2; // should react
@@ -1731,7 +1740,9 @@ test("extendObservable should not accept complex objects as second argument", ()
   }
   expect(() => {
     fobx.extendObservable({}, new X());
-  }).toThrowError("[@fobx/core] 2nd argument to extendObservable must be a plain js object.");
+  }).toThrowError(
+    "[@fobx/core] 2nd argument to extendObservable must be a plain js object.",
+  );
 });
 
 test("observable ignores class instances #2579", () => {
@@ -1866,7 +1877,11 @@ test("ObservableArray.splice", () => {
 
   // Deleting many items from a large list and inserting many items
   ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 10 }));
-  del = ar.splice(1, MAX_SPLICE_SIZE + 1, ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }));
+  del = ar.splice(
+    1,
+    MAX_SPLICE_SIZE + 1,
+    ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }),
+  );
   expect(ar.length).toEqual(MAX_SPLICE_SIZE + 10);
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1);
 });

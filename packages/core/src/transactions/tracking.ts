@@ -28,49 +28,25 @@ export function runWithTracking(fn: () => void, reaction: IReactionAdmin) {
   }
   setReactionContext(previousContext);
 
-  let l = 0;
-  let len = dependencies.length;
-  for (let i = 0; i < len; i += 1) {
-    const dep = dependencies[i];
-    if (dep.seen) continue;
-    dep.seen = true;
-    // this gets out of sync once we come across first duplicate
-    if (l !== i) {
-      dependencies[l] = dep;
-    }
-    l++;
-  }
-  dependencies.length = l;
-
-  len = previousDependencies.length;
-  for (let i = 0; i < len; i += 1) {
+  for (let i = 0; i < previousDependencies.length; i += 1) {
     const dep = previousDependencies[i];
-    if (!dep.seen) {
-      dep.observers.delete(reaction);
-      if (dep.observers.size === 0 && isComputedValueAdmin(dep)) {
-        // must explicitly reset this so next time computed becomes active is correctly re-computes
-        dep.previousObserverCount = 0;
-        removeAllDependencies(dep);
-      }
-    }
-    dep.seen = false;
+    if (dependencies.includes(dep)) continue;
+
+    removeReaction(dep, reaction);
   }
 
-  for (let i = 0; i < l; i += 1) {
-    const dep = dependencies[i];
-    if (!dep.seen) continue;
-    dep.observers.add(reaction);
-    dep.seen = false;
-  }
   reaction.dependencies = dependencies;
   return caughtException;
 }
 
-export function reportExceptionInReaction(reaction: IReactionAdmin, err: unknown) {
+export function reportExceptionInReaction(
+  reaction: IReactionAdmin,
+  err: unknown,
+) {
   if (process.env.NODE_ENV !== "production") {
     if (instanceState.actionThrew) {
       console.error(
-        `[@fobx/core] Reaction's exception was suppressed because an action threw an error first. Fix the action's error below first.`
+        `[@fobx/core] Reaction's exception was suppressed because an action threw an error first. Fix the action's error below first.`,
       );
     } else {
       console.error(`[@fobx/core] "${reaction.name}" threw an exception.`, err);
@@ -84,20 +60,32 @@ export function trackObservable(observable: IObservableAdmin) {
   const reaction = globalState.reactionContext;
   if (!reaction || reaction.isDisposed) return;
 
-  observable.observers.add(reaction);
-  reaction.newDependencies.push(observable);
+  if (!observable.observers.includes(reaction)) {
+    observable.observers.push(reaction);
+  }
+  if (!reaction.newDependencies.includes(observable)) {
+    reaction.newDependencies.push(observable);
+  }
+}
+
+function removeReaction(dep: IObservableAdmin, reaction: IReactionAdmin) {
+  const { observers } = dep;
+  const index = observers.indexOf(reaction);
+  if (index >= 0) {
+    observers[index] = observers[observers.length - 1];
+    observers.length = observers.length - 1;
+  }
+  if (dep.observers.length === 0 && isComputedValueAdmin(dep)) {
+    // must explicitly reset this so next time computed becomes active is correctly re-computes
+    dep.previousObserverCount = 0;
+    removeAllDependencies(dep);
+  }
 }
 
 export function removeAllDependencies(reaction: IReactionAdmin) {
   const { dependencies, newDependencies } = reaction;
-  dependencies.forEach((dep) => {
-    dep.observers.delete(reaction);
-    if (dep.observers.size === 0 && isComputedValueAdmin(dep)) {
-      // must explicitly reset this so next time computed becomes active is correctly re-computes
-      dep.previousObserverCount = 0;
-      removeAllDependencies(dep);
-    }
-  });
+  dependencies.forEach((dep) => removeReaction(dep, reaction));
+
   dependencies.length = 0;
   // we could be in the middle of a reaction, in which case remove all new dependencies as well
   newDependencies.length = 0;

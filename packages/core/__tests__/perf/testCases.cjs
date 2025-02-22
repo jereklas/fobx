@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const mobx = require("mobx/dist/mobx.cjs.production.min");
-const fobx = require("../../dist/fobx.prod.cjs.js");
+const fobx = require("../../dist/fobx.prod.cjs");
 // import * as mobx from "mobx/dist/mobx.esm.production.min";
 // import * as fobx from "../../dist/fobx.prod";
 
@@ -31,7 +31,7 @@ function oneObserves10k_mobx() {
   const start = Date.now();
   mobx.reaction(
     () => b.get(),
-    () => {}
+    () => {},
   );
   if (b.get() !== 99990000) throw failed;
   const initial = Date.now();
@@ -44,7 +44,7 @@ function oneObserves10k_mobx() {
 }
 
 function oneObserves10k_fobx() {
-  const a = fobx.observable(2);
+  const a = fobx.observableBox(2);
   const observers = [];
   for (let i = 0; i < 10000; i += 1) {
     observers.push(fobx.computed(() => a.value * i));
@@ -61,7 +61,7 @@ function oneObserves10k_fobx() {
   const start = Date.now();
   fobx.reaction(
     () => b.value,
-    () => {}
+    () => {},
   );
   if (b.value !== 99990000) throw failed;
   const initial = Date.now();
@@ -86,7 +86,7 @@ function oneThousandObservingSibling_mobx() {
     observables.push(
       mobx.computed(function () {
         return observables[i].get() + 1;
-      })
+      }),
     );
   }
 
@@ -95,7 +95,7 @@ function oneThousandObservingSibling_mobx() {
   const last = observables[observables.length - 1];
   mobx.reaction(
     () => last.get(),
-    () => {}
+    () => {},
   );
   if (last.get() !== 1001) throw failed;
   const initial = Date.now();
@@ -107,12 +107,12 @@ function oneThousandObservingSibling_mobx() {
   return `${initial - start}/${end - initial} ms`;
 }
 function oneThousandObservingSibling_fobx() {
-  const observables = [fobx.observable(1)];
+  const observables = [fobx.observableBox(1)];
   for (let i = 0; i < 1000; i++) {
     observables.push(
       fobx.computed(function () {
         return observables[i].value + 1;
-      })
+      }),
     );
   }
 
@@ -121,7 +121,7 @@ function oneThousandObservingSibling_fobx() {
   const last = observables[observables.length - 1];
   fobx.reaction(
     () => last.value,
-    () => {}
+    () => {},
   );
   if (last.value !== 1001) throw failed;
   const initial = Date.now();
@@ -153,7 +153,7 @@ function lateDepChange_mobx() {
 
   mobx.reaction(
     () => sum.get(),
-    () => {}
+    () => {},
   );
 
   for (let i = 0; i < 10000; i++) {
@@ -165,7 +165,7 @@ function lateDepChange_mobx() {
 }
 function lateDepChange_fobx() {
   const values = [];
-  for (let i = 0; i < 100; i++) values.push(fobx.observable(0));
+  for (let i = 0; i < 100; i++) values.push(fobx.observableBox(0));
 
   const sum = fobx.computed(function () {
     let sum = 0;
@@ -176,7 +176,7 @@ function lateDepChange_fobx() {
 
   fobx.reaction(
     () => sum.value,
-    () => {}
+    () => {},
   );
 
   for (let i = 0; i < 10000; i++) {
@@ -189,17 +189,18 @@ function lateDepChange_fobx() {
 
 function incrementObs100k() {
   return {
-    name: "increment observable 100k times with 1 computed, 1 reaction, 1 autorun",
+    name:
+      "increment observable 100k times with 1 computed, 1 reaction, 1 autorun",
     fobx: incrementObs100k_fobx(),
     mobx: incrementObs100k_mobx(),
   };
 }
 function incrementObs100k_fobx() {
-  const a = fobx.observable(0);
+  const a = fobx.observableBox(0);
   const c = fobx.computed(() => a.value + 1);
   const d = fobx.reaction(
     () => c.value,
-    () => {}
+    () => {},
   );
   const d2 = fobx.autorun(() => a.value);
   const start = Date.now();
@@ -215,7 +216,7 @@ function incrementObs100k_mobx() {
   const c = mobx.computed(() => a.get() + 1);
   const d = mobx.reaction(
     () => c.get(),
-    () => {}
+    () => {},
   );
   const d2 = mobx.autorun(() => a.get());
   const start = Date.now();
@@ -228,4 +229,9 @@ function incrementObs100k_mobx() {
 }
 
 // export { oneObserves10k, oneThousandObservingSibling, lateDepChange, incrementObs100k };
-module.exports = { oneObserves10k, oneThousandObservingSibling, lateDepChange, incrementObs100k };
+module.exports = {
+  oneObserves10k,
+  oneThousandObservingSibling,
+  lateDepChange,
+  incrementObs100k,
+};

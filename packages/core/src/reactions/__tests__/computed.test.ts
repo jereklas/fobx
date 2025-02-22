@@ -1,6 +1,10 @@
-import { observableBox, type IObservable, type ObservableBoxWithAdmin } from "../../observables/observableBox";
+import {
+  type IObservable,
+  observableBox,
+  type ObservableBoxWithAdmin,
+} from "../../observables/observableBox";
 import { observable } from "../../observables/observable";
-import { ComputedWithAdmin, computed } from "../computed";
+import { computed, ComputedWithAdmin } from "../computed";
 import { configure } from "../../state/instance";
 import { $fobx } from "../../state/global";
 import { reaction } from "../reaction";
@@ -134,11 +138,11 @@ describe("computed", () => {
 
     // adding computed to a reaction causes the computed to run
     expect(c[$fobx].dependencies.length).toBe(0); // computed is lazy so until it's accessed it has no observables
-    expect(c[$fobx].observers.size).toBe(0);
+    expect(c[$fobx].observers.length).toBe(0);
     const reactionFn = jest.fn();
     const d = reaction(() => c.value, reactionFn);
     expect(c[$fobx].dependencies.length).toBe(1);
-    expect(c[$fobx].observers.size).toBe(1);
+    expect(c[$fobx].observers.length).toBe(1);
     expect(computedFn).toHaveBeenCalledTimes(1);
 
     // accessing the computed value directly now uses cached value
@@ -158,7 +162,7 @@ describe("computed", () => {
     computedFn.mockClear();
     expect(computedFn).not.toHaveBeenCalled();
     d();
-    expect(c[$fobx].observers.size).toBe(0);
+    expect(c[$fobx].observers.length).toBe(0);
     expect(c[$fobx].dependencies.length).toBe(0);
     obs.value = 4;
     expect(computedFn).not.toHaveBeenCalled();
@@ -202,14 +206,14 @@ describe("computed", () => {
     b.value = false;
     expect(c[$fobx].dependencies.length).toBe(1);
     expect(c[$fobx].dependencies.includes(a[$fobx] as never)).toBe(false);
-    expect(a[$fobx].observers.size).toBe(0);
+    expect(a[$fobx].observers.length).toBe(0);
     expect(c[$fobx].dependencies.includes(b[$fobx] as never)).toBe(true);
 
     // returning b to true adds a back to the list of observables
     b.value = true;
     expect(c[$fobx].dependencies.length).toBe(2);
     expect(c[$fobx].dependencies.includes(a[$fobx] as never)).toBe(true);
-    expect(a[$fobx].observers.size).toBe(1);
+    expect(a[$fobx].observers.length).toBe(1);
     expect(c[$fobx].dependencies.includes(b[$fobx] as never)).toBe(true);
     dispose();
   });
@@ -226,9 +230,9 @@ test("computed value removes references to dependencies", () => {
   const reactionFn = jest.fn();
   reaction(() => c.value, reactionFn);
   expect(c[$fobx].dependencies.length).toBe(1);
-  expect(a[$fobx].observers.size).toBe(1);
+  expect(a[$fobx].observers.length).toBe(1);
 
   c.dispose();
   expect(c[$fobx].dependencies.length).toBe(0);
-  expect(a[$fobx].observers.size).toBe(0);
+  expect(a[$fobx].observers.length).toBe(0);
 });

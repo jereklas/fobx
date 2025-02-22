@@ -161,7 +161,21 @@ describe("ObservableArray", () => {
 
     a.push(4);
     expect(reactionFn).toHaveBeenCalledTimes(1);
-    expect(reactionFn).toHaveBeenCalledWith([2, 4, 6, 8], [2, 4, 6], expect.anything());
+    expect(reactionFn).toHaveBeenCalledWith(
+      [2, 4, 6, 8],
+      [2, 4, 6],
+      expect.anything(),
+    );
+  });
+
+  test("length property is correctly observable", () => {
+    const a = observable<string>([]);
+    const reactionFn = jest.fn();
+    reaction(() => a.length, reactionFn);
+
+    expect(reactionFn).toHaveBeenCalledTimes(0);
+    a.push("a");
+    expect(reactionFn).toHaveBeenCalledTimes(1);
   });
 
   test.each`
@@ -174,7 +188,7 @@ describe("ObservableArray", () => {
     ({ fn, expected }: { fn: keyof Array<number>; expected: number }) => {
       const a = observable([] as number[]) as ObservableArrayWithAdmin;
       reaction(() => a[fn](), jest.fn());
-      expect(a[$fobx].observers.size).toBe(0);
+      expect(a[$fobx].observers.length).toBe(0);
 
       const reactionFn = jest.fn();
       reaction(() => {
@@ -182,8 +196,12 @@ describe("ObservableArray", () => {
       }, reactionFn);
       a.push(5);
       expect(reactionFn).toHaveBeenCalledTimes(1);
-      expect(reactionFn).toHaveBeenCalledWith(expected, undefined, expect.anything());
-    }
+      expect(reactionFn).toHaveBeenCalledWith(
+        expected,
+        undefined,
+        expect.anything(),
+      );
+    },
   );
 
   test.each`
@@ -195,13 +213,16 @@ describe("ObservableArray", () => {
     ${"map"}     | ${[(v: number) => v]}
     ${"slice"}   | ${[]}
     ${"splice"}  | ${[]}
-  `("$fn should return non-observable array (it creates a copy)", ({ fn, args }) => {
-    const a = observable([1, 2, 3]) as ObservableArray;
-    const result = a[fn](...args);
-    // the functions return
-    expect(result !== a).toBe(true);
-    expect(!isObservableArray(result)).toBe(true);
-  });
+  `(
+    "$fn should return non-observable array (it creates a copy)",
+    ({ fn, args }) => {
+      const a = observable([1, 2, 3]) as ObservableArray;
+      const result = a[fn](...args);
+      // the functions return
+      expect(result !== a).toBe(true);
+      expect(!isObservableArray(result)).toBe(true);
+    },
+  );
 
   test.each`
     fn              | args

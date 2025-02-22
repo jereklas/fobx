@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { oneObserves10k, oneThousandObservingSibling, lateDepChange, incrementObs100k } = require("./testCases");
+const {
+  oneObserves10k,
+  oneThousandObservingSibling,
+  lateDepChange,
+  incrementObs100k,
+} = require("./testCases.cjs");
 // import { oneObserves10k, oneThousandObservingSibling, lateDepChange, incrementObs100k } from "./testCases";
 
 const results = {};
@@ -13,7 +18,10 @@ const results = {};
   oneThousandObservingSibling,
 ].forEach((fn) => {
   const result = fn();
-  results[result.name] = { "fobx (init/run)": result.fobx, "mobx (init/run)": result.mobx };
+  results[result.name] = {
+    "fobx (init/run)": result.fobx,
+    "mobx (init/run)": result.mobx,
+  };
 });
 
 console.table(results);

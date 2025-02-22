@@ -1,9 +1,8 @@
 // eslint-disable-next-line import/no-cycle
-import { observable, type IObservableCollectionAdmin } from "./observable";
+import { type IObservableCollectionAdmin, observable } from "./observable";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { $fobx, getGlobalState, type Any } from "../state/global";
+import { $fobx, type Any, getGlobalState } from "../state/global";
 import { isObject, isObservable, isSet } from "../utils/predicates";
-import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
 import { sendChange } from "./notifications";
@@ -21,7 +20,10 @@ export class ObservableSet<T = Any> extends Set<T> {
 
   constructor();
   constructor(values?: T[], options?: SetOptions);
-  constructor(iterable?: Iterable<unknown> | null | undefined, options?: SetOptions);
+  constructor(
+    iterable?: Iterable<unknown> | null | undefined,
+    options?: SetOptions,
+  );
   constructor(values: T[] = [], options?: SetOptions) {
     super();
     const name = `ObservableSet@${globalState.getNextId()}`;
@@ -38,16 +40,23 @@ export class ObservableSet<T = Any> extends Set<T> {
         changes: 0,
         previous: `${name}.0`,
         current: `${name}.0`,
-        observers: new Set<IReactionAdmin>(),
-        seen: false,
+        observers: [],
       },
     });
   }
+
+  get size() {
+    trackObservable((this as unknown as ObservableSetWithAdmin)[$fobx]);
+    return super.size;
+  }
+
   toString() {
     return `[object ObservableSet]`;
   }
   #add(value: T extends Any ? Any : never) {
-    const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as T) : value;
+    const val = !this.#shallow && isObject(value) && !isObservable(value)
+      ? (observable(value) as T)
+      : value;
     super.add(val);
   }
   add(value: T) {
@@ -60,7 +69,6 @@ export class ObservableSet<T = Any> extends Set<T> {
     });
     return this;
   }
-
   clear(this: ObservableSet) {
     const admin = (this as ObservableSetWithAdmin)[$fobx];
     runInAction(() => {
@@ -80,7 +88,11 @@ export class ObservableSet<T = Any> extends Set<T> {
       return result;
     });
   }
-  forEach(this: ObservableSet, callbackFn: (value: T, key: T, map: Set<T>) => void, thisArg?: unknown) {
+  forEach(
+    this: ObservableSet,
+    callbackFn: (value: T, key: T, map: Set<T>) => void,
+    thisArg?: unknown,
+  ) {
     trackObservable((this as ObservableSetWithAdmin)[$fobx]);
     super.forEach(callbackFn, thisArg);
   }
@@ -92,7 +104,9 @@ export class ObservableSet<T = Any> extends Set<T> {
     const admin = (this as ObservableSetWithAdmin)[$fobx];
     const removed = new Set(this);
     if (!Array.isArray(entries) && !isSet(entries)) {
-      throw new Error(`[@fobx/core] Supplied entries was not a Set or an Array.`);
+      throw new Error(
+        `[@fobx/core] Supplied entries was not a Set or an Array.`,
+      );
     }
 
     runInAction(() => {
@@ -112,12 +126,21 @@ export class ObservableSet<T = Any> extends Set<T> {
     return Array.from(super.values());
   }
   entries(this: ObservableSet) {
-    return wrapIteratorForTracking(super.entries(), (this as ObservableSetWithAdmin)[$fobx]);
+    return wrapIteratorForTracking(
+      super.entries(),
+      (this as ObservableSetWithAdmin)[$fobx],
+    );
   }
   keys(this: ObservableSet) {
-    return wrapIteratorForTracking(super.keys(), (this as ObservableSetWithAdmin)[$fobx]);
+    return wrapIteratorForTracking(
+      super.keys(),
+      (this as ObservableSetWithAdmin)[$fobx],
+    );
   }
   values(this: ObservableSet) {
-    return wrapIteratorForTracking(super.values(), (this as ObservableSetWithAdmin)[$fobx]);
+    return wrapIteratorForTracking(
+      super.values(),
+      (this as ObservableSetWithAdmin)[$fobx],
+    );
   }
 }

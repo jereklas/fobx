@@ -1,15 +1,19 @@
 // eslint-disable-next-line import/no-cycle
-import { observable, type IObservableCollectionAdmin } from "./observable";
+import { type IObservableCollectionAdmin, observable } from "./observable";
 import type { ObservableSetWithAdmin } from "../observables/observableSet";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { $fobx, getGlobalState, type Any } from "../state/global";
+import { $fobx, type Any, getGlobalState } from "../state/global";
 import { isMap, isObject, isObservable } from "../utils/predicates";
-import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
 import { runInAction } from "../transactions/action";
 import { instanceState } from "../state/instance";
 import { sendChange } from "./notifications";
-import { observableBox, type IObservable, type IObservableAdmin, type ObservableBoxWithAdmin } from "./observableBox";
+import {
+  type IObservable,
+  type IObservableAdmin,
+  observableBox,
+  type ObservableBoxWithAdmin,
+} from "./observableBox";
 
 export type ObservableMapWithAdmin = ObservableMap & {
   [$fobx]: IObservableCollectionAdmin;
@@ -27,12 +31,18 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
 
   constructor();
   constructor(entries: readonly (readonly [K, V])[], options?: MapOptions);
-  constructor(iterable?: Iterable<readonly [K, V]> | null | undefined, options?: MapOptions);
+  constructor(
+    iterable?: Iterable<readonly [K, V]> | null | undefined,
+    options?: MapOptions,
+  );
   constructor(record?: Record<PropertyKey, V>, options?: MapOptions);
   constructor(entries: Any = [], options?: MapOptions) {
-    if (isMap(entries) && entries.constructor.name !== "Map" && entries.constructor.name !== "ObservableMap") {
+    if (
+      isMap(entries) && entries.constructor.name !== "Map" &&
+      entries.constructor.name !== "ObservableMap"
+    ) {
       throw new Error(
-        `[@fobx/core] Cannot make observable map from class that inherit from Map: ${entries.constructor.name}`
+        `[@fobx/core] Cannot make observable map from class that inherit from Map: ${entries.constructor.name}`,
       );
     }
     super();
@@ -50,17 +60,23 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         changes: 0,
         previous: `${name}.0`,
         current: `${name}.0`,
-        observers: new Set<IReactionAdmin>(),
-        seen: false,
+        observers: [],
       },
     });
     Object.defineProperty(this, Symbol.iterator, {
       value: () => {
-        return getEntriesIterator(super[Symbol.iterator](), (this as unknown as ObservableMapWithAdmin)[$fobx]);
+        return getEntriesIterator(
+          super[Symbol.iterator](),
+          (this as unknown as ObservableMapWithAdmin)[$fobx],
+        );
       },
     });
   }
-  #delete(this: ObservableMap, key: K, opts: { preventNotification: boolean } = { preventNotification: false }) {
+  #delete(
+    this: ObservableMap,
+    key: K,
+    opts: { preventNotification?: boolean } = { preventNotification: false },
+  ) {
     const result = super.delete(key);
     if (result) {
       this.#keys.delete(key);
@@ -70,8 +86,15 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     return result;
   }
-  #set(this: ObservableMap, key: K, value: V extends Any ? Any : never, reusableValues: Map<K, V> = new Map()) {
-    const val = !this.#shallow && isObject(value) && !isObservable(value) ? (observable(value) as V) : value;
+  #set(
+    this: ObservableMap,
+    key: K,
+    value: V extends Any ? Any : never,
+    reusableValues: Map<K, V> = new Map(),
+  ) {
+    const val = !this.#shallow && isObject(value) && !isObservable(value)
+      ? (observable(value) as V)
+      : value;
     const reused = reusableValues.get(key) as IObservable<V>;
     const ov = reused ?? (super.get(key) as IObservable<V>);
     this.#keys.add(key);
@@ -88,7 +111,13 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       super.set(key, observableBox(val) as V);
     }
   }
-  #addEntries(entries: [K, V][] | Map<K, V> | Record<PropertyKey, V> | Iterable<readonly [K, V]>) {
+  #addEntries(
+    entries:
+      | [K, V][]
+      | Map<K, V>
+      | Record<PropertyKey, V>
+      | Iterable<readonly [K, V]>,
+  ) {
     if (isMap(entries)) {
       entries.forEach((value, key) => {
         this.#set(key, value);
@@ -114,8 +143,11 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   clear(this: ObservableMap) {
     const admin = (this as ObservableMapWithAdmin)[$fobx];
     runInAction(() => {
-      this.#keys.clear();
-      super.clear();
+      // Cannot call super.clear() it stops observability
+      this.forEach((value, key) => {
+        this.set(key, undefined);
+        this.#delete(key);
+      });
       incrementChangeCount(admin);
       sendChange(admin, admin.previous, admin.current);
     });
@@ -126,9 +158,11 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
-        if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
+        if (
+          globalState.batchedActionsCount === 0 && admin.observers.length > 0
+        ) {
           console.warn(
-            `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
+            `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
           );
         }
       }
@@ -146,7 +180,11 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       return result;
     });
   }
-  forEach(this: ObservableMap, callbackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown) {
+  forEach(
+    this: ObservableMap,
+    callbackFn: (value: V, key: K, map: Map<K, V>) => void,
+    thisArg?: unknown,
+  ) {
     trackObservable((this as ObservableMapWithAdmin)[$fobx]);
     const cb = (value: V, key: K, map: Map<K, V>) => {
       callbackFn((value as IObservable<V>).value, key, map);
@@ -172,9 +210,12 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     const admin = (this as unknown as ObservableMapWithAdmin)[$fobx];
 
     if (process.env.NODE_ENV !== "production") {
-      if (instanceState.enforceActions && globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
+      if (
+        instanceState.enforceActions && globalState.batchedActionsCount === 0 &&
+        admin.observers.length > 0
+      ) {
         console.warn(
-          `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
+          `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
         );
       }
     }
@@ -187,7 +228,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
 
     return this;
   }
-  merge(this: ObservableMap, entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>) {
+  merge(
+    this: ObservableMap,
+    entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>,
+  ) {
     if (isObservable(entries)) {
       trackObservable((entries as Any as { [$fobx]: IObservableAdmin })[$fobx]);
     }
@@ -197,7 +241,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       sendChange(admin, admin.previous, admin.current);
     });
   }
-  replace(this: ObservableMap, entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>) {
+  replace(
+    this: ObservableMap,
+    entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>,
+  ) {
     const admin = (this as ObservableMapWithAdmin)[$fobx];
     const startingChangeCount = admin.changes;
 
@@ -266,17 +313,26 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     return Array.from(this.entries());
   }
   entries() {
-    return getEntriesIterator(super.entries(), (this as unknown as ObservableMapWithAdmin)[$fobx]);
+    return getEntriesIterator(
+      super.entries(),
+      (this as unknown as ObservableMapWithAdmin)[$fobx],
+    );
   }
   keys() {
     return wrapIteratorForTracking(super.keys(), this.#keys[$fobx]);
   }
   values() {
-    return getValuesIterator(super.values(), (this as unknown as ObservableMapWithAdmin)[$fobx]);
+    return getValuesIterator(
+      super.values(),
+      (this as unknown as ObservableMapWithAdmin)[$fobx],
+    );
   }
 }
 
-const getValuesIterator = <V>(iterable: IterableIterator<V>, admin: IObservableCollectionAdmin) => {
+const getValuesIterator = <V>(
+  iterable: IterableIterator<V>,
+  admin: IObservableCollectionAdmin,
+) => {
   const original = iterable.next;
   Object.defineProperty(iterable, "next", {
     value: () => {
@@ -291,7 +347,10 @@ const getValuesIterator = <V>(iterable: IterableIterator<V>, admin: IObservableC
   return iterable;
 };
 
-const getEntriesIterator = <K, V>(iterable: IterableIterator<[K, V]>, admin: IObservableCollectionAdmin) => {
+const getEntriesIterator = <K, V>(
+  iterable: IterableIterator<[K, V]>,
+  admin: IObservableCollectionAdmin,
+) => {
   const original = iterable.next;
   Object.defineProperty(iterable, "next", {
     value: () => {

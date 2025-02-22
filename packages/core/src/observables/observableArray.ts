@@ -1,9 +1,9 @@
 /* eslint-disable no-fallthrough */
 // eslint-disable-next-line import/no-cycle
-import { observable, type IObservableCollectionAdmin } from "./observable";
+import { type IObservableCollectionAdmin, observable } from "./observable";
 import { endAction, runInAction, startAction } from "../transactions/action";
 import { incrementChangeCount, wrapIteratorForTracking } from "./helpers";
-import { $fobx, getGlobalState, type Any } from "../state/global";
+import { $fobx, type Any, getGlobalState } from "../state/global";
 import { isObject, isObservable } from "../utils/predicates";
 import type { IReactionAdmin } from "../reactions/reaction";
 import { trackObservable } from "../transactions/tracking";
@@ -25,12 +25,16 @@ export interface ObservableArray<T = Any> extends Array<T> {
   clear: () => T[];
   toJSON: () => T[];
 }
-export interface IObservableArrayAdmin<T = Any> extends IObservableCollectionAdmin<T> {
+export interface IObservableArrayAdmin<T = Any>
+  extends IObservableCollectionAdmin<T> {
   runningAction: string;
   temp: T[];
 }
 
-export function createObservableArray<T = Any>(initialValue: T[] = [], options?: ArrayOptions) {
+export function createObservableArray<T = Any>(
+  initialValue: T[] = [],
+  options?: ArrayOptions,
+) {
   const shallow = options?.shallow ?? false;
   const arr: T[] = [];
   // have to use for-loop as forEach ignores empty slots (i.e. observable(new Array(10)) wont correctly be length 10)
@@ -38,7 +42,7 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
     arr.push(
       !shallow && isObject(initialValue[i]) && !isObservable(initialValue[i])
         ? (observable(initialValue[i] as Any) as T)
-        : initialValue[i]
+        : initialValue[i],
     );
   }
   const internalName = `ObservableArray@${globalState.getNextId()}`;
@@ -46,9 +50,8 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
     value: arr,
     temp: [],
     name: internalName,
-    observers: new Set<IReactionAdmin>(),
+    observers: [],
     changes: 0,
-    seen: false,
     previous: `${internalName}.0`,
     current: `${internalName}.0`,
     runningAction: "",
@@ -84,16 +87,19 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
             if (globalState.reactionContext && prop === "reverse") {
               const alternative = mutationFns[prop];
               throw new Error(
-                `[@fobx/core] "observableArray.reverse" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`
+                `[@fobx/core] "observableArray.reverse" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`,
               );
             }
 
             try {
               startFnCall(admin, prop);
-              if (prop === "entries") result = wrapIteratorForTracking(target.entries(), admin);
-              else if (prop === "keys") result = wrapIteratorForTracking(target.keys(), admin);
-              else if (prop === "values") result = wrapIteratorForTracking(target.values(), admin);
-              else result = value.call(target);
+              if (prop === "entries") {
+                result = wrapIteratorForTracking(target.entries(), admin);
+              } else if (prop === "keys") {
+                result = wrapIteratorForTracking(target.keys(), admin);
+              } else if (prop === "values") {
+                result = wrapIteratorForTracking(target.values(), admin);
+              } else result = value.call(target);
             } finally {
               endFnCall(admin, prop, result);
             }
@@ -107,7 +113,7 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
             if (globalState.reactionContext && prop === "sort") {
               const alternative = mutationFns[prop];
               throw new Error(
-                `[@fobx/core] "observableArray.${prop}" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`
+                `[@fobx/core] "observableArray.${prop}" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`,
               );
             }
 
@@ -187,7 +193,9 @@ export function createObservableArray<T = Any>(initialValue: T[] = [], options?:
         incrementChangeCount(admin);
 
         runInAction(() => {
-          target[prop as unknown as number] = prop === "length" ? newValue : convertValue(newValue, shallow);
+          target[prop as unknown as number] = prop === "length"
+            ? newValue
+            : convertValue(newValue, shallow);
           sendChange(admin, admin.previous, admin.current);
         });
       }
@@ -230,7 +238,9 @@ const threeArgFns = new Set(["copyWithin", "fill"]);
 
 function convertValue<T>(value: T, shallow: boolean) {
   if (shallow) return value;
-  return isObject(value) && !isObservable(value) ? (observable(value as Any) as T) : value;
+  return isObject(value) && !isObservable(value)
+    ? (observable(value as Any) as T)
+    : value;
 }
 
 function toJSON<T>(this: ObservableArrayWithAdmin<T>) {
@@ -302,7 +312,7 @@ const mutationFns = /* @__PURE__ */ Object.freeze(
     replace: { value: "none" },
     remove: { value: "none" },
     clear: { value: "none" },
-  })
+  }),
 );
 
 // this was the most performant way of identifying if a prop name was a direct index access
@@ -317,7 +327,9 @@ const isIndex = (key: string | symbol) => {
 
 const startFnCall = (admin: IObservableArrayAdmin, prop: string) => {
   const alternative = mutationFns[prop];
-  if (prop !== "entries" && prop !== "values" && prop !== "keys" && !alternative) {
+  if (
+    prop !== "entries" && prop !== "values" && prop !== "keys" && !alternative
+  ) {
     trackObservable(admin);
   }
   if (!alternative) return;
@@ -326,17 +338,22 @@ const startFnCall = (admin: IObservableArrayAdmin, prop: string) => {
     process.env.NODE_ENV !== "production" &&
     instanceState.enforceActions &&
     globalState.batchedActionsCount === 0 &&
-    admin.observers.size > 0
+    admin.observers.length > 0
   ) {
     console.warn(
-      `[@fobx/core] ${admin.name}.${prop}(...) was called outside of an action which is discouraged as reactions run more frequently than necessary.`
+      `[@fobx/core] ${admin.name}.${prop}(...) was called outside of an action which is discouraged as reactions run more frequently than necessary.`,
     );
   }
   admin.runningAction = prop;
   startAction();
 };
 
-const endFnCall = (admin: IObservableArrayAdmin, prop: string, result: Any, argsLength = 0) => {
+const endFnCall = (
+  admin: IObservableArrayAdmin,
+  prop: string,
+  result: Any,
+  argsLength = 0,
+) => {
   if (!mutationFns[prop]) return;
   const arr = admin.value as Array<unknown>;
 

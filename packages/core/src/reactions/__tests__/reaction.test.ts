@@ -1,5 +1,14 @@
-import { ReactionAdmin, ReactionWithoutBatch, reaction, runReactions, type ReactionWithAdmin } from "../reaction";
-import { observableBox, type ObservableBoxWithAdmin } from "../../observables/observableBox";
+import {
+  reaction,
+  ReactionAdmin,
+  type ReactionWithAdmin,
+  ReactionWithoutBatch,
+  runReactions,
+} from "../reaction";
+import {
+  observableBox,
+  type ObservableBoxWithAdmin,
+} from "../../observables/observableBox";
 import { $fobx, getGlobalState } from "../../state/global";
 import { grabConsole } from "../../../__tests__/utils";
 import { configure } from "../../state/instance";
@@ -21,9 +30,9 @@ describe("Reaction", () => {
       return [val1.value, val2.value, val3.value];
     }, sideEffectFn);
 
-    expect(val1[$fobx].observers.size).toBe(1);
-    expect(val2[$fobx].observers.size).toBe(1);
-    expect(val3[$fobx].observers.size).toBe(1);
+    expect(val1[$fobx].observers.length).toBe(1);
+    expect(val2[$fobx].observers.length).toBe(1);
+    expect(val3[$fobx].observers.length).toBe(1);
     dispose();
   });
 });
@@ -39,13 +48,21 @@ describe("reaction", () => {
     // change first observable
     val1.value = 3;
     expect(sideEffectFn1).toHaveBeenCalledTimes(1);
-    expect(sideEffectFn1).toHaveBeenCalledWith([3, 2], [1, 2], expect.anything());
+    expect(sideEffectFn1).toHaveBeenCalledWith(
+      [3, 2],
+      [1, 2],
+      expect.anything(),
+    );
 
     // change second observable
     sideEffectFn1.mockClear();
     val2.value = 1;
     expect(sideEffectFn1).toHaveBeenCalledTimes(1);
-    expect(sideEffectFn1).toHaveBeenCalledWith([3, 1], [3, 2], expect.anything());
+    expect(sideEffectFn1).toHaveBeenCalledWith(
+      [3, 1],
+      [3, 2],
+      expect.anything(),
+    );
     dispose();
 
     // reaction with single value
@@ -79,8 +96,8 @@ describe("reaction", () => {
     }, sideEffectFn);
     // value change caused sideEffectFn to run
     val.value = 10;
-    expect(val[$fobx].observers.size).toBe(1);
-    expect(val[$fobx].observers.has(r[$fobx])).toBe(true);
+    expect(val[$fobx].observers.length).toBe(1);
+    expect(val[$fobx].observers.includes(r[$fobx])).toBe(true);
     expect(r[$fobx].dependencies.length).toBe(1);
     expect(r[$fobx].dependencies.indexOf(val[$fobx] as never)).not.toBe(-1);
     expect(sideEffectFn).toHaveBeenCalledTimes(1);
@@ -89,7 +106,7 @@ describe("reaction", () => {
     // dispose removes tracking
     sideEffectFn.mockClear();
     dispose();
-    expect(val[$fobx].observers.size).toBe(0);
+    expect(val[$fobx].observers.length).toBe(0);
     expect(r[$fobx].dependencies.length).toBe(0);
     // value change doesn't cause sideEffectFn to run
     val.value = 5;
@@ -103,13 +120,13 @@ test("An exception thrown in the side effect gets logged to stderr", () => {
     () => a.value,
     () => {
       throw Error("hmm");
-    }
+    },
   );
 
   expect(
     grabConsole(() => {
       a.value += 1;
-    })
+    }),
   ).toMatch(/<STDERR> \[@fobx\/core\] "Reaction@.* threw an exception\./);
   expect(onReactionError).toHaveBeenCalledWith(Error("hmm"), expect.anything());
 });
@@ -149,6 +166,8 @@ test("runReactions issues message to stderr if reactions can't run", () => {
   expect(
     grabConsole(() => {
       runReactions();
-    })
-  ).toMatch("<STDERR> [@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.");
+    }),
+  ).toMatch(
+    "<STDERR> [@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.",
+  );
 });

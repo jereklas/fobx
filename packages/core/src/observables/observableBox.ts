@@ -5,10 +5,10 @@ import { runInAction } from "../transactions/action";
 import { sendChange } from "./notifications";
 import {
   $fobx,
-  getGlobalState,
   type Any,
   type ComparisonType,
   type EqualityChecker,
+  getGlobalState,
   type IFobxAdmin,
 } from "../state/global";
 
@@ -24,8 +24,7 @@ export interface IObservable<T = Any> {
 
 export interface IObservableAdmin<T = Any> extends IFobxAdmin {
   value: T;
-  observers: Set<IReactionAdmin>;
-  seen: boolean;
+  observers: IReactionAdmin[];
 }
 export type ObservableBoxOptions<T> = {
   valueTransform?: (value: T) => Any;
@@ -39,8 +38,7 @@ export class ObservableBox<T = Any> implements IObservable<T> {
       value: {
         name: `ObservableBox@${globalState.getNextId()}`,
         value: val as T,
-        observers: new Set<IReactionAdmin>(),
-        seen: false,
+        observers: [],
         options: options ?? {},
       },
     });
@@ -55,9 +53,11 @@ export class ObservableBox<T = Any> implements IObservable<T> {
 
     if (process.env.NODE_ENV !== "production") {
       if (instanceState.enforceActions) {
-        if (globalState.batchedActionsCount === 0 && admin.observers.size > 0) {
+        if (
+          globalState.batchedActionsCount === 0 && admin.observers.length > 0
+        ) {
           console.warn(
-            `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`
+            `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
           );
         }
       }
@@ -66,7 +66,9 @@ export class ObservableBox<T = Any> implements IObservable<T> {
     runInAction(() => {
       const { options } = admin;
       const oldValue = admin.value;
-      newValue = options.valueTransform ? options.valueTransform(newValue) : newValue;
+      newValue = options.valueTransform
+        ? options.valueTransform(newValue)
+        : newValue;
       admin.value = newValue;
 
       if (isDifferent(oldValue, newValue, options.equals ?? options.comparer)) {

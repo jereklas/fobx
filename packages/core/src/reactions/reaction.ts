@@ -5,12 +5,12 @@ import type { StateNotification } from "../observables/notifications";
 import { isObservableCollection } from "../utils/predicates";
 import { isDifferent } from "../state/instance";
 import {
-  getGlobalState,
   $fobx,
-  type Disposer,
-  type IFobxAdmin,
   type ComparisonType,
+  type Disposer,
   type EqualityChecker,
+  getGlobalState,
+  type IFobxAdmin,
 } from "../state/global";
 import {
   removeAllDependencies,
@@ -130,7 +130,9 @@ export class ReactionWithoutBatch extends Reaction {
 }
 
 export function runReactions() {
-  if (globalState.batchedActionsCount > 0 || globalState.isRunningReactions) return;
+  if (globalState.batchedActionsCount > 0 || globalState.isRunningReactions) {
+    return;
+  }
   globalState.isRunningReactions = true;
 
   const reactions = globalState.pendingReactions;
@@ -140,7 +142,9 @@ export function runReactions() {
     if (++iterations === MAX_ITERATIONS) {
       reactions.length = 0;
       if (process.env.NODE_ENV !== "production") {
-        console.error("[@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.");
+        console.error(
+          "[@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.",
+        );
       }
     }
 
@@ -187,14 +191,24 @@ function runReaction(reaction: IReactionAdmin) {
 
 export type ReactionOptions = {
   comparer?: ComparisonType;
-  fireImmediately?: boolean;
   equals?: EqualityChecker;
 };
 
+// Overload declarations:
 export function reaction<T>(
   dataFn: (reaction: IReaction) => T,
   effectFn: (current: T, previous: T, reaction: IReaction) => void,
-  options: ReactionOptions = {}
+  options?: ReactionOptions,
+): () => void;
+export function reaction<T>(
+  dataFn: (reaction: IReaction) => T,
+  effectFn: (current: T, previous: T | undefined, reaction: IReaction) => void,
+  options: ReactionOptions & { fireImmediately: true },
+): () => void;
+export function reaction<T>(
+  dataFn: (reaction: IReaction) => T,
+  effectFn: (current: T, previous: T | undefined, reaction: IReaction) => void,
+  options: ReactionOptions & { fireImmediately?: true } = {},
 ) {
   let firstRun = true;
   let previousValue: T | undefined;
@@ -203,14 +217,14 @@ export function reaction<T>(
   const reaction = new Reaction(
     new ReactionAdmin(() => {
       runReaction();
-    })
+    }),
   ) as ReactionWithAdmin;
 
   const effectAction = action(
-    (current: T, previous: T, reaction: IReaction) => {
+    (current: T, previous: T | undefined, reaction: IReaction) => {
       effectFn(current, previous, reaction);
     },
-    { name: `${reaction[$fobx].name}-sideEffect` }
+    { name: `${reaction[$fobx].name}-sideEffect` },
   );
 
   const runReaction = () => {
@@ -234,9 +248,9 @@ export function reaction<T>(
       changed = firstRun || valuesAreDifferent(options, previousValue, value);
 
       if (firstRun && options?.fireImmediately) {
-        effectAction(value, previousValue as T, reaction);
+        effectAction(value, previousValue, reaction);
       } else if (!firstRun && changed) {
-        effectAction(value, previousValue as T, reaction);
+        effectAction(value, previousValue, reaction);
       }
     }
 
@@ -247,10 +261,18 @@ export function reaction<T>(
   return () => reaction.dispose();
 }
 
-function valuesAreDifferent(options: ReactionOptions, previous: unknown, current: unknown) {
+function valuesAreDifferent(
+  options: ReactionOptions,
+  previous: unknown,
+  current: unknown,
+) {
   return isDifferent(previous, current, options?.equals ?? options.comparer)
     ? true
     : isObservableCollection(current)
-      ? isDifferent(current[$fobx].previous, current[$fobx].current, options?.equals ?? options.comparer)
-      : false;
+    ? isDifferent(
+      current[$fobx].previous,
+      current[$fobx].current,
+      options?.equals ?? options.comparer,
+    )
+    : false;
 }

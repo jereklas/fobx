@@ -43,20 +43,56 @@ describe("ObservableMap", () => {
     ${"entries"} | ${["a", "v"]}
     ${"values"}  | ${"v"}
     ${"keys"}    | ${"a"}
-  `("$fn() does not cause reaction unless the iterable.next() is called", ({ fn, expected }) => {
-    const m = fobx.observable(new Map()) as ObservableMapWithAdmin;
-    //@ts-expect-error
-    fobx.reaction(() => m[fn](), jest.fn());
-    expect(m[$fobx].observers.size).toBe(0);
+  `(
+    "$fn() does not cause reaction unless the iterable.next() is called",
+    ({ fn, expected }) => {
+      const m = fobx.observable(new Map()) as ObservableMapWithAdmin;
+      //@ts-expect-error
+      fobx.reaction(() => m[fn](), jest.fn());
+      expect(m[$fobx].observers.length).toBe(0);
 
+      const reactionFn = jest.fn();
+      fobx.reaction(() => {
+        // @ts-expect-error
+        return m[fn]().next().value;
+      }, reactionFn);
+      m.set("a", "v");
+      expect(reactionFn).toHaveBeenCalledTimes(1);
+      expect(reactionFn).toHaveBeenCalledWith(
+        expected,
+        undefined,
+        expect.anything(),
+      );
+    },
+  );
+
+  test("issue #4 - reaction fires correctly after clear()", () => {
+    const m = fobx.observable(new Map([["a", 1]]));
     const reactionFn = jest.fn();
-    fobx.reaction(() => {
-      // @ts-expect-error
-      return m[fn]().next().value;
-    }, reactionFn);
-    m.set("a", "v");
+    fobx.reaction(() => m.get("a"), reactionFn);
+
+    m.set("a", 2);
     expect(reactionFn).toHaveBeenCalledTimes(1);
-    expect(reactionFn).toHaveBeenCalledWith(expected, undefined, expect.anything());
+    m.clear();
+    expect(reactionFn).toHaveBeenCalledTimes(2);
+    m.set("a", 3);
+    expect(reactionFn).toHaveBeenCalledTimes(3);
+
+    fobx.runInAction(() => {
+      m.clear();
+      m.set("a", 1);
+    });
+    expect(reactionFn).toHaveBeenCalledTimes(4);
+  });
+
+  test("size property is correctly observable", () => {
+    const map = fobx.observable(new Map());
+    const reactionFn = jest.fn();
+    fobx.reaction(() => map.size, reactionFn);
+
+    expect(reactionFn).toHaveBeenCalledTimes(0);
+    map.set("a", 7);
+    expect(reactionFn).toHaveBeenCalledTimes(1);
   });
 
   test("reaction to map as a collection work as expected", () => {

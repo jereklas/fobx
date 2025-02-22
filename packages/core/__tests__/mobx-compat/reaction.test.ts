@@ -3,7 +3,10 @@ import { deepEqual } from "fast-equals";
 import { suppressConsole } from "../utils";
 
 beforeAll(() => {
-  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } });
+  fobx.configure({
+    enforceActions: false,
+    comparer: { structural: deepEqual },
+  });
 });
 
 test("basic", () => {
@@ -14,7 +17,7 @@ test("basic", () => {
     () => a.value,
     (newValue, oldValue) => {
       values.push([newValue, oldValue]);
-    }
+    },
   );
 
   a.value = 2;
@@ -37,7 +40,7 @@ test("effect fireImmediately is honored", () => {
     (newValue) => {
       values.push(newValue);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
   a.value = 2;
@@ -58,7 +61,7 @@ test("effect is untracked", () => {
     (newValue) => {
       values.push(newValue * b.value);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
   a.value = 2;
@@ -82,7 +85,7 @@ test("passes Reaction as an argument to expression function", () => {
     (newValue) => {
       values.push(newValue);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
   a.value = 2;
@@ -104,7 +107,7 @@ test("passes Reaction as an argument to effect function", () => {
       if (a.value === "pleaseDispose") r.dispose();
       values.push(newValue);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
   a.value = 2;
@@ -119,17 +122,17 @@ test("passes Reaction as an argument to effect function", () => {
 test("can dispose reaction on first run", () => {
   const a = fobx.observableBox(1);
 
-  const valuesExpr1st: number[][] = [];
+  const valuesExpr1st: (number | undefined)[][] = [];
   fobx.reaction(
     () => a.value,
     (newValue, oldValue, r) => {
       r.dispose();
       valuesExpr1st.push([newValue, oldValue]);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
-  const valuesEffect1st: number[][] = [];
+  const valuesEffect1st: (number | undefined)[][] = [];
   fobx.reaction(
     (r) => {
       r.dispose();
@@ -138,7 +141,7 @@ test("can dispose reaction on first run", () => {
     (newValue, oldValue) => {
       valuesEffect1st.push([newValue, oldValue]);
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
 
   const valuesExpr: number[][] = [];
@@ -147,7 +150,7 @@ test("can dispose reaction on first run", () => {
     (newValue, oldValue, r) => {
       r.dispose();
       valuesExpr.push([newValue, oldValue]);
-    }
+    },
   );
 
   const valuesEffect: number[][] = [];
@@ -158,7 +161,7 @@ test("can dispose reaction on first run", () => {
     },
     (newValue, oldValue) => {
       valuesEffect.push([newValue, oldValue]);
-    }
+    },
   );
 
   a.value = 2;
@@ -221,7 +224,7 @@ test("#278 do not rerun if expr output doesn't change", () => {
     () => (a.value < 10 ? a.value : 11),
     (newValue) => {
       values.push(newValue);
-    }
+    },
   );
 
   a.value = 2;
@@ -264,7 +267,7 @@ test("#278 do not rerun if expr output doesn't change structurally", () => {
     {
       fireImmediately: true,
       comparer: "structural",
-    }
+    },
   );
 
   users[0].name = "john";
@@ -292,14 +295,14 @@ test("do not rerun if prev & next expr output is NaN", () => {
     (newValue) => {
       values.push(String(newValue));
     },
-    { fireImmediately: true }
+    { fireImmediately: true },
   );
   const dd = fobx.reaction(
     () => v.value,
     (newValue) => {
       valuesS.push(String(newValue));
     },
-    { fireImmediately: true, comparer: "structural" }
+    { fireImmediately: true, comparer: "structural" },
   );
 
   v.value = NaN;
@@ -320,7 +323,10 @@ test("reaction uses equals", () => {
   const disposeReaction = fobx.reaction(
     () => o.value,
     (value) => values.push(value.toLowerCase()),
-    { equals: (from, to) => from.toUpperCase() === to.toUpperCase(), fireImmediately: true }
+    {
+      equals: (from, to) => from.toUpperCase() === to.toUpperCase(),
+      fireImmediately: true,
+    },
   );
   expect(values).toEqual(["a"]);
   o.value = "A";
@@ -349,7 +355,7 @@ test("reaction equals function only invoked when necessary", () => {
       // Note: exceptions thrown here are intentional!
       () => left.value.toLowerCase() + right.value.toLowerCase(),
       (value) => values.push(value),
-      { equals: loggingComparer, fireImmediately: true }
+      { equals: loggingComparer, fireImmediately: true },
     );
 
     // No comparison should be made on the first value

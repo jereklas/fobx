@@ -32,22 +32,29 @@ describe("ObservableSet", () => {
     ${"entries"} | ${["a", "a"]}
     ${"values"}  | ${"a"}
     ${"keys"}    | ${"a"}
-  `("$fn() does not cause reaction unless the iterable.next() is called", ({ fn, expected }) => {
-    const m = observable(new Set()) as ObservableSetWithAdmin;
-    // @ts-expect-error
-    reaction(() => m[fn](), jest.fn());
-    expect(m[$fobx].observers.size).toBe(0);
-
-    const reactionFn = jest.fn();
-    reaction(() => {
+  `(
+    "$fn() does not cause reaction unless the iterable.next() is called",
+    ({ fn, expected }) => {
+      const m = observable(new Set()) as ObservableSetWithAdmin;
       // @ts-expect-error
-      return m[fn]().next().value;
-    }, reactionFn);
-    expect(m[$fobx].observers.size).toBe(1);
-    m.add("a");
-    expect(reactionFn).toHaveBeenCalledTimes(1);
-    expect(reactionFn).toHaveBeenCalledWith(expected, undefined, expect.anything());
-  });
+      reaction(() => m[fn](), jest.fn());
+      expect(m[$fobx].observers.length).toBe(0);
+
+      const reactionFn = jest.fn();
+      reaction(() => {
+        // @ts-expect-error
+        return m[fn]().next().value;
+      }, reactionFn);
+      expect(m[$fobx].observers.length).toBe(1);
+      m.add("a");
+      expect(reactionFn).toHaveBeenCalledTimes(1);
+      expect(reactionFn).toHaveBeenCalledWith(
+        expected,
+        undefined,
+        expect.anything(),
+      );
+    },
+  );
 
   test("reaction to set as a collection works as expected", () => {
     const m = observable(new Set());
@@ -67,6 +74,25 @@ describe("ObservableSet", () => {
     expect(reactionFn).toHaveBeenCalledTimes(3);
     m.clear();
     expect(reactionFn).toHaveBeenCalledTimes(4);
+  });
+
+  test("reaction fires correctly after clear()", () => {
+    const m = observable(new Set("a"));
+    const reactionFn = jest.fn();
+    reaction(() => m.has("a"), reactionFn);
+    m.clear();
+    expect(reactionFn).toHaveBeenCalledTimes(1);
+    m.add("a");
+  });
+
+  test("issue #2 - size property is correctly observable", () => {
+    const set = observable(new Set());
+    const reactionFn = jest.fn();
+    reaction(() => set.size, reactionFn);
+
+    expect(reactionFn).toHaveBeenCalledTimes(0);
+    set.add(7);
+    expect(reactionFn).toHaveBeenCalledTimes(1);
   });
 });
 

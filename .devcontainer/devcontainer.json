@@ -1,0 +1,29 @@
+{
+  "name": "Deno Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "vscode",
+  "containerUser": "vscode",
+  "workspaceFolder": "/fobx",
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/fobx,type=bind",
+  "remoteEnv": {
+    "HOST_WORKSPACE": "${localWorkspaceFolder}"
+  },
+  "postStartCommand": "deno install",
+  "postCreateCommand": "mkdir -p .git/hooks && cp .devcontainer/git-hooks/post-checkout .git/hooks/post-checkout && chmod +x .git/hooks/post-checkout",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "denoland.vscode-deno",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+      }
+    }
+  }
+}

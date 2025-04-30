@@ -1,0 +1,40 @@
+{
+  "name": "@fobx/core",
+  "version": "0.8.0",
+  "description": "Fast, reactive state management",
+  "keywords": [
+    "fobx",
+    "reactive",
+    "observable",
+    "framework agnostic",
+    "frp",
+    "functional-reactive-programming",
+    "dependency free",
+    "state management"
+  ],
+  "type": "module",
+  "main": "index.cjs",
+  "module": "index.js",
+  "types": "index.d.ts",
+  /* everything below this is replaced in build.ts */
+  "exports": {
+    ".": "./index.ts"
+  },
+  "tasks": {
+    "lint": "deno lint",
+    "check": "deno check index.ts",
+    "coverage": "deno test --clean --coverage --reporter=dot && deno coverage --exclude=\"testing/**\" --exclude=\"dist/**\"",
+    "build": {
+      "command": "deno run -A build.ts",
+      "dependencies": ["lint", "check"]
+    },
+    "publish": {
+      "command": "cd dist && npm publish",
+      "dependencies": ["coverage", "build"]
+    },
+    "bench": {
+      "command": "deno bench",
+      "dependencies": ["build"]
+    }
+  }
+}

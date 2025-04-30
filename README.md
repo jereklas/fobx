@@ -11,8 +11,8 @@ feature parity with it.
 
 The following sub packages contain additional details:
 
-- [@fobx/core](./packages/core/README.md) - The core framework agnostic library.
-- [@fobx/react](./packages/react/README.md) - The `observer` reaction plus other
-  goodies for development with React.
-- [@fobx/preact](./packages/preact/README.md) - The `observer` reaction plus
-  other goodies for development with Preact.
+- [@fobx/core](./core/README.md) - The core framework agnostic library.
+- [@fobx/react](./react/README.md) - The `observer` reaction plus other goodies
+  for development with React.
+- [@fobx/preact](./preact/README.md) - The `observer` reaction plus other
+  goodies for development with Preact.

@@ -1,0 +1,4 @@
+{
+  "name": "@fobx/utils",
+  "exports": "./index.ts"
+}

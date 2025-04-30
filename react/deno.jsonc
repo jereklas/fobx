@@ -1,0 +1,42 @@
+{
+  "name": "@fobx/react",
+  "version": "0.7.0",
+  "description": "React higher order function reaction.",
+  "keywords": [
+    "fobx",
+    "reactive",
+    "observable",
+    "react",
+    "functional-reactive-programming",
+    "dependency free",
+    "state management"
+  ],
+  "type": "module",
+  "main": "index.cjs",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "peerDependencies": {
+    "@fobx/core": ">=0.6.0",
+    "react": ">=18"
+  },
+  /* everything below this is replaced in build.ts */
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "@types/react": "npm:@types/react@^18.0.0",
+    "react": "npm:react@^18.0.0"
+  },
+  "tasks": {
+    "lint": "deno lint",
+    "check": "deno check index.ts",
+    "build": {
+      "command": "deno run -A build.ts",
+      "dependencies": ["lint", "check"]
+    },
+    "publish": {
+      "command": "cd dist && npm publish",
+      "dependencies": ["build"]
+    }
+  }
+}

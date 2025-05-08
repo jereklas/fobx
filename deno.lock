@@ -25,6 +25,7 @@
     "npm:@types/react-dom@^19.1.2": "19.1.2_@types+react@19.1.2",
     "npm:@types/react@18": "18.3.20",
     "npm:@types/react@^19.1.2": "19.1.2",
+    "npm:esbuild@*": "0.25.1",
     "npm:esbuild@0.25": "0.25.1",
     "npm:esbuild@~0.25.1": "0.25.1",
     "npm:fast-equals@^5.2.2": "5.2.2",

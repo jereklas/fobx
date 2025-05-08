@@ -100,6 +100,7 @@ export async function generatePackageJson(outDir: string, exports: any) {
   delete contents.imports
   delete contents.exports
   delete contents.tasks
+  delete contents.compilerOptions
 
   contents.license = "BSD-3-Clause"
   contents.author = "Jeremy Klas"

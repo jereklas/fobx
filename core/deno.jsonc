@@ -1,6 +1,6 @@
 {
   "name": "@fobx/core",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "description": "Fast, reactive state management",
   "keywords": [
     "fobx",
@@ -36,5 +36,8 @@
       "command": "deno bench",
       "dependencies": ["build"]
     }
+  },
+  "compilerOptions": {
+    "lib": ["es2023", "dom", "dom.asynciterable", "dom.iterable", "deno.ns"]
   }
 }

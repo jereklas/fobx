@@ -3,7 +3,7 @@ import * as utils from "@fobx/utils"
 
 async function bundle(opts: {
   format: "esm" | "cjs"
-  file: "core" | "index"
+  file: "core" | "index" | "dev/customFormatter"
   noBundler?: boolean
 }) {
   const ext = opts.format === "esm" ? "js" : "cjs"
@@ -28,6 +28,7 @@ async function bundle(opts: {
       "process.env.NODE_ENV": opts?.noBundler
         ? '"production"'
         : "process.env.NODE_ENV",
+      "globalThis.window": "globalThis.window",
     },
     entryPoints: [`./${file}.ts`],
     bundle,
@@ -38,7 +39,13 @@ async function bundle(opts: {
 
   await esbuild.build(options)
 
-  const content = await Deno.readTextFile(outfile)
+  let content = await Deno.readTextFile(outfile)
+  content = content.replace("./core.ts", `./core.${ext}`),
+    content = content.replace(
+      "./dev/customFormatter.ts",
+      `./dev/customFormatter.${ext}`,
+    )
+
   await Deno.writeTextFile(
     outfile,
     content.replace("./core.ts", `./core.${ext}`),
@@ -63,6 +70,8 @@ async function build() {
 
   console.log("bundling...")
   await Promise.all([
+    bundle({ format: "esm", file: "dev/customFormatter" }),
+    bundle({ format: "cjs", file: "dev/customFormatter" }),
     bundle({ format: "esm", file: "core" }),
     bundle({ format: "esm", file: "index" }),
     bundle({ format: "cjs", file: "core" }),

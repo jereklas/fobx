@@ -1,5 +1,7 @@
 export type * from "./core.ts"
 
+import "./dev/customFormatter.ts"
+
 export {
   action,
   autorun,

@@ -20,6 +20,7 @@ test("library has expected exports", () => {
     "isObservableMap",
     "isObservableObject",
     "isObservableSet",
+    "makeObservable",
     "observable",
     "observableBox",
     "reaction",

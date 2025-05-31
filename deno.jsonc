@@ -4,8 +4,8 @@
     "./react",
     "./preact",
     "./utils",
-    "./testing",
-    "./playground"
+    "./testing"
+    // "./playground"
   ],
   "fmt": {
     "semiColons": false

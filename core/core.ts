@@ -2,6 +2,11 @@ export type { ObservableArray } from "./observables/observableArray.ts"
 export type { ObservableMap } from "./observables/observableMap.ts"
 export type { ObservableSet } from "./observables/observableSet.ts"
 export type { ObservableBox } from "./observables/observableBox.ts"
+export type {
+  ExplicitAnnotation,
+  ExplicitAnnotationConfig,
+  ExplicitAnnotationMap,
+} from "./observables/makeObservable.ts"
 
 export {
   addObservableAdministration,
@@ -16,6 +21,7 @@ export { observableBox } from "./observables/observableBox.ts"
 export { action, runInAction } from "./transactions/action.ts"
 export { $fobx, getGlobalState } from "./state/global.ts"
 export { observable } from "./observables/observable.ts"
+export { makeObservable } from "./observables/makeObservable.ts"
 export { computed } from "./reactions/computed.ts"
 export { autorun } from "./reactions/autorun.ts"
 export { configure } from "./state/instance.ts"

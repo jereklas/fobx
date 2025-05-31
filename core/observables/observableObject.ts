@@ -1,17 +1,10 @@
-import { ObservableSet } from "./observableSet.ts"
-import { ObservableMap } from "./observableMap.ts"
-import { createObservableArray } from "./observableArray.ts"
 import {
   $fobx,
   type Any,
   getGlobalState,
   type IFobxAdmin,
 } from "../state/global.ts"
-import {
-  type IObservable,
-  observableBox,
-  type ObservableBoxWithAdmin,
-} from "./observableBox.ts"
+import type { IObservable, ObservableBoxWithAdmin } from "./observableBox.ts"
 import {
   type ComputedWithAdmin,
   createComputedValue,
@@ -22,16 +15,17 @@ import {
   isAction,
   isFlow,
   isGenerator,
-  isMap,
   isObject,
-  isObservable,
-  isObservableArray,
-  isObservableMap,
   isObservableObject,
-  isObservableSet,
   isPlainObject,
-  isSet,
 } from "../utils/predicates.ts"
+import {
+  createObservableValue,
+  getPropertyDescriptors,
+  getType,
+  identityFunction,
+  preventGlobalThis,
+} from "./utils/common.ts"
 
 export type Annotation =
   | "action"
@@ -62,10 +56,7 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
 
 const globalState = /* @__PURE__ */ getGlobalState()
 
-const preventGlobalThis = (
-  that: unknown,
-) => (that === globalThis ? undefined : that)
-const identityFunction = (that: unknown) => that
+const explicitAnnotations = new WeakMap<Any, Set<PropertyKey>>()
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
@@ -117,8 +108,6 @@ export const extendObservable = <T extends object, E extends object>(
   })
   return observableObject as unknown as T & E
 }
-
-const explicitAnnotations = new WeakMap<Any, Set<PropertyKey>>()
 
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,
@@ -174,56 +163,8 @@ const annotateObject = <T extends object, E extends object>(
         if (annotatedKeys.has(key)) break
 
         const value = source[key as keyof typeof source]
-        let box: IObservable
-        if (shallow) {
-          box = observableBox(value)
-        } else {
-          if (Array.isArray(value)) {
-            const array = isObservableArray(value)
-              ? value
-              : createObservableArray(value)
-            box = observableBox(array, {
-              valueTransform: (v) => {
-                if (!isObservableArray(v)) return createObservableArray(v)
-                return v
-              },
-            })
-          } else if (isMap(value)) {
-            const map = isObservableMap(value)
-              ? value
-              : new ObservableMap(value.entries())
-            box = observableBox(map, {
-              valueTransform: (v) => {
-                if (!isObservableMap(v)) return new ObservableMap(v.entries())
-                return v
-              },
-            })
-          } else if (isSet(value)) {
-            const set = isObservableSet(value)
-              ? value
-              : new ObservableSet(value)
-            box = observableBox(set, {
-              valueTransform: (v) => {
-                if (!isObservableSet(v)) return new ObservableSet(v)
-                return v
-              },
-            })
-          } else if (isObject(value)) {
-            const obj = isObservable(value)
-              ? value
-              : createAutoObservableObject(value as object)
-            box = observableBox(obj, {
-              valueTransform: (v) => {
-                if (isObject(v) && !isObservable(v)) {
-                  return createAutoObservableObject(v as object)
-                }
-                return v
-              },
-            })
-          } else {
-            box = observableBox(value)
-          }
-        }
+        const box = createObservableValue(value, shallow)
+
         admin.values.set(key, box)
         Object.defineProperty(observableObject, key, {
           get: () => box.value,
@@ -389,17 +330,6 @@ const annotateObject = <T extends object, E extends object>(
   })
 }
 
-const getType = (obj: unknown) => {
-  if (typeof obj === "object") {
-    if (obj === null) return "null"
-    if (Array.isArray(obj)) return "array"
-    if (isMap(obj)) return "map"
-    if (isSet(obj)) return "set"
-    return "object"
-  }
-  return typeof obj
-}
-
 export function addObservableAdministration<T extends object>(obj: T) {
   if (!Object.isExtensible(obj)) return
 
@@ -421,23 +351,4 @@ function getObservableObject<T extends object>(
   const observableObject = options.asNewObject ? {} : obj
   addObservableAdministration(observableObject)
   return observableObject as T
-}
-
-const getPropertyDescriptors = <T extends object>(obj: T) => {
-  let curr: object | null = obj
-  const descriptorsByName = new Map<
-    string,
-    { owner: unknown; desc: PropertyDescriptor }
-  >()
-
-  do {
-    Object.entries(Object.getOwnPropertyDescriptors(curr)).forEach(
-      ([key, descriptor]) => {
-        if (!descriptorsByName.has(key) && key !== "constructor") {
-          descriptorsByName.set(key, { owner: curr, desc: descriptor })
-        }
-      },
-    )
-  } while ((curr = Object.getPrototypeOf(curr)) && curr !== Object.prototype)
-  return descriptorsByName
 }

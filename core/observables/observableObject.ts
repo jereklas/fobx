@@ -4,27 +4,27 @@ import {
   getGlobalState,
   type IFobxAdmin,
 } from "../state/global.ts"
-import type { IObservable, ObservableBoxWithAdmin } from "./observableBox.ts"
 import {
-  type ComputedWithAdmin,
-  createComputedValue,
-} from "../reactions/computed.ts"
-import { action } from "../transactions/action.ts"
-import { flow } from "../transactions/flow.ts"
+  type IObservable,
+  observableBox,
+  type ObservableBoxWithAdmin,
+} from "./observableBox.ts"
+import type { ComputedWithAdmin } from "../reactions/computed.ts"
 import {
   isAction,
   isFlow,
   isGenerator,
+  isMap,
   isObject,
   isObservableObject,
   isPlainObject,
+  isSet,
 } from "../utils/predicates.ts"
 import {
-  createObservableValue,
+  annotateProperty,
+  explicitAnnotations,
   getPropertyDescriptors,
   getType,
-  identityFunction,
-  preventGlobalThis,
 } from "./utils/common.ts"
 
 export type Annotation =
@@ -55,8 +55,6 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
 }
 
 const globalState = /* @__PURE__ */ getGlobalState()
-
-const explicitAnnotations = new WeakMap<Any, Set<PropertyKey>>()
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
@@ -109,6 +107,126 @@ export const extendObservable = <T extends object, E extends object>(
   return observableObject as unknown as T & E
 }
 
+/**
+ * Handle a property marked with "none" annotation or one that needs to be reset
+ */
+const handleNoneOrResetAnnotation = (
+  observableObject: object,
+  key: PropertyKey,
+  desc: PropertyDescriptor,
+  admin: IObservableObjectAdmin,
+  options: {
+    addToPrototype: boolean
+    proto: unknown
+  },
+) => {
+  const { addToPrototype, proto } = options
+
+  const val = admin.values.get(key)
+  if (val) {
+    admin.values.delete(key)
+    if ("dispose" in val) {
+      const computed = val as ComputedWithAdmin
+      computed.dispose()
+      const { getter, setter } = computed[$fobx]
+      Object.defineProperty(observableObject, key, {
+        get: getter,
+        set: setter,
+        enumerable: true,
+        configurable: true,
+      })
+    } else {
+      const box = val as ObservableBoxWithAdmin
+      Object.defineProperty(observableObject, key, {
+        value: box[$fobx].value,
+        enumerable: true,
+        configurable: true,
+      })
+    }
+  } else if (
+    (typeof desc.value === "function" || isObject(desc.value)) &&
+    $fobx in desc.value
+  ) {
+    if (isAction(desc.value) || isFlow(desc.value)) {
+      Object.defineProperty(
+        addToPrototype ? proto : observableObject,
+        key,
+        {
+          value: Object.getPrototypeOf(desc.value),
+          enumerable: true,
+          configurable: false,
+          writable: true,
+        },
+      )
+      return true // Indicates we've handled this case and can break from the calling context
+    }
+    // deno-lint-ignore no-process-global
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        `key: ${String(key)} was marked as "none" but is currently annotated`,
+      )
+    }
+  } else if (!addToPrototype) {
+    Object.defineProperty(observableObject, key, desc)
+  }
+
+  markPropertyAsAnnotated(key, addToPrototype ? proto : observableObject)
+
+  return false
+}
+
+/**
+ * Marks a property as explicitly annotated in the tracking system.
+ * Used to prevent re-annotation across inheritance levels.
+ */
+const markPropertyAsAnnotated = (key: PropertyKey, target: unknown) => {
+  let annotations = explicitAnnotations.get(target)
+  if (!annotations) {
+    annotations = new Set<PropertyKey>([key])
+    explicitAnnotations.set(target, annotations)
+  } else {
+    annotations.add(key)
+  }
+}
+
+/**
+ * Creates a shallow observable box for collection types (arrays, maps, sets)
+ */
+const createShallowObservableForCollection = (
+  observableObject: object,
+  key: PropertyKey,
+  value: Any,
+  admin: IObservableObjectAdmin,
+): boolean => {
+  if (Array.isArray(value) || isMap(value) || isSet(value)) {
+    const box = observableBox(value)
+    admin.values.set(key, box)
+    Object.defineProperty(observableObject, key, {
+      get: () => box.value,
+      set: (v) => {
+        box.value = v
+      },
+      enumerable: true,
+      configurable: true,
+    })
+    return true
+  }
+  return false
+}
+
+/**
+ * Determine the appropriate annotation type for a property when none is specified
+ */
+const inferAnnotationType = (desc: PropertyDescriptor): Annotation => {
+  if ("value" in desc) {
+    if (typeof desc.value === "function") {
+      return isFlow(desc.value) || isGenerator(desc.value) ? "flow" : "action"
+    }
+    return "observable"
+  }
+  return "computed"
+}
+
 const annotateObject = <T extends object, E extends object>(
   observableObject: T,
   source: E,
@@ -134,197 +252,80 @@ const annotateObject = <T extends object, E extends object>(
 
   const { addToPrototype, shallow } = options
   const admin = (observableObject as ObservableObjectWithAdmin)[$fobx]
-  const annotatedKeys = admin.values
 
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value
 
-    let annotation =
-      options.annotations[key as keyof typeof options.annotations]
-    let isExplicitlyAnnotated = false
-    if (annotation) {
-      isExplicitlyAnnotated = true
-    } else if ("value" in desc) {
-      annotation = typeof desc.value === "function"
-        ? isFlow(desc.value) || isGenerator(desc.value) ? "flow" : "action"
-        : "observable"
-    } else {
-      annotation = "computed"
+    // Get the annotation, or infer it if not provided
+    const annotation =
+      options.annotations[key as keyof typeof options.annotations] ||
+      inferAnnotationType(desc)
+
+    // Important: In inheritance cases, respect the "none" annotation to prevent incorrect property interpretation
+    if (annotation === "none") {
+      // Skip properties that are explicitly marked as "none"
+      if (
+        handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
+          addToPrototype,
+          proto,
+        })
+      ) {
+        return
+      }
+      return // Skip further processing of this property
     }
 
     switch (annotation) {
       case "observable": {
-        if (desc.get || desc.set) {
-          throw new Error(
-            `[@fobx/core] "observable" cannot be used on getter/setter properties`,
-          )
+        // Create the appropriate observable value based on the property value and shallow option
+        if (shallow && "value" in desc) {
+          const value = desc.value
+
+          // For shallow mode, don't make arrays, maps, and sets observable internally
+          if (
+            createShallowObservableForCollection(
+              observableObject,
+              key,
+              value,
+              admin,
+            )
+          ) {
+            break
+          }
         }
-        if (explicitAnnotations.get(observableObject)?.has(key) === true) break
-        if (annotatedKeys.has(key)) break
 
-        const value = source[key as keyof typeof source]
-        const box = createObservableValue(value, shallow)
-
-        admin.values.set(key, box)
-        Object.defineProperty(observableObject, key, {
-          get: () => box.value,
-          set: (v) => {
-            box.value = v
-          },
-          enumerable: true,
-          configurable: true,
+        // Use standard annotation for other cases
+        annotateProperty(observableObject, key, desc, annotation, admin, {
+          addToPrototype,
+          proto,
+          shallow,
+          skipIfAlreadyAnnotated: true,
         })
         break
       }
-      case "computed": {
-        if (!desc || !desc.get) {
-          throw new Error(
-            `[@fobx/core] "${key}" property was marked as computed but object has no getter.`,
-          )
-        }
-        if (explicitAnnotations.get(observableObject)?.has(key) === true) break
-        if (annotatedKeys.has(key)) break
-
-        const computed = createComputedValue(desc.get, desc.set, {
-          thisArg: observableObject,
-        })
-        admin.values.set(key, computed)
-        Object.defineProperty(observableObject, key, {
-          get: () => computed.value,
-          set: (v) => {
-            computed.value = v
-          },
-          enumerable: true,
-          configurable: true,
-        })
-        break
-      }
+      case "computed":
       case "action":
-      case "action.bound": {
-        if (desc.value === undefined || typeof desc.value !== "function") {
-          throw new Error(
-            `[@fobx/core] "${key}" was marked as an action but it is not a function.`,
-          )
-        }
-        // someone used action() directly and assigned it as a instance member of class
-        if (addToPrototype && isAction(desc.value)) break
-        if (
-          explicitAnnotations.get(addToPrototype ? proto : observableObject)
-            ?.has(key) === true
-        ) break
-
-        Object.defineProperty(addToPrototype ? proto : observableObject, key, {
-          value: action(desc.value, {
-            name: key,
-            getThis: annotation === "action.bound"
-              ? () => observableObject
-              : addToPrototype
-              ? preventGlobalThis
-              : identityFunction,
-          }),
-          enumerable: true,
-          configurable: false,
-          writable: true,
-        })
-        break
-      }
+      case "action.bound":
       case "flow":
       case "flow.bound": {
-        if (desc.value === undefined || !isGenerator(desc.value)) {
-          throw new Error(
-            `[@fobx/core] "${key}" was marked as a flow but is not a generator function.`,
-          )
-        }
-        if (
-          explicitAnnotations.get(addToPrototype ? proto : observableObject)
-            ?.has(key) === true
-        ) break
-        // someone used flow() directly and assigned it as a instance member of class
-        if (addToPrototype && isFlow(desc.value)) break
-
-        Object.defineProperty(addToPrototype ? proto : observableObject, key, {
-          value: flow(desc.value, {
-            name: key,
-            getThis: annotation === "flow.bound"
-              ? () => observableObject
-              : addToPrototype
-              ? preventGlobalThis
-              : identityFunction,
-          }),
-          enumerable: true,
-          configurable: false,
-          writable: true,
+        annotateProperty(observableObject, key, desc, annotation, admin, {
+          addToPrototype,
+          proto,
+          skipIfAlreadyAnnotated: true,
         })
         break
       }
-      case "none":
       default: {
         if (annotation && annotation !== "none") {
           throw Error(`[@fobx/core] "${annotation}" is not a valid annotation.`)
         }
-        if (
-          explicitAnnotations.get(addToPrototype ? proto : observableObject)
-            ?.has(key) === true
-        ) break
 
         // it's possible with inheritance for something to be annotated incorrectly before the correct
         // annotation gets applied, if that happens we undo it here.
-        const val = admin.values.get(key)
-        if (val) {
-          admin.values.delete(key)
-          if ("dispose" in val) {
-            const computed = val as ComputedWithAdmin
-            computed.dispose()
-            const { getter, setter } = computed[$fobx]
-            Object.defineProperty(observableObject, key, {
-              get: getter,
-              set: setter,
-              enumerable: true,
-              configurable: true,
-            })
-          } else {
-            const box = val as ObservableBoxWithAdmin
-            Object.defineProperty(observableObject, key, {
-              value: box[$fobx].value,
-              enumerable: true,
-              configurable: true,
-            })
-          }
-        } else if (
-          (typeof desc.value === "function" || isObject(desc.value)) &&
-          $fobx in desc.value
-        ) {
-          if (isAction(desc.value) || isFlow(desc.value)) {
-            Object.defineProperty(
-              addToPrototype ? proto : observableObject,
-              key,
-              {
-                value: Object.getPrototypeOf(desc.value),
-                enumerable: true,
-                configurable: false,
-                writable: true,
-              },
-            )
-            break
-          }
-          // deno-lint-ignore no-process-global
-          if (process.env.NODE_ENV !== "production") {
-            console.error(
-              `key: ${key} was marked as "none" but is currently annotated`,
-            )
-          }
-        } else if (!addToPrototype) {
-          Object.defineProperty(observableObject, key, desc)
-        }
-      }
-    }
-
-    if (isExplicitlyAnnotated) {
-      const p = explicitAnnotations.get(proto)
-      if (!p) {
-        explicitAnnotations.set(proto, new Set([key]))
-      } else {
-        p.add(key)
+        handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
+          addToPrototype,
+          proto,
+        })
       }
     }
   })

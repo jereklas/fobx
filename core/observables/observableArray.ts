@@ -76,6 +76,11 @@ export function createObservableArray<T = Any>(
         trackObservable(admin)
       }
 
+      // Special handling for constructor to preserve Array.prototype.constructor
+      if (prop === "constructor") {
+        return Array
+      }
+
       const value = target[prop as keyof typeof target]
       if (typeof value === "function") {
         if (noArgFns.has(prop)) {

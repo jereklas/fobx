@@ -8,10 +8,7 @@ export type {
   ExplicitAnnotationMap,
 } from "./observables/makeObservable.ts"
 
-export {
-  addObservableAdministration,
-  extendObservable,
-} from "./observables/observableObject.ts"
+export { extendObservable } from "./observables/observableObject.ts"
 export {
   reaction,
   ReactionAdmin,

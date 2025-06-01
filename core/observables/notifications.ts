@@ -42,15 +42,13 @@ export function sendReady<T>(
 
 export function sendChange<T>(
   admin: IObservableAdmin<T>,
-  oldValue: unknown,
-  newValue: unknown,
 ) {
   admin.observers.forEach((o) => {
     o.onStateChange({
       type: "change",
       name: admin.name,
-      oldValue,
-      newValue,
+      oldValue: 0,
+      newValue: 1,
       admin: admin,
     })
   })

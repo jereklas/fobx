@@ -148,7 +148,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         this.#delete(key)
       })
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
     })
   }
   override delete(this: ObservableMap, key: K): boolean {
@@ -175,7 +175,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       const result = this.#delete(key, { preventNotification: true })
       if (result) {
         incrementChangeCount(admin)
-        sendChange(admin, admin.previous, admin.current)
+        sendChange(admin)
       }
       return result
     })
@@ -224,7 +224,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     runInAction(() => {
       this.#set(key, value)
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
     })
 
     return this
@@ -239,7 +239,9 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     const admin = (this as ObservableMapWithAdmin)[$fobx]
     runInAction(() => {
       this.#addEntries(entries)
-      sendChange(admin, admin.previous, admin.current)
+      if (admin.previous !== admin.current) {
+        sendChange(admin)
+      }
     })
   }
   replace(
@@ -302,7 +304,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       }
 
       if (startingChangeCount !== admin.changes) {
-        sendChange(admin, admin.previous, admin.current)
+        sendChange(admin)
       }
     })
 

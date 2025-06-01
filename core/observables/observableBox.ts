@@ -73,7 +73,7 @@ export class ObservableBox<T = Any> implements IObservable<T> {
       admin.value = newValue
 
       if (isDifferent(oldValue, newValue, options.equals ?? options.comparer)) {
-        sendChange(admin, oldValue, newValue)
+        sendChange(admin)
       }
     })
   }

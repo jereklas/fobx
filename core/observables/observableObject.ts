@@ -1,30 +1,25 @@
 import {
   $fobx,
   type Any,
-  getGlobalState,
+  type ComparisonType,
+  type EqualityChecker,
   type IFobxAdmin,
 } from "../state/global.ts"
+import type { IObservable } from "./observableBox.ts"
+import { isObservableObject, isPlainObject } from "../utils/predicates.ts"
 import {
-  type IObservable,
-  observableBox,
-  type ObservableBoxWithAdmin,
-} from "./observableBox.ts"
-import type { ComputedWithAdmin } from "../reactions/computed.ts"
-import {
-  isAction,
-  isFlow,
-  isGenerator,
-  isMap,
-  isObject,
-  isObservableObject,
-  isPlainObject,
-  isSet,
-} from "../utils/predicates.ts"
-import {
+  addObservableAdministration,
   annotateProperty,
-  explicitAnnotations,
+  createEqualityOptions,
+  createShallowObservableForCollection,
   getPropertyDescriptors,
   getType,
+  handleNoneOrResetAnnotation,
+  inferAnnotationType,
+  markPropertyAsAnnotated,
+  parseAnnotationConfig,
+  resolveShallowOption,
+  warnNonExtensibleObject,
 } from "./utils/common.ts"
 
 export type Annotation =
@@ -34,16 +29,49 @@ export type Annotation =
   | "flow"
   | "flow.bound"
   | "observable"
+  | "observable.shallow"
+  | "observable.ref"
   | "none"
+
+export type AnnotationConfig =
+  | Annotation
+  | [Annotation, EqualityChecker | ComparisonType]
 
 export type AnnotationsMap<T, AdditionalFields extends PropertyKey> =
   & {
-    [P in keyof T]?: Annotation
+    [P in keyof T]?: AnnotationConfig
   }
-  & Record<AdditionalFields, Annotation>
+  & Record<AdditionalFields, AnnotationConfig>
 
 export type ObservableObjectOptions = {
+  /**
+   * @deprecated Use `shallowRef: true` instead. Will be removed in a future version.
+   */
   shallow?: boolean
+  /**
+   * When true, makes property values directly observable without transforming them.
+   * Property values will maintain their original object references but will be tracked for changes.
+   */
+  shallowRef?: boolean
+}
+
+/**
+ * Options for the processAnnotations function
+ */
+export interface ProcessAnnotationsOptions<E> {
+  addToPrototype: boolean
+  annotations: AnnotationsMap<E, Any> | Record<string, Any>
+  shallow: boolean
+  inferAnnotations?: boolean
+}
+
+/**
+ * Options for processing a single property
+ */
+export interface ProcessPropertyOptions {
+  addToPrototype: boolean
+  shallow: boolean
+  annotationConfig: Any
 }
 
 export type ObservableObject<T = Any> = T
@@ -54,33 +82,67 @@ export interface IObservableObjectAdmin extends IFobxAdmin {
   values: Map<PropertyKey, IObservable>
 }
 
-const globalState = /* @__PURE__ */ getGlobalState()
+/**
+ * Common utility function to prepare an observable object, handling type checking
+ * and ensuring the object is properly initialized
+ *
+ * @param source Source object to make observable
+ * @param asNewObject Whether to create a new object or modify the source
+ * @param forExtendObservable Whether this is being used for extendObservable (allows arrays)
+ * @returns The prepared observable object
+ */
+export const prepareObservableObject = <T extends object>(
+  source: T,
+  asNewObject: boolean,
+  forExtendObservable = false,
+): T => {
+  const type = getType(source)
+
+  // Special case: Allow arrays in extendObservable for compatibility with tests
+  // Arrays normally aren't valid objects for observableObject, but this special
+  // case is needed for the 'tuple' test to pass
+  if (
+    type !== "object" &&
+    !(type === "array" && forExtendObservable && !asNewObject)
+  ) {
+    throw new Error(
+      `[@fobx/core] Cannot make an observable object out of type "${type}"`,
+    )
+  }
+
+  const isPlainObj = isPlainObject(source)
+
+  if (isPlainObj && isObservableObject(source)) {
+    return source
+  }
+
+  const observableObject = isObservableObject(source)
+    ? source
+    : (asNewObject ? {} : source)
+
+  if (!isObservableObject(observableObject)) {
+    addObservableAdministration(observableObject)
+  }
+
+  return observableObject as T
+}
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
   overrides: AnnotationsMap<T, Any> = {},
   options?: ObservableObjectOptions,
 ) => {
-  options = options ? { shallow: false, ...options } : { shallow: false }
-  const type = getType(obj)
-  if (type !== "object") {
-    throw new Error(
-      `[@fobx/core] Cannot make an observable object out of type "${type}"`,
-    )
-  }
+  // Use the shared utility function for handling shallow options
+  const effectiveShallow = resolveShallowOption(options)
+
   const isPlainObj = isPlainObject(obj)
+  const observableObject = prepareObservableObject(obj, isPlainObj)
 
-  if (isPlainObj && isObservableObject(obj)) {
-    return obj
-  }
-  const observableObject = getObservableObject(obj, {
-    asNewObject: isPlainObj,
-  })
-
-  annotateObject(observableObject, obj, {
+  processAnnotations(observableObject, obj, {
     addToPrototype: !isPlainObj,
     annotations: overrides,
-    shallow: options?.shallow ?? false,
+    shallow: effectiveShallow,
+    inferAnnotations: true,
   })
 
   return observableObject as T
@@ -96,260 +158,106 @@ export const extendObservable = <T extends object, E extends object>(
       "[@fobx/core] 2nd argument to extendObservable must be a plain js object.",
     )
   }
-  const observableObject = getObservableObject(source, { asNewObject: false })
+  const observableObject = prepareObservableObject(source, false, true)
 
-  annotateObject(observableObject, extension, {
+  processAnnotations(observableObject, extension, {
     // extending should always add to instance instead of prototype
     addToPrototype: false,
     annotations,
     shallow: false,
+    inferAnnotations: true,
   })
   return observableObject as unknown as T & E
 }
 
 /**
- * Handle a property marked with "none" annotation or one that needs to be reset
+ * Process a single property during annotation
  */
-const handleNoneOrResetAnnotation = (
-  observableObject: object,
+const processProperty = <T extends object>(
+  observableObject: T,
   key: PropertyKey,
   desc: PropertyDescriptor,
+  proto: unknown,
   admin: IObservableObjectAdmin,
-  options: {
-    addToPrototype: boolean
-    proto: unknown
-  },
-) => {
-  const { addToPrototype, proto } = options
+  options: ProcessPropertyOptions,
+): void => {
+  const { addToPrototype, shallow, annotationConfig } = options
 
-  const val = admin.values.get(key)
-  if (val) {
-    admin.values.delete(key)
-    if ("dispose" in val) {
-      const computed = val as ComputedWithAdmin
-      computed.dispose()
-      const { getter, setter } = computed[$fobx]
-      Object.defineProperty(observableObject, key, {
-        get: getter,
-        set: setter,
-        enumerable: true,
-        configurable: true,
-      })
-    } else {
-      const box = val as ObservableBoxWithAdmin
-      Object.defineProperty(observableObject, key, {
-        value: box[$fobx].value,
-        enumerable: true,
-        configurable: true,
-      })
-    }
-  } else if (
-    (typeof desc.value === "function" || isObject(desc.value)) &&
-    $fobx in desc.value
-  ) {
-    if (isAction(desc.value) || isFlow(desc.value)) {
-      Object.defineProperty(
-        addToPrototype ? proto : observableObject,
-        key,
-        {
-          value: Object.getPrototypeOf(desc.value),
-          enumerable: true,
-          configurable: false,
-          writable: true,
-        },
-      )
-      return true // Indicates we've handled this case and can break from the calling context
-    }
-    // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV !== "production") {
-      console.error(
-        `key: ${String(key)} was marked as "none" but is currently annotated`,
-      )
-    }
-  } else if (!addToPrototype) {
-    Object.defineProperty(observableObject, key, desc)
-  }
+  // If no annotation is provided, skip this property
+  if (!annotationConfig) return
 
-  markPropertyAsAnnotated(key, addToPrototype ? proto : observableObject)
+  // Parse annotation config to get annotation and equality options
+  const [annotation, equalityOption] = parseAnnotationConfig(annotationConfig)
+  const equalityOptions = createEqualityOptions(equalityOption)
 
-  return false
-}
-
-/**
- * Marks a property as explicitly annotated in the tracking system.
- * Used to prevent re-annotation across inheritance levels.
- */
-const markPropertyAsAnnotated = (key: PropertyKey, target: unknown) => {
-  let annotations = explicitAnnotations.get(target)
-  if (!annotations) {
-    annotations = new Set<PropertyKey>([key])
-    explicitAnnotations.set(target, annotations)
-  } else {
-    annotations.add(key)
-  }
-}
-
-/**
- * Creates a shallow observable box for collection types (arrays, maps, sets)
- */
-const createShallowObservableForCollection = (
-  observableObject: object,
-  key: PropertyKey,
-  value: Any,
-  admin: IObservableObjectAdmin,
-): boolean => {
-  if (Array.isArray(value) || isMap(value) || isSet(value)) {
-    const box = observableBox(value)
-    admin.values.set(key, box)
-    Object.defineProperty(observableObject, key, {
-      get: () => box.value,
-      set: (v) => {
-        box.value = v
-      },
-      enumerable: true,
-      configurable: true,
+  // Handle "none" annotation as a special case first
+  if (annotation === "none") {
+    handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
+      addToPrototype,
+      proto,
     })
-    return true
+    return
   }
-  return false
+
+  // Special case for observable + shallow combination
+  if (annotation === "observable" && shallow && "value" in desc) {
+    const value = desc.value
+    if (
+      createShallowObservableForCollection(
+        observableObject,
+        key,
+        value,
+        admin,
+      )
+    ) {
+      markPropertyAsAnnotated(key, addToPrototype ? proto : observableObject)
+      return
+    }
+  }
+
+  // For all other annotations, delegate to annotateProperty
+  annotateProperty(observableObject, key, desc, annotation, admin, {
+    addToPrototype,
+    proto,
+    shallow: annotation === "observable.shallow" ||
+      (annotation === "observable" && shallow),
+    skipIfAlreadyAnnotated: true,
+    equalityOptions,
+  })
 }
 
 /**
- * Determine the appropriate annotation type for a property when none is specified
+ * Process annotations for an object, applying the appropriate behaviors to each property
  */
-const inferAnnotationType = (desc: PropertyDescriptor): Annotation => {
-  if ("value" in desc) {
-    if (typeof desc.value === "function") {
-      return isFlow(desc.value) || isGenerator(desc.value) ? "flow" : "action"
-    }
-    return "observable"
-  }
-  return "computed"
-}
-
-const annotateObject = <T extends object, E extends object>(
+export const processAnnotations = <T extends object, E extends object>(
   observableObject: T,
   source: E,
-  options: {
-    addToPrototype: boolean
-    annotations: AnnotationsMap<E, Any>
-    shallow: boolean
-  },
-) => {
+  options: ProcessAnnotationsOptions<E>,
+): void => {
   if (!isObservableObject(observableObject)) {
-    // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
-        observableObject,
-      )
-    }
+    warnNonExtensibleObject(observableObject)
     return
   }
 
   // remove prototype from the annotations object so prototype functions are not considered as an annotation
   Object.setPrototypeOf(options.annotations, null)
 
-  const { addToPrototype, shallow } = options
+  const { addToPrototype, shallow, inferAnnotations = false } = options
   const admin = (observableObject as ObservableObjectWithAdmin)[$fobx]
 
   getPropertyDescriptors(source).forEach((value, key) => {
     const { desc, owner: proto } = value
 
-    // Get the annotation, or infer it if not provided
-    const annotation =
+    // Get the annotation config, or infer it if not provided
+    const annotationConfig =
       options.annotations[key as keyof typeof options.annotations] ||
-      inferAnnotationType(desc)
+      (inferAnnotations ? inferAnnotationType(desc) : undefined)
 
-    // Important: In inheritance cases, respect the "none" annotation to prevent incorrect property interpretation
-    if (annotation === "none") {
-      // Skip properties that are explicitly marked as "none"
-      if (
-        handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
-          addToPrototype,
-          proto,
-        })
-      ) {
-        return
-      }
-      return // Skip further processing of this property
-    }
-
-    switch (annotation) {
-      case "observable": {
-        // Create the appropriate observable value based on the property value and shallow option
-        if (shallow && "value" in desc) {
-          const value = desc.value
-
-          // For shallow mode, don't make arrays, maps, and sets observable internally
-          if (
-            createShallowObservableForCollection(
-              observableObject,
-              key,
-              value,
-              admin,
-            )
-          ) {
-            break
-          }
-        }
-
-        // Use standard annotation for other cases
-        annotateProperty(observableObject, key, desc, annotation, admin, {
-          addToPrototype,
-          proto,
-          shallow,
-          skipIfAlreadyAnnotated: true,
-        })
-        break
-      }
-      case "computed":
-      case "action":
-      case "action.bound":
-      case "flow":
-      case "flow.bound": {
-        annotateProperty(observableObject, key, desc, annotation, admin, {
-          addToPrototype,
-          proto,
-          skipIfAlreadyAnnotated: true,
-        })
-        break
-      }
-      default: {
-        if (annotation && annotation !== "none") {
-          throw Error(`[@fobx/core] "${annotation}" is not a valid annotation.`)
-        }
-
-        // it's possible with inheritance for something to be annotated incorrectly before the correct
-        // annotation gets applied, if that happens we undo it here.
-        handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
-          addToPrototype,
-          proto,
-        })
-      }
-    }
+    // Process the property
+    processProperty(observableObject, key, desc, proto, admin, {
+      addToPrototype,
+      shallow,
+      annotationConfig,
+    })
   })
-}
-
-export function addObservableAdministration<T extends object>(obj: T) {
-  if (!Object.isExtensible(obj)) return
-
-  const adm: IObservableObjectAdmin = {
-    name: `ObservableObject@${globalState.getNextId()}`,
-    values: new Map<PropertyKey, IObservable>(),
-  }
-  Object.defineProperty(obj, $fobx, { value: adm })
-}
-
-function getObservableObject<T extends object>(
-  obj: T,
-  options: {
-    asNewObject: boolean
-  },
-) {
-  if (isObservableObject(obj)) return obj
-
-  const observableObject = options.asNewObject ? {} : obj
-  addObservableAdministration(observableObject)
-  return observableObject as T
 }

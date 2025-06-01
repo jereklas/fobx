@@ -64,7 +64,7 @@ export class ObservableSet<T = Any> extends Set<T> {
     runInAction(() => {
       this.#add(value)
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
     })
     return this
   }
@@ -73,7 +73,7 @@ export class ObservableSet<T = Any> extends Set<T> {
     runInAction(() => {
       super.clear()
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
     })
   }
   override delete(this: ObservableSet, value: T): boolean {
@@ -82,7 +82,7 @@ export class ObservableSet<T = Any> extends Set<T> {
       const result = super.delete(value)
       if (result) {
         incrementChangeCount(admin)
-        sendChange(admin, admin.previous, admin.current)
+        sendChange(admin)
       }
       return result
     })
@@ -117,7 +117,7 @@ export class ObservableSet<T = Any> extends Set<T> {
         super.add(v)
       })
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
     })
   }
   toJSON(this: ObservableSet): T[] {

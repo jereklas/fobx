@@ -196,7 +196,7 @@ export function createObservableArray<T = Any>(
           target[prop as unknown as number] = prop === "length"
             ? newValue
             : convertValue(newValue, shallow)
-          sendChange(admin, admin.previous, admin.current)
+          sendChange(admin)
         })
       }
 
@@ -361,7 +361,7 @@ const endFnCall = (
   switch (prop) {
     case "copyWithin":
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
       admin.temp.length = 0
       break
 
@@ -376,7 +376,7 @@ const endFnCall = (
       /* falls through */
     default:
       incrementChangeCount(admin)
-      sendChange(admin, admin.previous, admin.current)
+      sendChange(admin)
   }
 
   endAction()

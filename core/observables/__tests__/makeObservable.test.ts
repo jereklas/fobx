@@ -586,7 +586,7 @@ describe("makeObservable", () => {
           x: "action",
         })
       }).toThrow(
-        '[@fobx/core] "x" was marked as an action but it is not a function.',
+        '[@fobx/core] "x" was marked as an action but is not a function.',
       )
     })
 
@@ -610,6 +610,125 @@ describe("makeObservable", () => {
       // Check that it still made the object observable despite the warning
       expect(fobx.isObservableObject(result)).toBe(true)
       expect(fobx.isObservable(result, "x")).toBe(true)
+    })
+  })
+
+  describe("observable.ref", () => {
+    test("keeps original references for property values", () => {
+      const obj = { a: { b: 1 } }
+      const observed = fobx.makeObservable(obj, {
+        a: "observable.ref",
+      })
+
+      // The property 'a' is observable
+      expect(fobx.isObservable(observed, "a")).toBe(true)
+
+      // But the value of 'a' maintains its original reference - not observable
+      expect(fobx.isObservableObject(observed.a)).toBe(false)
+      expect(observed.a).toBe(obj.a)
+    })
+
+    test("behaves like observable with shallow: true", () => {
+      const array = [1, 2, { value: 3 }]
+      const map = new Map([["key", { value: 4 }]])
+      const set = new Set([{ value: 5 }])
+
+      const objWithRef = fobx.makeObservable({ array, map, set }, {
+        array: "observable.ref",
+        map: "observable.ref",
+        set: "observable.ref",
+      })
+
+      const objWithShallow = fobx.observable({ array, map, set }, {}, {
+        shallow: true,
+      })
+
+      // Both should maintain the original references
+      expect(objWithRef.array).toBe(array)
+      expect(objWithRef.map).toBe(map)
+      expect(objWithRef.set).toBe(set)
+      expect(objWithShallow.array).toBe(array)
+      expect(objWithShallow.map).toBe(map)
+      expect(objWithShallow.set).toBe(set)
+
+      // Collection operations shouldn't trigger reactions in both cases
+      let refReactionCount = 0
+      let shallowReactionCount = 0
+
+      fobx.reaction(() => objWithRef.array, () => refReactionCount++)
+      fobx.reaction(() => objWithShallow.array, () => shallowReactionCount++)
+
+      // Reset reaction counts after initial reaction
+      refReactionCount = 0
+      shallowReactionCount = 0
+
+      // Push to array shouldn't trigger reaction on either
+      array.push(4)
+      expect(refReactionCount).toBe(0)
+      expect(shallowReactionCount).toBe(0)
+
+      // Replacing the entire array should trigger reaction on both
+      objWithRef.array = [1, 2, 3]
+      objWithShallow.array = [1, 2, 3]
+      expect(refReactionCount).toBe(1)
+      expect(shallowReactionCount).toBe(1)
+    })
+
+    test("throws when used on getter/setter", () => {
+      expect(() => {
+        fobx.makeObservable({
+          get x() {
+            return 1
+          },
+        }, {
+          x: "observable.ref",
+        })
+      }).toThrow(
+        '[@fobx/core] "observable.ref" cannot be used on getter/setter properties',
+      )
+    })
+
+    test("observable.ref with custom equality functions work when used in reactions", () => {
+      const alwaysEqual = () => true
+      const neverEqual = () => false
+
+      // Object with two properties using different equality functions
+      const obj = fobx.makeObservable({
+        x: 1,
+        y: 2,
+      }, {
+        x: ["observable.ref", alwaysEqual],
+        y: ["observable.ref", neverEqual],
+      })
+
+      // Track reaction calls
+      const xValues = []
+      const yValues = []
+
+      // Set up reactions - the key is to use the same equality functions in reactions
+      fobx.reaction(
+        () => obj.x,
+        (value) => xValues.push(value),
+        { equals: alwaysEqual },
+      )
+
+      fobx.reaction(
+        () => obj.y,
+        (value) => yValues.push(value),
+        { equals: neverEqual },
+      )
+
+      // Initial reactions have already happened, so clear the arrays
+      xValues.length = 0
+      yValues.length = 0
+
+      // With alwaysEqual, changing the value shouldn't trigger reaction
+      obj.x = 100
+      expect(xValues.length).toBe(0)
+
+      // With neverEqual, even setting same value should trigger reaction
+      obj.y = 2 // Same value
+      expect(yValues.length).toBe(1)
     })
   })
 })

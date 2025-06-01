@@ -135,13 +135,14 @@ stats.score = 11.2
 
 ## Combining Shallow Observables with Comparison Functions
 
-FobX allows you to combine `observable.shallow` with custom equality functions,
-though it's important to understand how this works.
+FobX allows you to combine `observable.shallow` with custom equality functions
+for even more control over reactivity.
 
 ### Understanding `observable.shallow` Behavior
 
-When using `observable.shallow`, the default behavior uses reference equality
-for comparing values:
+When using `observable.shallow` annotation, observable collections are created
+but their items remain non-observable, and reference equality is used by
+default:
 
 ```typescript
 import { makeObservable, reaction } from "@fobx/core"
@@ -156,19 +157,32 @@ const users = makeObservable({
   list: "observable.shallow",
 })
 
+// You can also use observable() the same way:
+const usersAlt = observable({
+  list: [
+    { id: 1, name: "Alice" },
+    { id: 2, name: "Bob" },
+  ],
+}, {
+  list: "observable.shallow",
+})
+
 reaction(
   () => users.list,
   (userList) => console.log("User list changed:", userList),
 )
 
-// This WILL trigger a reaction because reference equality is used
+// Operations on the collection trigger reactions
+users.list.push({ id: 3, name: "Charlie" })
+
+// Replacing the entire collection will also trigger a reaction
 users.list = [
   { id: 1, name: "Alice" },
   { id: 2, name: "Bob" },
 ]
 ```
 
-Unlike regular observables which can use structural comparison, shallow
+Unlike regular deep observables which can use structural comparison, shallow
 observables rely on reference equality by default, so replacing a collection
 with a structurally identical one will still trigger reactions.
 

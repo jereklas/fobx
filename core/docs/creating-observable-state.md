@@ -1,0 +1,200 @@
+# Creating Observable State in FobX
+
+This document explains the two main approaches to creating observable state in
+FobX:
+
+1. `observable()` - Auto-observability with optional overrides
+2. `makeObservable()` - Explicit declaration of observable properties
+
+Both methods allow you to create reactive state, but they differ in how
+properties are annotated as observable.
+
+## Observable Function: Automatic Observability
+
+The `observable()` function automatically makes all properties observable by
+default. It follows a "make everything observable unless specified otherwise"
+approach.
+
+```typescript
+import { observable } from "@fobx/core"
+
+// All properties automatically become observable (deep observability)
+const user = observable({
+  name: "Alice",
+  age: 30,
+  profile: {
+    avatar: "alice.jpg",
+    settings: {
+      theme: "dark",
+    },
+  },
+  hobbies: ["reading", "hiking"],
+})
+
+// Changes to any property (including nested ones) will trigger reactions
+user.name = "Bob" // Triggers reactions
+user.profile.settings.theme = "light" // Triggers reactions
+user.hobbies.push("swimming") // Triggers reactions
+```
+
+### Overriding Default Behavior
+
+You can override the automatically applied observability for specific properties
+by providing annotations:
+
+```typescript
+import { observable } from "@fobx/core"
+
+const store = observable({
+  user: { name: "Alice", age: 30 },
+  settings: { theme: "dark" },
+  metaData: { lastUpdated: new Date() },
+}, {
+  // Override specific properties:
+  metaData: "observable.ref", // Make metaData reference-observable only
+  settings: "observable.shallow", // Make settings a shallow observable
+
+  // You can also use an array syntax for additional options:
+  user: ["observable", "structural"], // Observable with structural comparison
+})
+```
+
+In this example, all properties of `user` and its nested objects are still
+deeply observable, but `metaData` and `settings` use the specified observation
+strategies.
+
+## MakeObservable Function: Explicit Declarations
+
+The `makeObservable()` function takes the opposite approach: nothing is
+observable unless explicitly declared. This gives you precise control over what
+properties are observed and how.
+
+```typescript
+import { makeObservable } from "@fobx/core"
+
+const user = makeObservable({
+  name: "Alice",
+  age: 30,
+  profile: {
+    avatar: "alice.jpg",
+    settings: {
+      theme: "dark",
+    },
+  },
+  hobbies: ["reading", "hiking"],
+
+  get fullName() {
+    return `${this.name}, ${this.age} years old`
+  },
+}, {
+  name: "observable", // Only name is observable
+  age: "observable", // Only age is observable
+  fullName: "computed", // Declare computed property
+  // profile and hobbies are NOT observable because they're not declared
+})
+
+// Changes to declared properties will trigger reactions
+user.name = "Bob" // Triggers reactions
+
+// Changes to undeclared properties won't trigger reactions
+user.profile.settings.theme = "light" // No reaction triggered
+user.hobbies.push("swimming") // No reaction triggered
+```
+
+### Class Example with makeObservable
+
+`makeObservable` is particularly useful with classes:
+
+```typescript
+import { action, computed, makeObservable, observable } from "@fobx/core"
+
+class UserStore {
+  name = "Alice"
+  age = 30
+  hobbies = ["reading", "hiking"]
+
+  constructor() {
+    // Must be called in constructor
+    makeObservable(this, {
+      name: "observable",
+      age: "observable",
+      hobbies: "observable",
+      fullName: "computed",
+      updateUser: "action",
+    })
+  }
+
+  get fullName() {
+    return `${this.name}, ${this.age} years old`
+  }
+
+  updateUser(name, age) {
+    this.name = name
+    this.age = age
+  }
+}
+
+const userStore = new UserStore()
+```
+
+## Choosing Between observable() and makeObservable()
+
+### When to use observable():
+
+- For simple state objects where most properties should be observable
+- When you want quick setup with minimal boilerplate
+- For data structures where deep reactivity is desired by default
+
+### When to use makeObservable():
+
+- When working with classes
+- When you need explicit control over which properties should be reactive
+- To reduce the performance overhead of unnecessary observables
+- For better type safety and code clarity
+- To enforce a stricter pattern of declaring all observable members
+
+## Observable Property Types
+
+Both approaches support the same set of annotations:
+
+- `"observable"` - Makes the property deeply observable
+- `"observable.ref"` - Makes only the reference observable, not its contents
+- `"observable.shallow"` - Makes the property observable but keeps the items
+  inside non-observable
+- `"computed"` - Marks a getter as a computed value
+- `"action"` - Marks a method as an action that can modify state
+
+## Advanced Configurations
+
+You can also specify custom comparison behavior for properties:
+
+```typescript
+import { makeObservable } from "@fobx/core"
+
+const user = makeObservable({
+  name: "Alice",
+  score: 75,
+}, {
+  name: "observable",
+  // Custom comparison function - only react when score changes by 5 or more
+  score: ["observable", (a, b) => Math.abs(a - b) < 5],
+})
+```
+
+## Best Practices
+
+1. **Use makeObservable for classes**: It provides clearer code structure and
+   better type safety
+2. **Use observable for plain data**: When you need quick setup of observable
+   state objects
+3. **Be explicit about annotations**: Even with `observable()`, consider
+   providing annotations for clarity
+4. **Consider performance**: Only make properties observable if they need to
+   trigger reactions
+
+## Related Documentation
+
+- [Shallow Observables](./shallow-observables.md) - More detailed information
+  about shallow observability
+- [Controlling Comparisons](./controlling-comparisons.md) - How to control when
+  observers react to changes

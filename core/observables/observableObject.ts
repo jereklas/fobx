@@ -9,18 +9,19 @@ import type { IObservable } from "./observableBox.ts"
 import { isObservableObject, isPlainObject } from "../utils/predicates.ts"
 import {
   addObservableAdministration,
-  annotateProperty,
-  createEqualityOptions,
-  createShallowObservableForCollection,
   getPropertyDescriptors,
-  getType,
   handleNoneOrResetAnnotation,
   inferAnnotationType,
+} from "./utils/property.ts"
+import { createShallowObservableForCollection } from "./utils/create.ts"
+import {
+  annotateProperty,
   markPropertyAsAnnotated,
   parseAnnotationConfig,
-  resolveShallowOption,
-  warnNonExtensibleObject,
-} from "./utils/common.ts"
+} from "./utils/annotations.ts"
+import { resolveShallowOption } from "./utils/equality.ts"
+import { getType, warnNonExtensibleObject } from "./utils/errors.ts"
+import { createEqualityOptions } from "./utils/equality.ts"
 
 export type Annotation =
   | "action"

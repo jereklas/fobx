@@ -1,7 +1,16 @@
 import * as esbuild from "esbuild"
 import * as utils from "@fobx/utils"
+import { denoPlugins } from "@oazmi/esbuild-plugin-deno"
 
 const bundle = (format: "esm" | "cjs") => {
+  const [
+    entry_plugin,
+    http_plugin,
+    jsr_plugin,
+    npm_plugin,
+    resolver_pipeline_plugin,
+  ] = denoPlugins()
+
   return esbuild.build({
     entryPoints: ["./index.ts"],
     bundle: true,
@@ -14,6 +23,13 @@ const bundle = (format: "esm" | "cjs") => {
     },
     external: ["@fobx/core", "react"],
     minify: false,
+    plugins: [
+      entry_plugin,
+      http_plugin,
+      jsr_plugin,
+      npm_plugin,
+      resolver_pipeline_plugin,
+    ],
     outfile: `dist/index${format === "esm" ? ".js" : ".cjs"}`,
   })
 }

@@ -1,5 +1,6 @@
 import * as esbuild from "esbuild"
 import * as utils from "@fobx/utils"
+import { denoPlugins } from "@oazmi/esbuild-plugin-deno"
 
 async function bundle(opts: {
   format: "esm" | "cjs"
@@ -22,6 +23,14 @@ async function bundle(opts: {
     }
     : { minify: false }
 
+  const [
+    entry_plugin,
+    http_plugin,
+    jsr_plugin,
+    npm_plugin,
+    resolver_pipeline_plugin,
+  ] = denoPlugins()
+
   const options: esbuild.BuildOptions = {
     target: utils.JS_TARGET,
     define: {
@@ -34,6 +43,13 @@ async function bundle(opts: {
     bundle,
     outfile,
     format: opts.format,
+    plugins: [
+      entry_plugin,
+      http_plugin,
+      jsr_plugin,
+      npm_plugin,
+      resolver_pipeline_plugin,
+    ],
     ...minifyOptions,
   }
 

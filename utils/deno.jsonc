@@ -1,4 +1,10 @@
 {
   "name": "@fobx/utils",
-  "exports": "./index.ts"
+  "exports": {
+    ".": "./index.ts",
+    "./file-server": "./file-server.ts"
+  },
+  "imports": {
+    "@std/async": "jsr:@std/async@^1.0.13"
+  }
 }

@@ -1,4 +1,6 @@
 import { parse } from "@std/jsonc"
+export * from "./file-server.ts"
+export * from "./file-crawler.ts"
 
 /**
  * Removes a file or directory if it exists. Directories will be removed recursively.

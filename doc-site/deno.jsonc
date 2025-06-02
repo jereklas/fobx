@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "build": "deno run -A src/build.ts",
+    "start": "deno run -A src/dev-server.ts"
+  },
+  "imports": {
+    "@markdoc/markdoc": "npm:@markdoc/markdoc@^0.5.2",
+    "@std/fs": "jsr:@std/fs@^1.0.18",
+    "@std/path": "jsr:@std/path@^1.1.0",
+    "esbuild": "npm:esbuild@^0.25.5",
+    "preact": "npm:preact@^10.26.8"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+  }
+}

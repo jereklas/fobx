@@ -19,7 +19,8 @@
     "vscode": {
       "extensions": [
         "denoland.vscode-deno",
-        "streetsidesoftware.code-spell-checker"
+        "streetsidesoftware.code-spell-checker",
+        "stripe.markdoc-language-support"
       ],
       "settings": {
         "editor.defaultFormatter": "denoland.vscode-deno"

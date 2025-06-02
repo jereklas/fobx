@@ -1,0 +1,12 @@
+[
+  {
+    "id": "@fobx/documentation",
+    "path": "doc-site",
+    "schema": {
+      "path": "doc-site/markdoc.schema.mjs",
+      "type": "esm",
+      "property": "default",
+      "watch": true
+    }
+  }
+]

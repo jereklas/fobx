@@ -20,7 +20,7 @@ console.log("Initial build complete, starting server...")
 const stopServer = startFileServer({
   port: PORT,
   rootDir: publicDir,
-  enableSpaRouting: true,
+  enableSpaRouting: false,
   watch: {
     [srcDir]: [],
     "/fobx": [".md"],

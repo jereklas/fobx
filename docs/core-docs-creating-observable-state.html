@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="description" content="# Creating Observable State in FobX"/><meta property="og:title" content="Creating Observable State in FobX"/><meta property="og:description" content="# Creating Observable State in FobX"/><meta property="og:type" content="website"/><meta property="og:url" content="/fobx/core-docs-creating-observable-state"/><title>Creating Observable State in FobX | FobX Documentation</title><link rel="stylesheet" href="/fobx/assets/styles.css"/><script type="module" src="/fobx/scripts/chunks/shared.js"></script><script type="module" src="/fobx/scripts/core-docs-creating-observable-state.js"></script></head><body><div id="root"><div class="docs-layout"><header class="docs-header"><nav class="docs-nav"><a href="/fobx" class="docs-logo">FobX Documentation</a><ul class="docs-nav-links"><li><a href="/fobx/" class="docs-nav-link">Documentation</a></li><li><a href="https://github.com/jereklas/fobx" target="_blank" rel="noopener noreferrer" class="docs-nav-link">GitHub</a></li></ul><div class="docs-search"><input type="search" placeholder="Search docs..." aria-label="Search documentation" class="docs-search-input"/></div></nav></header><aside class="docs-sidebar"><div class="sidebar-section"><h3 class="sidebar-title">Core</h3><nav><ul class="sidebar-nav"><li><a href="/fobx/core-docs-controlling-comparisons" class="sidebar-link ">Controlling Comparisons in FobX</a></li><li><a href="/fobx/core-docs-creating-observable-state" class="sidebar-link active">Creating Observable State in FobX</a></li><li><a href="/fobx/core-docs-shallow-observables" class="sidebar-link ">Shallow Observables in FobX</a></li></ul></nav></div></aside><main class="docs-main"><div class="docs-content"><article class="docs-content"><div class="content"><div><span><h1 id="creating-observable-state-in-fobx"><span>Creating Observable State in FobX</span></h1><div class="reading-time">4 min read</div></span><span><p><span>This document explains the two main approaches to creating observable state in</span><span> </span><span>FobX:</span></p></span><span><ol><span><li><span><code>observable()</code></span><span> - Auto-observability with optional overrides</span></li></span><span><li><span><code>makeObservable()</code></span><span> - Explicit declaration of observable properties</span></li></span></ol></span><span><p><span>Both methods allow you to create reactive state, but they differ in how</span><span> </span><span>properties are annotated as observable.</span></p></span><span><h2 id="observable-function-automatic-observability"><span>Observable Function: Automatic Observability</span></h2></span><span><p><span>The </span><span><code>observable()</code></span><span> function automatically makes all properties observable by</span><span> </span><span>default. It follows a &quot;make everything observable unless specified otherwise&quot;</span><span> </span><span>approach.</span></p></span><span><pre class="language-typescript"><code>import { observable } from &quot;@fobx/core&quot;
+
+// All properties automatically become observable (deep observability)
+const user = observable({
+  name: &quot;Alice&quot;,
+  age: 30,
+  profile: {
+    avatar: &quot;alice.jpg&quot;,
+    settings: {
+      theme: &quot;dark&quot;,
+    },
+  },
+  hobbies: [&quot;reading&quot;, &quot;hiking&quot;],
+})
+
+// Changes to any property (including nested ones) will trigger reactions
+user.name = &quot;Bob&quot; // Triggers reactions
+user.profile.settings.theme = &quot;light&quot; // Triggers reactions
+user.hobbies.push(&quot;swimming&quot;) // Triggers reactions
+</code></pre></span><span><h3 id="overriding-default-behavior"><span>Overriding Default Behavior</span></h3></span><span><p><span>You can override the automatically applied observability for specific properties</span><span> </span><span>by providing annotations:</span></p></span><span><pre class="language-typescript"><code>import { observable } from &quot;@fobx/core&quot;
+
+const store = observable({
+  user: { name: &quot;Alice&quot;, age: 30 },
+  settings: { theme: &quot;dark&quot; },
+  metaData: { lastUpdated: new Date() },
+}, {
+  // Override specific properties:
+  metaData: &quot;observable.ref&quot;, // Make metaData reference-observable only
+  settings: &quot;observable.shallow&quot;, // Make settings a shallow observable
+
+  // You can also use an array syntax for additional options:
+  user: [&quot;observable&quot;, &quot;structural&quot;], // Observable with structural comparison
+})
+</code></pre></span><span><p><span>In this example, all properties of </span><span><code>user</code></span><span> and its nested objects are still</span><span> </span><span>deeply observable, but </span><span><code>metaData</code></span><span> and </span><span><code>settings</code></span><span> use the specified observation</span><span> </span><span>strategies.</span></p></span><span><h2 id="makeobservable-function-explicit-declarations"><span>MakeObservable Function: Explicit Declarations</span></h2></span><span><p><span>The </span><span><code>makeObservable()</code></span><span> function takes the opposite approach: nothing is</span><span> </span><span>observable unless explicitly declared. This gives you precise control over what</span><span> </span><span>properties are observed and how.</span></p></span><span><pre class="language-typescript"><code>import { makeObservable } from &quot;@fobx/core&quot;
+
+const user = makeObservable({
+  name: &quot;Alice&quot;,
+  age: 30,
+  profile: {
+    avatar: &quot;alice.jpg&quot;,
+    settings: {
+      theme: &quot;dark&quot;,
+    },
+  },
+  hobbies: [&quot;reading&quot;, &quot;hiking&quot;],
+
+  get fullName() {
+    return `${this.name}, ${this.age} years old`
+  },
+}, {
+  name: &quot;observable&quot;, // Only name is observable
+  age: &quot;observable&quot;, // Only age is observable
+  fullName: &quot;computed&quot;, // Declare computed property
+  // profile and hobbies are NOT observable because they're not declared
+})
+
+// Changes to declared properties will trigger reactions
+user.name = &quot;Bob&quot; // Triggers reactions
+
+// Changes to undeclared properties won't trigger reactions
+user.profile.settings.theme = &quot;light&quot; // No reaction triggered
+user.hobbies.push(&quot;swimming&quot;) // No reaction triggered
+</code></pre></span><span><h3 id="class-example-with-makeobservable"><span>Class Example with makeObservable</span></h3></span><span><p><span><code>makeObservable</code></span><span> is particularly useful with classes:</span></p></span><span><pre class="language-typescript"><code>import { action, computed, makeObservable, observable } from &quot;@fobx/core&quot;
+
+class UserStore {
+  name = &quot;Alice&quot;
+  age = 30
+  hobbies = [&quot;reading&quot;, &quot;hiking&quot;]
+
+  constructor() {
+    // Must be called in constructor
+    makeObservable(this, {
+      name: &quot;observable&quot;,
+      age: &quot;observable&quot;,
+      hobbies: &quot;observable&quot;,
+      fullName: &quot;computed&quot;,
+      updateUser: &quot;action&quot;,
+    })
+  }
+
+  get fullName() {
+    return `${this.name}, ${this.age} years old`
+  }
+
+  updateUser(name, age) {
+    this.name = name
+    this.age = age
+  }
+}
+
+const userStore = new UserStore()
+</code></pre></span><span><h2 id="choosing-between-observable-and-makeobservable"><span>Choosing Between observable() and makeObservable()</span></h2></span><span><h3 id="when-to-use-observable"><span>When to use observable():</span></h3></span><span><ul><span><li><span>For simple state objects where most properties should be observable</span></li></span><span><li><span>When you want quick setup with minimal boilerplate</span></li></span><span><li><span>For data structures where deep reactivity is desired by default</span></li></span></ul></span><span><h3 id="when-to-use-makeobservable"><span>When to use makeObservable():</span></h3></span><span><ul><span><li><span>When working with classes</span></li></span><span><li><span>When you need explicit control over which properties should be reactive</span></li></span><span><li><span>To reduce the performance overhead of unnecessary observables</span></li></span><span><li><span>For better type safety and code clarity</span></li></span><span><li><span>To enforce a stricter pattern of declaring all observable members</span></li></span></ul></span><span><h2 id="observable-property-types"><span>Observable Property Types</span></h2></span><span><p><span>Both approaches support the same set of annotations:</span></p></span><span><ul><span><li><span><code>&quot;observable&quot;</code></span><span> - Makes the property deeply observable</span></li></span><span><li><span><code>&quot;observable.ref&quot;</code></span><span> - Makes only the reference observable, not its contents</span></li></span><span><li><span><code>&quot;observable.shallow&quot;</code></span><span> - Makes the property observable but keeps the items</span><span> </span><span>inside non-observable</span></li></span><span><li><span><code>&quot;computed&quot;</code></span><span> - Marks a getter as a computed value</span></li></span><span><li><span><code>&quot;action&quot;</code></span><span> - Marks a method as an action that can modify state</span></li></span></ul></span><span><h2 id="advanced-configurations"><span>Advanced Configurations</span></h2></span><span><p><span>You can also specify custom comparison behavior for properties:</span></p></span><span><pre class="language-typescript"><code>import { makeObservable } from &quot;@fobx/core&quot;
+
+const user = makeObservable({
+  name: &quot;Alice&quot;,
+  score: 75,
+}, {
+  name: &quot;observable&quot;,
+  // Custom comparison function - only react when score changes by 5 or more
+  score: [&quot;observable&quot;, (a, b) => Math.abs(a - b) &lt; 5],
+})
+</code></pre></span><span><h2 id="best-practices"><span>Best Practices</span></h2></span><span><ol><span><li><span><div><span>Use makeObservable for classes</span></div></span><span>: It provides clearer code structure and</span><span> </span><span>better type safety</span></li></span><span><li><span><div><span>Use observable for plain data</span></div></span><span>: When you need quick setup of observable</span><span> </span><span>state objects</span></li></span><span><li><span><div><span>Be explicit about annotations</span></div></span><span>: Even with </span><span><code>observable()</code></span><span>, consider</span><span> </span><span>providing annotations for clarity</span></li></span><span><li><span><div><span>Consider performance</span></div></span><span>: Only make properties observable if they need to</span><span> </span><span>trigger reactions</span></li></span></ol></span><span><h2 id="related-documentation"><span>Related Documentation</span></h2></span><span><ul><span><li><span><a href="/fobx/core-docs-shallow-observables"><span>Shallow Observables</span></a></span><span> - More detailed information</span><span> </span><span>about shallow observability</span></li></span><span><li><span><a href="/fobx/core-docs-controlling-comparisons"><span>Controlling Comparisons</span></a></span><span> - How to control when</span><span> </span><span>observers react to changes</span></li></span></ul></span></div></div></article></div></main><aside class="docs-toc"><h3 class="toc-title">On this page</h3><nav><ul class="toc-nav"><li><a href="#observable-function-automatic-observability" data-level="2" class="toc-link ">Observable Function: Automatic Observability</a><ul class="toc-nav"><li><a href="#overriding-default-behavior" data-level="3" class="toc-link ">Overriding Default Behavior</a></li></ul></li><li><a href="#makeobservable-function-explicit-declarations" data-level="2" class="toc-link ">MakeObservable Function: Explicit Declarations</a><ul class="toc-nav"><li><a href="#class-example-with-makeobservable" data-level="3" class="toc-link ">Class Example with makeObservable</a></li></ul></li><li><a href="#choosing-between-observable-and-makeobservable" data-level="2" class="toc-link ">Choosing Between observable() and makeObservable()</a><ul class="toc-nav"><li><a href="#when-to-use-observable" data-level="3" class="toc-link ">When to use observable():</a></li><li><a href="#when-to-use-makeobservable" data-level="3" class="toc-link ">When to use makeObservable():</a></li></ul></li><li><a href="#observable-property-types" data-level="2" class="toc-link ">Observable Property Types</a></li><li><a href="#advanced-configurations" data-level="2" class="toc-link ">Advanced Configurations</a></li><li><a href="#best-practices" data-level="2" class="toc-link ">Best Practices</a></li><li><a href="#related-documentation" data-level="2" class="toc-link ">Related Documentation</a></li></ul></nav></aside></div></div></body></html>

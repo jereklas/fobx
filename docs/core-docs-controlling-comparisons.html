@@ -1,0 +1,334 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="description" content="# Controlling Comparisons in FobX"/><meta property="og:title" content="Controlling Comparisons in FobX"/><meta property="og:description" content="# Controlling Comparisons in FobX"/><meta property="og:type" content="website"/><meta property="og:url" content="/fobx/core-docs-controlling-comparisons"/><title>Controlling Comparisons in FobX | FobX Documentation</title><link rel="stylesheet" href="/fobx/assets/styles.css"/><script type="module" src="/fobx/scripts/chunks/shared.js"></script><script type="module" src="/fobx/scripts/core-docs-controlling-comparisons.js"></script></head><body><div id="root"><div class="docs-layout"><header class="docs-header"><nav class="docs-nav"><a href="/fobx" class="docs-logo">FobX Documentation</a><ul class="docs-nav-links"><li><a href="/fobx/" class="docs-nav-link">Documentation</a></li><li><a href="https://github.com/jereklas/fobx" target="_blank" rel="noopener noreferrer" class="docs-nav-link">GitHub</a></li></ul><div class="docs-search"><input type="search" placeholder="Search docs..." aria-label="Search documentation" class="docs-search-input"/></div></nav></header><aside class="docs-sidebar"><div class="sidebar-section"><h3 class="sidebar-title">Core</h3><nav><ul class="sidebar-nav"><li><a href="/fobx/core-docs-controlling-comparisons" class="sidebar-link active">Controlling Comparisons in FobX</a></li><li><a href="/fobx/core-docs-creating-observable-state" class="sidebar-link ">Creating Observable State in FobX</a></li><li><a href="/fobx/core-docs-shallow-observables" class="sidebar-link ">Shallow Observables in FobX</a></li></ul></nav></div></aside><main class="docs-main"><div class="docs-content"><article class="docs-content"><div class="content"><div><span><h1 id="controlling-comparisons-in-fobx"><span>Controlling Comparisons in FobX</span></h1><div class="reading-time">10 min read</div></span><span><p><span>This document explains how to control when FobX considers observable values to</span><span> </span><span>have changed by using different comparison strategies.</span></p></span><span><h2 id="structural-comparison"><span>Structural Comparison</span></h2></span><span><p><span>FobX supports structural comparison of observable values. This is useful when</span><span> </span><span>you want to compare objects by their structure rather than by reference</span><span> </span><span>equality.</span></p></span><span><h3 id="configuring-structural-comparison"><span>Configuring Structural Comparison</span></h3></span><span><p><span>Before using structural comparison, you need to configure it globally:</span></p></span><span><pre class="language-typescript"><code>import { configure } from &quot;@fobx/core&quot;
+import { deepEqual } from &quot;fast-equals&quot;
+
+// Configure FobX to use deepEqual for structural comparisons
+configure({
+  comparer: { structural: deepEqual },
+})
+</code></pre></span><span><p><span>The </span><span><code>structural</code></span><span> comparer can be any function that takes two arguments and</span><span> </span><span>returns a boolean indicating if they are equal. In the example above, we use</span><span> </span><span><code>deepEqual</code></span><span> from the </span><span><code>fast-equals</code></span><span> library.</span></p></span><span><h3 id="making-observables-use-structural-comparison"><span>Making Observables Use Structural Comparison</span></h3></span><span><p><span>Once configured, you can create observables that use structural comparison in</span><span> </span><span>several ways:</span></p></span><span><h4 id="_1-using-makeobservable-with-structural-annotation"><span>1. Using </span><span><code>makeObservable</code></span><span> with </span><span><code>&quot;structural&quot;</code></span><span> annotation</span></h4></span><span><pre class="language-typescript"><code>import { makeObservable } from &quot;@fobx/core&quot;
+
+const user = makeObservable({
+  profile: { name: &quot;Alice&quot;, age: 25 },
+}, {
+  profile: [&quot;observable&quot;, &quot;structural&quot;],
+})
+
+// Changes that are structurally equivalent won't trigger reactions
+user.profile = { name: &quot;Alice&quot;, age: 25 } // No reaction triggered
+
+// Changes that are structurally different will trigger reactions
+user.profile = { name: &quot;Bob&quot;, age: 30 } // Reaction triggered
+</code></pre></span><span><h4 id="_2-using-computed-with-structural-comparison"><span>2. Using </span><span><code>computed</code></span><span> with structural comparison</span></h4></span><span><pre class="language-typescript"><code>import { computed, observable, reaction, runInAction } from &quot;@fobx/core&quot;
+
+const items = observable([1, 2, 3])
+const total = computed(
+  () => {
+    // Return a new object each time
+    return { sum: items.reduce((acc, val) => acc + val, 0) }
+  },
+  { comparer: &quot;structural&quot; },
+)
+
+// Note: Computed values in FobX are lazily evaluated and only run
+// when they're being tracked by a reaction
+reaction(
+  () => total.value,
+  (sum) => console.log(&quot;Sum changed:&quot;, sum),
+)
+
+// IMPORTANT: When making multiple changes that should be treated as one transaction,
+// use runInAction to batch them together
+runInAction(() => {
+  // Modifying the array but keeping the same sum won't trigger the reaction
+  items[0] = 0
+  items[1] = 3
+  items[2] = 3
+})
+// total.value is still { sum: 6 }, reaction doesn't fire
+
+// Changing the sum will trigger the reaction
+items.push(4)
+// total.value is now { sum: 10 }, reaction fires
+</code></pre></span><span><h2 id="custom-equality-functions"><span>Custom Equality Functions</span></h2></span><span><p><span>Besides structural comparison, FobX allows defining custom equality functions</span><span> </span><span>for fine-grained control over when to consider values equal.</span></p></span><span><h3 id="using-custom-equality-function-with-observable"><span>Using Custom Equality Function with </span><span><code>observable</code></span></h3></span><span><pre class="language-typescript"><code>import { observableBox } from &quot;@fobx/core&quot;
+
+// Custom equality function that ignores case for strings
+const caseInsensitiveObservable = observableBox(&quot;hello&quot;, {
+  equals: (oldValue, newValue) =>
+    typeof oldValue === &quot;string&quot; &amp;&amp;
+    typeof newValue === &quot;string&quot; &amp;&amp;
+    oldValue.toLowerCase() === newValue.toLowerCase(),
+})
+
+// These won't trigger reactions because the case-insensitive values are equal
+caseInsensitiveObservable.value = &quot;HELLO&quot;
+caseInsensitiveObservable.value = &quot;Hello&quot;
+
+// This will trigger reactions because the value is different case-insensitively
+caseInsensitiveObservable.value = &quot;world&quot;
+</code></pre></span><span><h3 id="using-custom-equality-function-with-makeobservable"><span>Using Custom Equality Function with </span><span><code>makeObservable</code></span></h3></span><span><pre class="language-typescript"><code>import { makeObservable } from &quot;@fobx/core&quot;
+
+// Custom equality function for numeric values
+const roundingEqualityFn = (a, b) => Math.floor(a) === Math.floor(b)
+
+const stats = makeObservable({
+  score: 10.2,
+}, {
+  score: [&quot;observable&quot;, roundingEqualityFn],
+})
+
+// Won't trigger reactions because floor values are equal
+stats.score = 10.8
+
+// Will trigger reactions because floor values differ
+stats.score = 11.2
+</code></pre></span><span><h2 id="combining-shallow-observables-with-comparison-functions"><span>Combining Shallow Observables with Comparison Functions</span></h2></span><span><p><span>FobX allows you to combine </span><span><code>observable.shallow</code></span><span> with custom equality functions</span><span> </span><span>for even more control over reactivity.</span></p></span><span><h3 id="understanding-observableshallow-behavior"><span>Understanding </span><span><code>observable.shallow</code></span><span> Behavior</span></h3></span><span><p><span>When using </span><span><code>observable.shallow</code></span><span> annotation, observable collections are created</span><span> </span><span>but their items remain non-observable, and reference equality is used by</span><span> </span><span>default:</span></p></span><span><pre class="language-typescript"><code>import { makeObservable, reaction } from &quot;@fobx/core&quot;
+
+// An array of users that we want to remain shallow (not make user objects observable)
+const users = makeObservable({
+  list: [
+    { id: 1, name: &quot;Alice&quot; },
+    { id: 2, name: &quot;Bob&quot; },
+  ],
+}, {
+  list: &quot;observable.shallow&quot;,
+})
+
+// You can also use observable() the same way:
+const usersAlt = observable({
+  list: [
+    { id: 1, name: &quot;Alice&quot; },
+    { id: 2, name: &quot;Bob&quot; },
+  ],
+}, {
+  list: &quot;observable.shallow&quot;,
+})
+
+reaction(
+  () => users.list,
+  (userList) => console.log(&quot;User list changed:&quot;, userList),
+)
+
+// Operations on the collection trigger reactions
+users.list.push({ id: 3, name: &quot;Charlie&quot; })
+
+// Replacing the entire collection will also trigger a reaction
+users.list = [
+  { id: 1, name: &quot;Alice&quot; },
+  { id: 2, name: &quot;Bob&quot; },
+]
+</code></pre></span><span><p><span>Unlike regular deep observables which can use structural comparison, shallow</span><span> </span><span>observables rely on reference equality by default, so replacing a collection</span><span> </span><span>with a structurally identical one will still trigger reactions.</span></p></span><span><h3 id="using-observableshallow-with-custom-equality-function"><span>Using </span><span><code>observable.shallow</code></span><span> with Custom Equality Function</span></h3></span><span><p><span>You can override the default reference equality by providing a custom equality</span><span> </span><span>function:</span></p></span><span><pre class="language-typescript"><code>import { makeObservable, reaction } from &quot;@fobx/core&quot;
+
+// A settings object where we only care about specific properties
+const settings = makeObservable({
+  config: {
+    theme: &quot;dark&quot;,
+    fontSize: 16,
+    cache: { temporaryData: [1, 2, 3] }, // We don't care about comparing this
+    lastUpdated: Date.now(), // We don't care about comparing this
+  },
+}, {
+  config: [
+    &quot;observable.shallow&quot;,
+    (oldValue, newValue) => {
+      // Only compare the keys we care about
+      return oldValue.theme === newValue.theme &amp;&amp;
+        oldValue.fontSize === newValue.fontSize
+    },
+  ],
+})
+
+reaction(
+  () => settings.config,
+  (config) => console.log(&quot;Important settings changed:&quot;, config),
+)
+
+// Won't trigger reaction (important keys unchanged)
+settings.config = {
+  theme: &quot;dark&quot;,
+  fontSize: 16,
+  cache: { temporaryData: [4, 5, 6] }, // Different but we don't care
+  lastUpdated: Date.now(), // Different but we don't care
+}
+
+// Will trigger reaction (theme property changed)
+settings.config = {
+  theme: &quot;light&quot;, // Changed!
+  fontSize: 16,
+  cache: { temporaryData: [4, 5, 6] },
+  lastUpdated: Date.now(),
+}
+</code></pre></span><span><p><span>This pattern is excellent for configuration objects where you want to ignore</span><span> </span><span>changes to volatile or non-important properties.</span></p></span><span><h3 id="best-practices-for-api-data"><span>Best Practices for API Data</span></h3></span><span><p><span>When working with API data, here are some approaches to consider:</span></p></span><span><pre class="language-typescript"><code>import { makeObservable, reaction } from &quot;@fobx/core&quot;
+
+class ProductStore {
+  constructor() {
+    makeObservable(this, {
+      // Use shallow observables for collections of data objects
+      // to avoid making each item observable
+      products: &quot;observable.shallow&quot;,
+      selectedProductId: &quot;observable&quot;,
+      selectedProduct: &quot;computed&quot;,
+    })
+  }
+
+  products = [
+    { id: 1, name: &quot;Phone&quot;, price: 599.99 },
+    { id: 2, name: &quot;Laptop&quot;, price: 1299.99 },
+  ]
+
+  selectedProductId = 1
+
+  get selectedProduct() {
+    return this.products.find((p) => p.id === this.selectedProductId) || null
+  }
+
+  // When refetching products, consider implementing your own comparison
+  // to avoid unnecessary reactions
+  updateProducts(newProducts) {
+    // Option 1: Simple reference check (default behavior)
+    this.products = newProducts
+
+    // Option 2: Custom implementation to avoid unnecessary updates
+    // if you need structural comparison
+    /*
+    if (!areProductListsEqual(this.products, newProducts)) {
+      this.products = newProducts;
+    }
+    */
+  }
+
+  selectProduct(id) {
+    this.selectedProductId = id
+  }
+}
+
+// Helper function (not part of FobX)
+function areProductListsEqual(list1, list2) {
+  if (list1.length !== list2.length) return false
+  return list1.every((item, i) =>
+    item.id === list2[i].id &amp;&amp;
+    item.name === list2[i].name &amp;&amp;
+    item.price === list2[i].price
+  )
+}
+
+const store = new ProductStore()
+
+// Setup reactions
+reaction(
+  () => store.products,
+  (products) => console.log(&quot;Products list changed, updating UI...&quot;),
+)
+
+reaction(
+  () => store.selectedProduct,
+  (product) => console.log(&quot;Selected product changed:&quot;, product?.name),
+)
+</code></pre></span><span><p><span>With this approach:</span></p></span><span><ul><span><li><span>Products remain shallow observables so the individual product objects aren't</span><span> </span><span>made observable</span></li></span><span><li><span>If you need structural comparison, you can implement it in your methods before</span><span> </span><span>updating the observable value</span></li></span><span><li><span>The computed </span><span><code>selectedProduct</code></span><span> property efficiently derives from the</span><span> </span><span>observable state</span></li></span></ul></span><span><h2 id="important-behavior-notes"><span>Important Behavior Notes</span></h2></span><span><ol><span><li><span><p><span><div><span>Computed Value Optimization</span></div></span><span>: Computed values in FobX are optimized and</span><span> </span><span>only calculate when they're being tracked by a reaction. If a computed isn't</span><span> </span><span>being observed, it won't recalculate until it's accessed.</span></p></span></li></span><span><li><span><p><span><div><span>Reaction Comparisons</span></div></span><span>: When a reaction fires, it compares the new value</span><span> </span><span>with the initial value from when the reaction was created, not with the most</span><span> </span><span>recently seen value. This behavior is important to understand when designing</span><span> </span><span>custom equality functions.</span></p></span></li></span><span><li><span><p><span><div><span>Transactions Matter</span></div></span><span>: When making multiple changes that should be treated</span><span> </span><span>as a single update, always wrap them in </span><span><code>runInAction</code></span><span>. Without this, each</span><span> </span><span>individual change might trigger unnecessary computed recalculations, leading</span><span> </span><span>to unexpected behavior with comparison functions.</span></p></span></li></span></ol></span><span><h2 id="practical-use-cases"><span>Practical Use Cases</span></h2></span><span><h3 id="performance-optimization"><span>Performance Optimization</span></h3></span><span><p><span>Structural comparison involves trade-offs that should be carefully considered:</span></p></span><span><pre class="language-typescript"><code>// Consider this scenario:
+const userData = observable({
+  profile: {
+    personal: { name: &quot;Alice&quot;, age: 30 },
+    preferences: { theme: &quot;dark&quot;, notifications: true },
+    statistics: {/* possibly large nested data */},
+  },
+})
+</code></pre></span><span><p><span><div><span>Benefits:</span></div></span></p></span><span><ul><span><li><span>Prevents unnecessary reactions when objects are recreated but structurally</span><span> </span><span>identical</span></li></span><span><li><span>Particularly valuable when reactions are expensive (DOM updates, re-renders,</span><span> </span><span>network calls)</span></li></span><span><li><span>Works well with immutable data patterns where new objects are created</span><span> </span><span>frequently</span></li></span></ul></span><span><p><span><div><span>Costs:</span></div></span></p></span><span><ul><span><li><span>The structural comparison itself is more expensive than reference equality</span></li></span><span><li><span>The larger and more nested the objects being compared, the more costly the</span><span> </span><span>comparison</span></li></span><span><li><span>For very frequent updates to large objects, the comparison cost may outweigh</span><span> </span><span>the benefits</span></li></span></ul></span><span><p><span><div><span>When to use:</span></div></span></p></span><span><ul><span><li><span>When the cost of running the reaction (e.g., a component re-render) is higher</span><span> </span><span>than the cost of the comparison</span></li></span><span><li><span>When working with immutable data patterns where objects are frequently</span><span> </span><span>recreated</span></li></span><span><li><span>For objects of moderate size that don't change extremely frequently</span></li></span></ul></span><span><p><span><div><span>When to avoid:</span></div></span></p></span><span><ul><span><li><span>When comparing very large, deeply nested objects</span></li></span><span><li><span>When the observable updates extremely frequently (many times per second)</span></li></span><span><li><span>When the reaction is simple and inexpensive to run</span></li></span></ul></span><span><h3 id="form-data-validation"><span>Form Data Validation</span></h3></span><span><p><span>Custom equality functions are useful for form validation where you might want to</span><span> </span><span>consider values equal if they're within a certain range or match a particular</span><span> </span><span>pattern:</span></p></span><span><pre class="language-typescript"><code>const formData = makeObservable({
+  email: &quot;&quot;,
+  phoneNumber: &quot;&quot;,
+  searchQuery: &quot;&quot;,
+}, {
+  // Only consider email changed if the normalized version is different
+  email: [
+    &quot;observable&quot;,
+    (oldValue, newValue) =>
+      oldValue.trim().toLowerCase() === newValue.trim().toLowerCase(),
+  ],
+
+  // Only consider phone numbers different if the actual digits change
+  // (ignores formatting differences like (555) 123-4567 vs 5551234567)
+  phoneNumber: [
+    &quot;observable&quot;,
+    (oldValue, newValue) =>
+      oldValue.replace(/\D/g, &quot;&quot;) === newValue.replace(/\D/g, &quot;&quot;),
+  ],
+
+  // Only trigger reactions for search queries with meaningful differences
+  // (ignores extra spaces, treats &quot;t-shirt&quot; the same as &quot;tshirt&quot;, etc)
+  searchQuery: [
+    &quot;observable&quot;,
+    (oldValue, newValue) => {
+      const normalize = (str) =>
+        str.trim().toLowerCase()
+          .replace(/\s+/g, &quot; &quot;) // normalize spaces
+          .replace(/[^a-z0-9 ]/g, &quot;&quot;) // remove special chars
+      return normalize(oldValue) === normalize(newValue)
+    },
+  ],
+})
+</code></pre></span><span><h3 id="complex-data-structures"><span>Complex Data Structures</span></h3></span><span><p><span>For complex data structures like nested objects or arrays, structural comparison</span><span> </span><span>ensures that only genuine changes in data structure trigger reactions:</span></p></span><span><pre class="language-typescript"><code>import { configure, observable, reaction } from &quot;@fobx/core&quot;
+import { deepEqual } from &quot;fast-equals&quot;
+
+configure({
+  comparer: { structural: deepEqual },
+})
+
+const nestedData = observable({
+  users: [
+    { id: 1, details: { name: &quot;Alice&quot;, preferences: { theme: &quot;dark&quot; } } },
+    { id: 2, details: { name: &quot;Bob&quot;, preferences: { theme: &quot;light&quot; } } },
+  ],
+})
+
+// Reaction will only run if the actual structure changes when using structural comparison
+reaction(
+  () => nestedData.users,
+  (users) => console.log(&quot;Users updated&quot;, users),
+  { equals: &quot;structural&quot; },
+)
+</code></pre></span><span><h2 id="complete-example"><span>Complete Example</span></h2></span><span><pre class="language-typescript"><code>// Example with both structural and custom equality functions
+
+import { configure, makeObservable, observable, reaction } from &quot;@fobx/core&quot;
+import { deepEqual } from &quot;fast-equals&quot;
+
+// Configure structural comparison
+configure({
+  comparer: { structural: deepEqual },
+})
+
+// Object with different comparison strategies
+const dashboard = makeObservable({
+  // Will use structural comparison
+  userData: { name: &quot;Alice&quot;, preferences: { theme: &quot;dark&quot; } },
+
+  // Will use custom comparison (value within the same 5-point range)
+  approximateScore: 75,
+}, {
+  userData: [&quot;observable&quot;, &quot;structural&quot;],
+  approximateScore: [
+    &quot;observable&quot;,
+    (a, b) => Math.floor(a / 5) === Math.floor(b / 5),
+  ],
+})
+
+// Track changes
+reaction(
+  () => dashboard.userData,
+  (userData) => console.log(&quot;User data changed:&quot;, userData),
+)
+
+reaction(
+  () => dashboard.approximateScore,
+  (score) => console.log(&quot;Score changed significantly:&quot;, score),
+)
+
+// Won't trigger reaction (structurally equal)
+dashboard.userData = { name: &quot;Alice&quot;, preferences: { theme: &quot;dark&quot; } }
+
+// Will trigger reaction (structurally different)
+dashboard.userData = { name: &quot;Alice&quot;, preferences: { theme: &quot;light&quot; } }
+
+// Won't trigger reaction (same 5-point range: 75-79)
+dashboard.approximateScore = 79
+
+// Will trigger reaction (different 5-point range: 80-84)
+dashboard.approximateScore = 80
+</code></pre></span></div></div></article></div></main><aside class="docs-toc"><h3 class="toc-title">On this page</h3><nav><ul class="toc-nav"><li><a href="#structural-comparison" data-level="2" class="toc-link ">Structural Comparison</a><ul class="toc-nav"><li><a href="#configuring-structural-comparison" data-level="3" class="toc-link ">Configuring Structural Comparison</a></li><li><a href="#making-observables-use-structural-comparison" data-level="3" class="toc-link ">Making Observables Use Structural Comparison</a><ul class="toc-nav"><li><a href="#_1-using-makeobservable-with-structural-annotation" data-level="4" class="toc-link ">1. Using makeObservable with &quot;structural&quot; annotation</a></li><li><a href="#_2-using-computed-with-structural-comparison" data-level="4" class="toc-link ">2. Using computed with structural comparison</a></li></ul></li></ul></li><li><a href="#custom-equality-functions" data-level="2" class="toc-link ">Custom Equality Functions</a><ul class="toc-nav"><li><a href="#using-custom-equality-function-with-observable" data-level="3" class="toc-link ">Using Custom Equality Function with observable</a></li><li><a href="#using-custom-equality-function-with-makeobservable" data-level="3" class="toc-link ">Using Custom Equality Function with makeObservable</a></li></ul></li><li><a href="#combining-shallow-observables-with-comparison-functions" data-level="2" class="toc-link ">Combining Shallow Observables with Comparison Functions</a><ul class="toc-nav"><li><a href="#understanding-observableshallow-behavior" data-level="3" class="toc-link ">Understanding observable.shallow Behavior</a></li><li><a href="#using-observableshallow-with-custom-equality-function" data-level="3" class="toc-link ">Using observable.shallow with Custom Equality Function</a></li><li><a href="#best-practices-for-api-data" data-level="3" class="toc-link ">Best Practices for API Data</a></li></ul></li><li><a href="#important-behavior-notes" data-level="2" class="toc-link ">Important Behavior Notes</a></li><li><a href="#practical-use-cases" data-level="2" class="toc-link ">Practical Use Cases</a><ul class="toc-nav"><li><a href="#performance-optimization" data-level="3" class="toc-link ">Performance Optimization</a></li><li><a href="#form-data-validation" data-level="3" class="toc-link ">Form Data Validation</a></li><li><a href="#complex-data-structures" data-level="3" class="toc-link ">Complex Data Structures</a></li></ul></li><li><a href="#complete-example" data-level="2" class="toc-link ">Complete Example</a></li></ul></nav></aside></div></div></body></html>

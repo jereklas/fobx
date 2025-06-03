@@ -108,7 +108,7 @@ export async function generatePackageJson(outDir: string, exports: any) {
   contents.author = "Jeremy Klas"
   contents.sideEffects = false
   contents.exports = exports
-  contents.homepage = "https://github.com/jereklas/fobx#readme"
+  contents.homepage = "https://jereklas.github.io/fobx"
   contents.repository = {
     "type": "git",
     "url": "git+https://github.com/jereklas/fobx.git",

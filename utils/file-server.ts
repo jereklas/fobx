@@ -155,96 +155,105 @@ export function startFileServer(options: FileServerOptions): () => void {
       )
     }
 
-    // Handle SPA routing - serve index.html for non-file requests if enabled
-    if (enableSpaRouting && !pathname.includes(".")) {
-      // If this is a path like /docs/something, it's a route
-      if (pathname !== "/" && !pathname.endsWith("/")) {
-        pathname = `${pathname}/`
-      }
+    // Try to serve the file directly
+    let filePath = join(rootDir, pathname)
+    let fileExists = await fileExistsAsync(filePath)
 
-      pathname = `${pathname}index.html`
+    // Debug logging
+    if (verbose) {
+      console.log(`Looking for file: ${filePath}`)
+      console.log(`File exists: ${fileExists}`)
     }
 
-    // Create the full file path
-    const filePath = join(rootDir, pathname)
-
-    try {
-      // Try to open and read the file
-      const file = await Deno.open(filePath, { read: true })
-      const stat = await Deno.stat(filePath)
-
-      if (stat.isDirectory) {
-        // If it's a directory, try to serve index.html
-        file.close()
-        const indexPath = join(filePath, "index.html")
-        try {
-          const indexFile = await Deno.open(indexPath, { read: true })
-          const indexStat = await Deno.stat(indexPath)
-          const headers = new Headers()
-          headers.set("content-length", indexStat.size.toString())
-          headers.set("content-type", "text/html")
-
-          // Set CORS and cache control headers
-          enhanceHeadersForDebug(headers)
-
-          return new Response(indexFile.readable, {
-            status: 200,
-            headers,
-          })
-        } catch {
-          return new Response("Directory listing not available", {
-            status: 403,
-          })
+    // Handle root route "/" by serving index.html
+    if (pathname === "/" || pathname === "") {
+      const indexPath = join(rootDir, "index.html")
+      if (verbose) {
+        console.log(`Root route detected, trying index.html: ${indexPath}`)
+      }
+      if (await fileExistsAsync(indexPath)) {
+        filePath = indexPath
+        fileExists = true
+        if (verbose) {
+          console.log(`Found index.html for root route: ${filePath}`)
         }
       }
-
-      // Determine content type based on file extension
-      const ext = extname(filePath).toLowerCase()
-      const contentType = MIME_TYPES[ext] || "application/octet-stream"
-
-      const headers = new Headers()
-      headers.set("content-length", stat.size.toString())
-      headers.set("content-type", contentType)
-
-      // Add source map header for JS files
-      if (ext === ".js" || ext === ".mjs") {
-        // Add cache busting to ensure fresh files
-        headers.set("cache-control", "no-cache, max-age=0")
+    } // If the file doesn't exist and doesn't have an extension, try different approaches
+    else if (!fileExists && !pathname.includes(".")) {
+      // Try with .html extension first (for routes like /core-docs-controlling-comparisons)
+      const htmlFilePath = `${filePath}.html`
+      if (verbose) {
+        console.log(`Trying with .html extension: ${htmlFilePath}`)
       }
-
-      // Set CORS and other debug-friendly headers
-      enhanceHeadersForDebug(headers)
-
-      return new Response(file.readable, {
-        status: 200,
-        headers,
-      })
-    } catch (e) {
-      // If the file doesn't exist or there's an error reading it
-      if (e instanceof Deno.errors.NotFound) {
-        console.log(`File not found: ${filePath}`)
-
-        // For SPA routing, serve index.html for 404s if enabled
-        if (enableSpaRouting) {
-          try {
-            const indexPath = join(rootDir, "index.html")
-            const indexFile = await Deno.open(indexPath, { read: true })
-            const stat = await Deno.stat(indexPath)
-            const headers = new Headers()
-            headers.set("content-length", stat.size.toString())
-            headers.set("content-type", "text/html")
-            enhanceHeadersForDebug(headers)
-            return new Response(indexFile.readable, {
-              status: 200,
-              headers,
-            })
-          } catch {
-            return new Response("Not Found", { status: 404 })
+      if (await fileExistsAsync(htmlFilePath)) {
+        filePath = htmlFilePath
+        fileExists = true
+        if (verbose) {
+          console.log(`Found HTML file: ${filePath}`)
+        }
+      } // If no HTML file exists, try as a directory with index.html
+      else if (!pathname.endsWith("/")) {
+        const dirIndexPath = join(rootDir, `${pathname}/index.html`)
+        if (verbose) {
+          console.log(`Trying directory index: ${dirIndexPath}`)
+        }
+        if (await fileExistsAsync(dirIndexPath)) {
+          filePath = dirIndexPath
+          fileExists = true
+          if (verbose) {
+            console.log(`Found directory index: ${filePath}`)
           }
-        } else {
-          return new Response("Not Found", { status: 404 })
         }
-      } else {
+      } // If still no match and it's a directory without trailing slash, add it
+      else {
+        const trailingIndexPath = join(rootDir, pathname, "index.html")
+        if (verbose) {
+          console.log(`Trying trailing index: ${trailingIndexPath}`)
+        }
+        if (await fileExistsAsync(trailingIndexPath)) {
+          filePath = trailingIndexPath
+          fileExists = true
+          if (verbose) {
+            console.log(`Found trailing index: ${filePath}`)
+          }
+        }
+      }
+    }
+
+    // If we found a file, serve it
+    if (fileExists) {
+      try {
+        const file = await Deno.open(filePath, { read: true })
+        const stat = await Deno.stat(filePath)
+
+        // Determine content type based on file extension
+        const ext = extname(filePath).toLowerCase()
+        const contentType = MIME_TYPES[ext] || "application/octet-stream"
+
+        if (verbose) {
+          console.log(`Serving file: ${filePath}`)
+          console.log(`File extension: ${ext}`)
+          console.log(`Content type: ${contentType}`)
+          console.log(`File size: ${stat.size}`)
+        }
+
+        const headers = new Headers()
+        headers.set("content-length", stat.size.toString())
+        headers.set("content-type", contentType)
+
+        // Add cache control for JS files
+        if (ext === ".js" || ext === ".mjs") {
+          headers.set("cache-control", "no-cache, max-age=0")
+        }
+
+        // Set CORS and debug headers
+        enhanceHeadersForDebug(headers)
+
+        return new Response(file.readable, {
+          status: 200,
+          headers,
+        })
+      } catch (e) {
         console.error("Error serving file:", e)
         return new Response(`Internal Server Error: ${(e as Error).message}`, {
           status: 500,
@@ -252,6 +261,37 @@ export function startFileServer(options: FileServerOptions): () => void {
         })
       }
     }
+
+    // If enableSpaRouting is true and no matching file was found, serve the index.html
+    if (enableSpaRouting) {
+      try {
+        const indexPath = join(rootDir, "index.html")
+        if (verbose) {
+          console.log(`SPA routing: serving index.html from ${indexPath}`)
+        }
+        const indexFile = await Deno.open(indexPath, { read: true })
+        const stat = await Deno.stat(indexPath)
+        const headers = new Headers()
+        headers.set("content-length", stat.size.toString())
+        headers.set("content-type", "text/html")
+        enhanceHeadersForDebug(headers)
+        return new Response(indexFile.readable, {
+          status: 200,
+          headers,
+        })
+      } catch (e) {
+        if (verbose) {
+          console.log(`Could not serve index.html for SPA routing: ${e}`)
+        }
+        return new Response("Not Found", { status: 404 })
+      }
+    }
+
+    // If we got here, the file was not found
+    if (verbose) {
+      console.log(`File not found: ${pathname}`)
+    }
+    return new Response("Not Found", { status: 404 })
   })
 
   // Return a function that closes both the server and the watchers
@@ -264,6 +304,21 @@ export function startFileServer(options: FileServerOptions): () => void {
       rootDirWatcher.close()
     }
     console.log("\nFile server stopped")
+  }
+}
+
+/**
+ * Helper function to check if a file exists asynchronously
+ */
+async function fileExistsAsync(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path)
+    return true
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return false
+    }
+    throw e
   }
 }
 

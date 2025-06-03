@@ -1,0 +1,3057 @@
+{
+  "routes": [
+    {
+      "slug": "core-docs-controlling-comparisons",
+      "path": "/core-docs-controlling-comparisons",
+      "title": "Controlling Comparisons in FobX",
+      "sourcePath": "/fobx/core/docs/controlling-comparisons.mdoc",
+      "parentSlug": "core",
+      "lastModified": "2025-06-03T04:18:05.748Z",
+      "readingTime": {
+        "minutes": 10,
+        "words": 1973
+      },
+      "frontmatter": {
+        "description": "# Controlling Comparisons in FobX",
+        "showEditButton": true,
+        "title": "Controlling Comparisons in FobX"
+      },
+      "content": {
+        "ast": {
+          "$$mdtype": "Tag",
+          "name": "article",
+          "attributes": {},
+          "children": [
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 1,
+                "id": "controlling-comparisons-in-fobx"
+              },
+              "children": [
+                "Controlling Comparisons in FobX"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This document explains how to control when FobX considers observable values to",
+                " ",
+                "have changed by using different comparison strategies."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "structural-comparison"
+              },
+              "children": [
+                "Structural Comparison"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "FobX supports structural comparison of observable values. This is useful when",
+                " ",
+                "you want to compare objects by their structure rather than by reference",
+                " ",
+                "equality."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "configuring-structural-comparison"
+              },
+              "children": [
+                "Configuring Structural Comparison"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Before using structural comparison, you need to configure it globally:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { configure } from \"@fobx/core\"\nimport { deepEqual } from \"fast-equals\"\n\n// Configure FobX to use deepEqual for structural comparisons\nconfigure({\n  comparer: { structural: deepEqual },\n})\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "The ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "structural"
+                  ]
+                },
+                " comparer can be any function that takes two arguments and",
+                " ",
+                "returns a boolean indicating if they are equal. In the example above, we use",
+                " ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "deepEqual"
+                  ]
+                },
+                " from the ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "fast-equals"
+                  ]
+                },
+                " library."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "making-observables-use-structural-comparison"
+              },
+              "children": [
+                "Making Observables Use Structural Comparison"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Once configured, you can create observables that use structural comparison in",
+                " ",
+                "several ways:"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 4,
+                "id": "_1-using-makeobservable-with-structural-annotation"
+              },
+              "children": [
+                "1. Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "makeObservable"
+                  ]
+                },
+                " with ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "\"structural\""
+                  ]
+                },
+                " annotation"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable } from \"@fobx/core\"\n\nconst user = makeObservable({\n  profile: { name: \"Alice\", age: 25 },\n}, {\n  profile: [\"observable\", \"structural\"],\n})\n\n// Changes that are structurally equivalent won't trigger reactions\nuser.profile = { name: \"Alice\", age: 25 } // No reaction triggered\n\n// Changes that are structurally different will trigger reactions\nuser.profile = { name: \"Bob\", age: 30 } // Reaction triggered\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 4,
+                "id": "_2-using-computed-with-structural-comparison"
+              },
+              "children": [
+                "2. Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "computed"
+                  ]
+                },
+                " with structural comparison"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { computed, observable, reaction, runInAction } from \"@fobx/core\"\n\nconst items = observable([1, 2, 3])\nconst total = computed(\n  () => {\n    // Return a new object each time\n    return { sum: items.reduce((acc, val) => acc + val, 0) }\n  },\n  { comparer: \"structural\" },\n)\n\n// Note: Computed values in FobX are lazily evaluated and only run\n// when they're being tracked by a reaction\nreaction(\n  () => total.value,\n  (sum) => console.log(\"Sum changed:\", sum),\n)\n\n// IMPORTANT: When making multiple changes that should be treated as one transaction,\n// use runInAction to batch them together\nrunInAction(() => {\n  // Modifying the array but keeping the same sum won't trigger the reaction\n  items[0] = 0\n  items[1] = 3\n  items[2] = 3\n})\n// total.value is still { sum: 6 }, reaction doesn't fire\n\n// Changing the sum will trigger the reaction\nitems.push(4)\n// total.value is now { sum: 10 }, reaction fires\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "custom-equality-functions"
+              },
+              "children": [
+                "Custom Equality Functions"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Besides structural comparison, FobX allows defining custom equality functions",
+                " ",
+                "for fine-grained control over when to consider values equal."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "using-custom-equality-function-with-observable"
+              },
+              "children": [
+                "Using Custom Equality Function with ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { observableBox } from \"@fobx/core\"\n\n// Custom equality function that ignores case for strings\nconst caseInsensitiveObservable = observableBox(\"hello\", {\n  equals: (oldValue, newValue) =>\n    typeof oldValue === \"string\" &&\n    typeof newValue === \"string\" &&\n    oldValue.toLowerCase() === newValue.toLowerCase(),\n})\n\n// These won't trigger reactions because the case-insensitive values are equal\ncaseInsensitiveObservable.value = \"HELLO\"\ncaseInsensitiveObservable.value = \"Hello\"\n\n// This will trigger reactions because the value is different case-insensitively\ncaseInsensitiveObservable.value = \"world\"\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "using-custom-equality-function-with-makeobservable"
+              },
+              "children": [
+                "Using Custom Equality Function with ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "makeObservable"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable } from \"@fobx/core\"\n\n// Custom equality function for numeric values\nconst roundingEqualityFn = (a, b) => Math.floor(a) === Math.floor(b)\n\nconst stats = makeObservable({\n  score: 10.2,\n}, {\n  score: [\"observable\", roundingEqualityFn],\n})\n\n// Won't trigger reactions because floor values are equal\nstats.score = 10.8\n\n// Will trigger reactions because floor values differ\nstats.score = 11.2\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "combining-shallow-observables-with-comparison-functions"
+              },
+              "children": [
+                "Combining Shallow Observables with Comparison Functions"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "FobX allows you to combine ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " with custom equality functions",
+                " ",
+                "for even more control over reactivity."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "understanding-observableshallow-behavior"
+              },
+              "children": [
+                "Understanding ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " Behavior"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "When using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " annotation, observable collections are created",
+                " ",
+                "but their items remain non-observable, and reference equality is used by",
+                " ",
+                "default:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable, reaction } from \"@fobx/core\"\n\n// An array of users that we want to remain shallow (not make user objects observable)\nconst users = makeObservable({\n  list: [\n    { id: 1, name: \"Alice\" },\n    { id: 2, name: \"Bob\" },\n  ],\n}, {\n  list: \"observable.shallow\",\n})\n\n// You can also use observable() the same way:\nconst usersAlt = observable({\n  list: [\n    { id: 1, name: \"Alice\" },\n    { id: 2, name: \"Bob\" },\n  ],\n}, {\n  list: \"observable.shallow\",\n})\n\nreaction(\n  () => users.list,\n  (userList) => console.log(\"User list changed:\", userList),\n)\n\n// Operations on the collection trigger reactions\nusers.list.push({ id: 3, name: \"Charlie\" })\n\n// Replacing the entire collection will also trigger a reaction\nusers.list = [\n  { id: 1, name: \"Alice\" },\n  { id: 2, name: \"Bob\" },\n]\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Unlike regular deep observables which can use structural comparison, shallow",
+                " ",
+                "observables rely on reference equality by default, so replacing a collection",
+                " ",
+                "with a structurally identical one will still trigger reactions."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "using-observableshallow-with-custom-equality-function"
+              },
+              "children": [
+                "Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " with Custom Equality Function"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "You can override the default reference equality by providing a custom equality",
+                " ",
+                "function:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable, reaction } from \"@fobx/core\"\n\n// A settings object where we only care about specific properties\nconst settings = makeObservable({\n  config: {\n    theme: \"dark\",\n    fontSize: 16,\n    cache: { temporaryData: [1, 2, 3] }, // We don't care about comparing this\n    lastUpdated: Date.now(), // We don't care about comparing this\n  },\n}, {\n  config: [\n    \"observable.shallow\",\n    (oldValue, newValue) => {\n      // Only compare the keys we care about\n      return oldValue.theme === newValue.theme &&\n        oldValue.fontSize === newValue.fontSize\n    },\n  ],\n})\n\nreaction(\n  () => settings.config,\n  (config) => console.log(\"Important settings changed:\", config),\n)\n\n// Won't trigger reaction (important keys unchanged)\nsettings.config = {\n  theme: \"dark\",\n  fontSize: 16,\n  cache: { temporaryData: [4, 5, 6] }, // Different but we don't care\n  lastUpdated: Date.now(), // Different but we don't care\n}\n\n// Will trigger reaction (theme property changed)\nsettings.config = {\n  theme: \"light\", // Changed!\n  fontSize: 16,\n  cache: { temporaryData: [4, 5, 6] },\n  lastUpdated: Date.now(),\n}\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This pattern is excellent for configuration objects where you want to ignore",
+                " ",
+                "changes to volatile or non-important properties."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "best-practices-for-api-data"
+              },
+              "children": [
+                "Best Practices for API Data"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "When working with API data, here are some approaches to consider:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable, reaction } from \"@fobx/core\"\n\nclass ProductStore {\n  constructor() {\n    makeObservable(this, {\n      // Use shallow observables for collections of data objects\n      // to avoid making each item observable\n      products: \"observable.shallow\",\n      selectedProductId: \"observable\",\n      selectedProduct: \"computed\",\n    })\n  }\n\n  products = [\n    { id: 1, name: \"Phone\", price: 599.99 },\n    { id: 2, name: \"Laptop\", price: 1299.99 },\n  ]\n\n  selectedProductId = 1\n\n  get selectedProduct() {\n    return this.products.find((p) => p.id === this.selectedProductId) || null\n  }\n\n  // When refetching products, consider implementing your own comparison\n  // to avoid unnecessary reactions\n  updateProducts(newProducts) {\n    // Option 1: Simple reference check (default behavior)\n    this.products = newProducts\n\n    // Option 2: Custom implementation to avoid unnecessary updates\n    // if you need structural comparison\n    /*\n    if (!areProductListsEqual(this.products, newProducts)) {\n      this.products = newProducts;\n    }\n    */\n  }\n\n  selectProduct(id) {\n    this.selectedProductId = id\n  }\n}\n\n// Helper function (not part of FobX)\nfunction areProductListsEqual(list1, list2) {\n  if (list1.length !== list2.length) return false\n  return list1.every((item, i) =>\n    item.id === list2[i].id &&\n    item.name === list2[i].name &&\n    item.price === list2[i].price\n  )\n}\n\nconst store = new ProductStore()\n\n// Setup reactions\nreaction(\n  () => store.products,\n  (products) => console.log(\"Products list changed, updating UI...\"),\n)\n\nreaction(\n  () => store.selectedProduct,\n  (product) => console.log(\"Selected product changed:\", product?.name),\n)\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "With this approach:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Products remain shallow observables so the individual product objects aren't",
+                    " ",
+                    "made observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "If you need structural comparison, you can implement it in your methods before",
+                    " ",
+                    "updating the observable value"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The computed ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "selectedProduct"
+                      ]
+                    },
+                    " property efficiently derives from the",
+                    " ",
+                    "observable state"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "important-behavior-notes"
+              },
+              "children": [
+                "Important Behavior Notes"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "strong",
+                          "attributes": {},
+                          "children": [
+                            "Computed Value Optimization"
+                          ]
+                        },
+                        ": Computed values in FobX are optimized and",
+                        " ",
+                        "only calculate when they're being tracked by a reaction. If a computed isn't",
+                        " ",
+                        "being observed, it won't recalculate until it's accessed."
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "strong",
+                          "attributes": {},
+                          "children": [
+                            "Reaction Comparisons"
+                          ]
+                        },
+                        ": When a reaction fires, it compares the new value",
+                        " ",
+                        "with the initial value from when the reaction was created, not with the most",
+                        " ",
+                        "recently seen value. This behavior is important to understand when designing",
+                        " ",
+                        "custom equality functions."
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "strong",
+                          "attributes": {},
+                          "children": [
+                            "Transactions Matter"
+                          ]
+                        },
+                        ": When making multiple changes that should be treated",
+                        " ",
+                        "as a single update, always wrap them in ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "runInAction"
+                          ]
+                        },
+                        ". Without this, each",
+                        " ",
+                        "individual change might trigger unnecessary computed recalculations, leading",
+                        " ",
+                        "to unexpected behavior with comparison functions."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "practical-use-cases"
+              },
+              "children": [
+                "Practical Use Cases"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "performance-optimization"
+              },
+              "children": [
+                "Performance Optimization"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Structural comparison involves trade-offs that should be carefully considered:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "// Consider this scenario:\nconst userData = observable({\n  profile: {\n    personal: { name: \"Alice\", age: 30 },\n    preferences: { theme: \"dark\", notifications: true },\n    statistics: {/* possibly large nested data */},\n  },\n})\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "strong",
+                  "attributes": {},
+                  "children": [
+                    "Benefits:"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Prevents unnecessary reactions when objects are recreated but structurally",
+                    " ",
+                    "identical"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Particularly valuable when reactions are expensive (DOM updates, re-renders,",
+                    " ",
+                    "network calls)"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Works well with immutable data patterns where new objects are created",
+                    " ",
+                    "frequently"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "strong",
+                  "attributes": {},
+                  "children": [
+                    "Costs:"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The structural comparison itself is more expensive than reference equality"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The larger and more nested the objects being compared, the more costly the",
+                    " ",
+                    "comparison"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For very frequent updates to large objects, the comparison cost may outweigh",
+                    " ",
+                    "the benefits"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "strong",
+                  "attributes": {},
+                  "children": [
+                    "When to use:"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When the cost of running the reaction (e.g., a component re-render) is higher",
+                    " ",
+                    "than the cost of the comparison"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When working with immutable data patterns where objects are frequently",
+                    " ",
+                    "recreated"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For objects of moderate size that don't change extremely frequently"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "strong",
+                  "attributes": {},
+                  "children": [
+                    "When to avoid:"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When comparing very large, deeply nested objects"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When the observable updates extremely frequently (many times per second)"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When the reaction is simple and inexpensive to run"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "form-data-validation"
+              },
+              "children": [
+                "Form Data Validation"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Custom equality functions are useful for form validation where you might want to",
+                " ",
+                "consider values equal if they're within a certain range or match a particular",
+                " ",
+                "pattern:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "const formData = makeObservable({\n  email: \"\",\n  phoneNumber: \"\",\n  searchQuery: \"\",\n}, {\n  // Only consider email changed if the normalized version is different\n  email: [\n    \"observable\",\n    (oldValue, newValue) =>\n      oldValue.trim().toLowerCase() === newValue.trim().toLowerCase(),\n  ],\n\n  // Only consider phone numbers different if the actual digits change\n  // (ignores formatting differences like (555) 123-4567 vs 5551234567)\n  phoneNumber: [\n    \"observable\",\n    (oldValue, newValue) =>\n      oldValue.replace(/\\D/g, \"\") === newValue.replace(/\\D/g, \"\"),\n  ],\n\n  // Only trigger reactions for search queries with meaningful differences\n  // (ignores extra spaces, treats \"t-shirt\" the same as \"tshirt\", etc)\n  searchQuery: [\n    \"observable\",\n    (oldValue, newValue) => {\n      const normalize = (str) =>\n        str.trim().toLowerCase()\n          .replace(/\\s+/g, \" \") // normalize spaces\n          .replace(/[^a-z0-9 ]/g, \"\") // remove special chars\n      return normalize(oldValue) === normalize(newValue)\n    },\n  ],\n})\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "complex-data-structures"
+              },
+              "children": [
+                "Complex Data Structures"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "For complex data structures like nested objects or arrays, structural comparison",
+                " ",
+                "ensures that only genuine changes in data structure trigger reactions:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { configure, observable, reaction } from \"@fobx/core\"\nimport { deepEqual } from \"fast-equals\"\n\nconfigure({\n  comparer: { structural: deepEqual },\n})\n\nconst nestedData = observable({\n  users: [\n    { id: 1, details: { name: \"Alice\", preferences: { theme: \"dark\" } } },\n    { id: 2, details: { name: \"Bob\", preferences: { theme: \"light\" } } },\n  ],\n})\n\n// Reaction will only run if the actual structure changes when using structural comparison\nreaction(\n  () => nestedData.users,\n  (users) => console.log(\"Users updated\", users),\n  { equals: \"structural\" },\n)\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "complete-example"
+              },
+              "children": [
+                "Complete Example"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "// Example with both structural and custom equality functions\n\nimport { configure, makeObservable, observable, reaction } from \"@fobx/core\"\nimport { deepEqual } from \"fast-equals\"\n\n// Configure structural comparison\nconfigure({\n  comparer: { structural: deepEqual },\n})\n\n// Object with different comparison strategies\nconst dashboard = makeObservable({\n  // Will use structural comparison\n  userData: { name: \"Alice\", preferences: { theme: \"dark\" } },\n\n  // Will use custom comparison (value within the same 5-point range)\n  approximateScore: 75,\n}, {\n  userData: [\"observable\", \"structural\"],\n  approximateScore: [\n    \"observable\",\n    (a, b) => Math.floor(a / 5) === Math.floor(b / 5),\n  ],\n})\n\n// Track changes\nreaction(\n  () => dashboard.userData,\n  (userData) => console.log(\"User data changed:\", userData),\n)\n\nreaction(\n  () => dashboard.approximateScore,\n  (score) => console.log(\"Score changed significantly:\", score),\n)\n\n// Won't trigger reaction (structurally equal)\ndashboard.userData = { name: \"Alice\", preferences: { theme: \"dark\" } }\n\n// Will trigger reaction (structurally different)\ndashboard.userData = { name: \"Alice\", preferences: { theme: \"light\" } }\n\n// Won't trigger reaction (same 5-point range: 75-79)\ndashboard.approximateScore = 79\n\n// Will trigger reaction (different 5-point range: 80-84)\ndashboard.approximateScore = 80\n"
+              ]
+            }
+          ]
+        },
+        "toc": [
+          {
+            "id": "structural-comparison",
+            "level": 2,
+            "title": "Structural Comparison",
+            "children": [
+              {
+                "id": "configuring-structural-comparison",
+                "level": 3,
+                "title": "Configuring Structural Comparison",
+                "children": []
+              },
+              {
+                "id": "making-observables-use-structural-comparison",
+                "level": 3,
+                "title": "Making Observables Use Structural Comparison",
+                "children": [
+                  {
+                    "id": "_1-using-makeobservable-with-structural-annotation",
+                    "level": 4,
+                    "title": "1. Using makeObservable with \"structural\" annotation",
+                    "children": []
+                  },
+                  {
+                    "id": "_2-using-computed-with-structural-comparison",
+                    "level": 4,
+                    "title": "2. Using computed with structural comparison",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "custom-equality-functions",
+            "level": 2,
+            "title": "Custom Equality Functions",
+            "children": [
+              {
+                "id": "using-custom-equality-function-with-observable",
+                "level": 3,
+                "title": "Using Custom Equality Function with observable",
+                "children": []
+              },
+              {
+                "id": "using-custom-equality-function-with-makeobservable",
+                "level": 3,
+                "title": "Using Custom Equality Function with makeObservable",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "combining-shallow-observables-with-comparison-functions",
+            "level": 2,
+            "title": "Combining Shallow Observables with Comparison Functions",
+            "children": [
+              {
+                "id": "understanding-observableshallow-behavior",
+                "level": 3,
+                "title": "Understanding observable.shallow Behavior",
+                "children": []
+              },
+              {
+                "id": "using-observableshallow-with-custom-equality-function",
+                "level": 3,
+                "title": "Using observable.shallow with Custom Equality Function",
+                "children": []
+              },
+              {
+                "id": "best-practices-for-api-data",
+                "level": 3,
+                "title": "Best Practices for API Data",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "important-behavior-notes",
+            "level": 2,
+            "title": "Important Behavior Notes",
+            "children": []
+          },
+          {
+            "id": "practical-use-cases",
+            "level": 2,
+            "title": "Practical Use Cases",
+            "children": [
+              {
+                "id": "performance-optimization",
+                "level": 3,
+                "title": "Performance Optimization",
+                "children": []
+              },
+              {
+                "id": "form-data-validation",
+                "level": 3,
+                "title": "Form Data Validation",
+                "children": []
+              },
+              {
+                "id": "complex-data-structures",
+                "level": 3,
+                "title": "Complex Data Structures",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "complete-example",
+            "level": 2,
+            "title": "Complete Example",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "slug": "core-docs-creating-observable-state",
+      "path": "/core-docs-creating-observable-state",
+      "title": "Creating Observable State in FobX",
+      "sourcePath": "/fobx/core/docs/creating-observable-state.mdoc",
+      "parentSlug": "core",
+      "lastModified": "2025-06-04T05:56:50.042Z",
+      "readingTime": {
+        "minutes": 4,
+        "words": 767
+      },
+      "frontmatter": {
+        "description": "# Creating Observable State in FobX",
+        "showEditButton": true,
+        "title": "Creating Observable State in FobX"
+      },
+      "content": {
+        "ast": {
+          "$$mdtype": "Tag",
+          "name": "article",
+          "attributes": {},
+          "children": [
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 1,
+                "id": "creating-observable-state-in-fobx"
+              },
+              "children": [
+                "Creating Observable State in FobX"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This document explains the two main approaches to creating observable state in",
+                " ",
+                "FobX:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "observable()"
+                      ]
+                    },
+                    " - Auto-observability with optional overrides"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "makeObservable()"
+                      ]
+                    },
+                    " - Explicit declaration of observable properties"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Both methods allow you to create reactive state, but they differ in how",
+                " ",
+                "properties are annotated as observable."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "observable-function-automatic-observability"
+              },
+              "children": [
+                "Observable Function: Automatic Observability"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "The ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable()"
+                  ]
+                },
+                " function automatically makes all properties observable by",
+                " ",
+                "default. It follows a \"make everything observable unless specified otherwise\"",
+                " ",
+                "approach."
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { observable } from \"@fobx/core\"\n\n// All properties automatically become observable (deep observability)\nconst user = observable({\n  name: \"Alice\",\n  age: 30,\n  profile: {\n    avatar: \"alice.jpg\",\n    settings: {\n      theme: \"dark\",\n    },\n  },\n  hobbies: [\"reading\", \"hiking\"],\n})\n\n// Changes to any property (including nested ones) will trigger reactions\nuser.name = \"Bob\" // Triggers reactions\nuser.profile.settings.theme = \"light\" // Triggers reactions\nuser.hobbies.push(\"swimming\") // Triggers reactions\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "overriding-default-behavior"
+              },
+              "children": [
+                "Overriding Default Behavior"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "You can override the automatically applied observability for specific properties",
+                " ",
+                "by providing annotations:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { observable } from \"@fobx/core\"\n\nconst store = observable({\n  user: { name: \"Alice\", age: 30 },\n  settings: { theme: \"dark\" },\n  metaData: { lastUpdated: new Date() },\n}, {\n  // Override specific properties:\n  metaData: \"observable.ref\", // Make metaData reference-observable only\n  settings: \"observable.shallow\", // Make settings a shallow observable\n\n  // You can also use an array syntax for additional options:\n  user: [\"observable\", \"structural\"], // Observable with structural comparison\n})\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "In this example, all properties of ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "user"
+                  ]
+                },
+                " and its nested objects are still",
+                " ",
+                "deeply observable, but ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "metaData"
+                  ]
+                },
+                " and ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "settings"
+                  ]
+                },
+                " use the specified observation",
+                " ",
+                "strategies."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "makeobservable-function-explicit-declarations"
+              },
+              "children": [
+                "MakeObservable Function: Explicit Declarations"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "The ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "makeObservable()"
+                  ]
+                },
+                " function takes the opposite approach: nothing is",
+                " ",
+                "observable unless explicitly declared. This gives you precise control over what",
+                " ",
+                "properties are observed and how."
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable } from \"@fobx/core\"\n\nconst user = makeObservable({\n  name: \"Alice\",\n  age: 30,\n  profile: {\n    avatar: \"alice.jpg\",\n    settings: {\n      theme: \"dark\",\n    },\n  },\n  hobbies: [\"reading\", \"hiking\"],\n\n  get fullName() {\n    return `${this.name}, ${this.age} years old`\n  },\n}, {\n  name: \"observable\", // Only name is observable\n  age: \"observable\", // Only age is observable\n  fullName: \"computed\", // Declare computed property\n  // profile and hobbies are NOT observable because they're not declared\n})\n\n// Changes to declared properties will trigger reactions\nuser.name = \"Bob\" // Triggers reactions\n\n// Changes to undeclared properties won't trigger reactions\nuser.profile.settings.theme = \"light\" // No reaction triggered\nuser.hobbies.push(\"swimming\") // No reaction triggered\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "class-example-with-makeobservable"
+              },
+              "children": [
+                "Class Example with makeObservable"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "makeObservable"
+                  ]
+                },
+                " is particularly useful with classes:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { action, computed, makeObservable, observable } from \"@fobx/core\"\n\nclass UserStore {\n  name = \"Alice\"\n  age = 30\n  hobbies = [\"reading\", \"hiking\"]\n\n  constructor() {\n    // Must be called in constructor\n    makeObservable(this, {\n      name: \"observable\",\n      age: \"observable\",\n      hobbies: \"observable\",\n      fullName: \"computed\",\n      updateUser: \"action\",\n    })\n  }\n\n  get fullName() {\n    return `${this.name}, ${this.age} years old`\n  }\n\n  updateUser(name, age) {\n    this.name = name\n    this.age = age\n  }\n}\n\nconst userStore = new UserStore()\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "choosing-between-observable-and-makeobservable"
+              },
+              "children": [
+                "Choosing Between observable() and makeObservable()"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "when-to-use-observable"
+              },
+              "children": [
+                "When to use observable():"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For simple state objects where most properties should be observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When you want quick setup with minimal boilerplate"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For data structures where deep reactivity is desired by default"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "when-to-use-makeobservable"
+              },
+              "children": [
+                "When to use makeObservable():"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When working with classes"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "When you need explicit control over which properties should be reactive"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "To reduce the performance overhead of unnecessary observables"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For better type safety and code clarity"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "To enforce a stricter pattern of declaring all observable members"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "observable-property-types"
+              },
+              "children": [
+                "Observable Property Types"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Both approaches support the same set of annotations:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "\"observable\""
+                      ]
+                    },
+                    " - Makes the property deeply observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "\"observable.ref\""
+                      ]
+                    },
+                    " - Makes only the reference observable, not its contents"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "\"observable.shallow\""
+                      ]
+                    },
+                    " - Makes the property observable but keeps the items",
+                    " ",
+                    "inside non-observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "\"computed\""
+                      ]
+                    },
+                    " - Marks a getter as a computed value"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "\"action\""
+                      ]
+                    },
+                    " - Marks a method as an action that can modify state"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "advanced-configurations"
+              },
+              "children": [
+                "Advanced Configurations"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "You can also specify custom comparison behavior for properties:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "typescript"
+              },
+              "children": [
+                "import { makeObservable } from \"@fobx/core\"\n\nconst user = makeObservable({\n  name: \"Alice\",\n  score: 75,\n}, {\n  name: \"observable\",\n  // Custom comparison function - only react when score changes by 5 or more\n  score: [\"observable\", (a, b) => Math.abs(a - b) < 5],\n})\n"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "best-practices"
+              },
+              "children": [
+                "Best Practices"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "strong",
+                      "attributes": {},
+                      "children": [
+                        "Use makeObservable for classes"
+                      ]
+                    },
+                    ": It provides clearer code structure and",
+                    " ",
+                    "better type safety"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "strong",
+                      "attributes": {},
+                      "children": [
+                        "Use observable for plain data"
+                      ]
+                    },
+                    ": When you need quick setup of observable",
+                    " ",
+                    "state objects"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "strong",
+                      "attributes": {},
+                      "children": [
+                        "Be explicit about annotations"
+                      ]
+                    },
+                    ": Even with ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "observable()"
+                      ]
+                    },
+                    ", consider",
+                    " ",
+                    "providing annotations for clarity"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "strong",
+                      "attributes": {},
+                      "children": [
+                        "Consider performance"
+                      ]
+                    },
+                    ": Only make properties observable if they need to",
+                    " ",
+                    "trigger reactions"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "related-documentation"
+              },
+              "children": [
+                "Related Documentation"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "name": "Link",
+                      "attributes": {
+                        "href": "/fobx/core-docs-shallow-observables"
+                      },
+                      "children": [
+                        "Shallow Observables"
+                      ]
+                    },
+                    " - More detailed information",
+                    " ",
+                    "about shallow observability"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "name": "Link",
+                      "attributes": {
+                        "href": "/fobx/core-docs-controlling-comparisons"
+                      },
+                      "children": [
+                        "Controlling Comparisons"
+                      ]
+                    },
+                    " - How to control when",
+                    " ",
+                    "observers react to changes"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "toc": [
+          {
+            "id": "observable-function-automatic-observability",
+            "level": 2,
+            "title": "Observable Function: Automatic Observability",
+            "children": [
+              {
+                "id": "overriding-default-behavior",
+                "level": 3,
+                "title": "Overriding Default Behavior",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "makeobservable-function-explicit-declarations",
+            "level": 2,
+            "title": "MakeObservable Function: Explicit Declarations",
+            "children": [
+              {
+                "id": "class-example-with-makeobservable",
+                "level": 3,
+                "title": "Class Example with makeObservable",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "choosing-between-observable-and-makeobservable",
+            "level": 2,
+            "title": "Choosing Between observable() and makeObservable()",
+            "children": [
+              {
+                "id": "when-to-use-observable",
+                "level": 3,
+                "title": "When to use observable():",
+                "children": []
+              },
+              {
+                "id": "when-to-use-makeobservable",
+                "level": 3,
+                "title": "When to use makeObservable():",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "observable-property-types",
+            "level": 2,
+            "title": "Observable Property Types",
+            "children": []
+          },
+          {
+            "id": "advanced-configurations",
+            "level": 2,
+            "title": "Advanced Configurations",
+            "children": []
+          },
+          {
+            "id": "best-practices",
+            "level": 2,
+            "title": "Best Practices",
+            "children": []
+          },
+          {
+            "id": "related-documentation",
+            "level": 2,
+            "title": "Related Documentation",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "slug": "core-docs-shallow-observables",
+      "path": "/core-docs-shallow-observables",
+      "title": "Shallow Observables in FobX",
+      "sourcePath": "/fobx/core/docs/shallow-observables.mdoc",
+      "parentSlug": "core",
+      "lastModified": "2025-06-03T04:18:05.492Z",
+      "readingTime": {
+        "minutes": 4,
+        "words": 773
+      },
+      "frontmatter": {
+        "description": "# Shallow Observables in FobX",
+        "showEditButton": true,
+        "title": "Shallow Observables in FobX"
+      },
+      "content": {
+        "ast": {
+          "$$mdtype": "Tag",
+          "name": "article",
+          "attributes": {},
+          "children": [
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 1,
+                "id": "shallow-observables-in-fobx"
+              },
+              "children": [
+                "Shallow Observables in FobX"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This document explains the different approaches to shallow observables in FobX:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Using ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "observable({}, {}, { shallowRef: true })"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Using ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "observable({}, { prop: \"observable.shallow\" })"
+                      ]
+                    },
+                    " or",
+                    " ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "makeObservable({}, { prop: \"observable.shallow\" })"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Using ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "observable({}, { prop: \"observable.ref\" })"
+                      ]
+                    },
+                    " or",
+                    " ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "makeObservable({}, { prop: \"observable.ref\" })"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Blockquote",
+              "attributes": {},
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "Paragraph",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "strong",
+                      "attributes": {},
+                      "children": [
+                        "Note"
+                      ]
+                    },
+                    ": The ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "shallow: true"
+                      ]
+                    },
+                    " option has been deprecated and will be removed",
+                    " ",
+                    "in a future version. Please use ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "shallowRef: true"
+                      ]
+                    },
+                    " instead, which provides the",
+                    " ",
+                    "same functionality."
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "the-three-implementations"
+              },
+              "children": [
+                "The Three Implementations"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "_1-using-observable-with-shallowref-true-option"
+              },
+              "children": [
+                "1. Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable()"
+                  ]
+                },
+                " with ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "{ shallowRef: true }"
+                  ]
+                },
+                " option"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "ts"
+              },
+              "children": [
+                "const obj = observable(someObject, {}, { shallowRef: true })\n\n// Deprecated - don't use:\n// const obj = observable(someObject, {}, { shallow: true })\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This implementation keeps the original references for all properties of the",
+                " ",
+                "object. It makes the properties observable (so changes to the properties",
+                " ",
+                "themselves will be tracked), but the properties' values maintain their original",
+                " ",
+                "non-observable references."
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "For collections (Arrays, Maps, Sets), this means:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The collection itself is stored in an observable box"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The collection is NOT converted to an",
+                    " ",
+                    "ObservableArray/ObservableMap/ObservableSet"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Changes to the collection (adding/removing items) will NOT trigger reactions"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Only replacing the entire collection will trigger reactions"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "_2-using-observableshallow-annotation"
+              },
+              "children": [
+                "2. Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " annotation"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "ts"
+              },
+              "children": [
+                "// With observable()\nobservable(obj, { prop: \"observable.shallow\" })\n\n// Or with makeObservable()\nmakeObservable(obj, { prop: \"observable.shallow\" })\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This implementation:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Makes the property observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "If the property is a collection (Array, Map, Set), it turns it into an",
+                    " ",
+                    "ObservableArray/ObservableMap/ObservableSet with ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "{ shallow: true }"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Changes to the collection (adding/removing items) WILL trigger reactions"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "The items inside the collection maintain their original references (not made",
+                    " ",
+                    "observable)"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "_3-using-observableref-annotation"
+              },
+              "children": [
+                "3. Using ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.ref"
+                  ]
+                },
+                " annotation"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "CodeBlock",
+              "attributes": {
+                "language": "ts"
+              },
+              "children": [
+                "// With observable()\nobservable(obj, { prop: \"observable.ref\" })\n\n// Or with makeObservable()\nmakeObservable(obj, { prop: \"observable.ref\" })\n"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This implementation:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Makes the property observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Maintains the original references for property values (like",
+                    " ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "{ shallowRef: true }"
+                      ]
+                    },
+                    ")"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "For collections (Arrays, Maps, Sets), it behaves like ",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "code",
+                      "attributes": {},
+                      "children": [
+                        "{ shallowRef: true }"
+                      ]
+                    },
+                    " ",
+                    "option:",
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "The collection is NOT converted to an",
+                            " ",
+                            "ObservableArray/ObservableMap/ObservableSet"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Changes to the collection (adding/removing items) will NOT trigger reactions"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Only replacing the entire collection will trigger reactions"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "why-three-different-implementations"
+              },
+              "children": [
+                "Why Three Different Implementations?"
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "react-props-use-case"
+              },
+              "children": [
+                "React Props Use Case"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "The ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable({}, {}, { shallowRef: true })"
+                  ]
+                },
+                " implementation and",
+                " ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.ref"
+                  ]
+                },
+                " annotation were created specifically to handle React props. In",
+                " ",
+                "React components, we want to:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Observe when props change"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Maintain the original object references for each prop value to preserve",
+                    " ",
+                    "identity and prevent unnecessary renders"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "Avoid making the props' values themselves observable, as they come from",
+                    " ",
+                    "parent components and shouldn't be mutated"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "Making collections like arrays non-observable is important in this case because",
+                " ",
+                "we want to preserve reference equality and avoid adding reactivity to data that",
+                " ",
+                "should be treated as immutable in React."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 3,
+                "id": "collection-level-reactivity"
+              },
+              "children": [
+                "Collection-Level Reactivity"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "The ",
+                {
+                  "$$mdtype": "Tag",
+                  "name": "code",
+                  "attributes": {},
+                  "children": [
+                    "observable.shallow"
+                  ]
+                },
+                " annotation approach is useful when:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "You want to track changes to collections (additions, deletions)"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "But don't want to make the items within those collections observable"
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    "This provides a good balance between reactivity and performance"
+                  ]
+                }
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "This is particularly useful for collections where you care about their",
+                " ",
+                "composition changing, but the items themselves might be complex objects that you",
+                " ",
+                "don't want to make deeply observable."
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "implementation-details"
+              },
+              "children": [
+                "Implementation Details"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "Paragraph",
+              "attributes": {},
+              "children": [
+                "In the codebase:"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": true
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "For ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable({}, {}, { shallowRef: true })"
+                          ]
+                        },
+                        ":"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Implementation uses ",
+                            {
+                              "$$mdtype": "Tag",
+                              "name": "code",
+                              "attributes": {},
+                              "children": [
+                                "observableBox(value, equalityOptions)"
+                              ]
+                            },
+                            " for all values"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Values are wrapped directly in an observable box without transformation"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "For ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable.shallow"
+                          ]
+                        },
+                        " annotation (both with ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable()"
+                          ]
+                        },
+                        " and",
+                        " ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "makeObservable()"
+                          ]
+                        },
+                        "):"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Collections are first converted to their observable variants with",
+                            " ",
+                            {
+                              "$$mdtype": "Tag",
+                              "name": "code",
+                              "attributes": {},
+                              "children": [
+                                "{ shallow: true }"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Then these observable collections are wrapped in an observable box"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "This preserves collection-specific reactivity while keeping collection",
+                            " ",
+                            "items non-observable"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "For ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable.ref"
+                          ]
+                        },
+                        " annotation:"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Implementation is similar to ",
+                            {
+                              "$$mdtype": "Tag",
+                              "name": "code",
+                              "attributes": {},
+                              "children": [
+                                "{ shallowRef: true }"
+                              ]
+                            },
+                            " option but applied as",
+                            " ",
+                            "an annotation"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Creates a direct observable box for the value without transforming it"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Maintains original references of the property values"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Heading",
+              "attributes": {
+                "level": 2,
+                "id": "when-to-use-which"
+              },
+              "children": [
+                "When To Use Which"
+              ]
+            },
+            {
+              "$$mdtype": "Tag",
+              "name": "List",
+              "attributes": {
+                "ordered": false
+              },
+              "children": [
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "Use ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable({}, {}, { shallowRef: true })"
+                          ]
+                        },
+                        " when:"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Working with React props in a global manner"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Need to maintain reference equality for all properties"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Don't want collection operations to trigger reactions"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "Use ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable.ref"
+                          ]
+                        },
+                        " annotation when:"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Working with specific React props or immutable values"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Need to maintain reference equality for specific properties"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Don't want collection operations to trigger reactions"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Need property-level control rather than object-level control"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$$mdtype": "Tag",
+                  "name": "ListItem",
+                  "attributes": {},
+                  "children": [
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "Paragraph",
+                      "attributes": {},
+                      "children": [
+                        "Use ",
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "code",
+                          "attributes": {},
+                          "children": [
+                            "observable.shallow"
+                          ]
+                        },
+                        " annotation when:"
+                      ]
+                    },
+                    {
+                      "$$mdtype": "Tag",
+                      "name": "List",
+                      "attributes": {
+                        "ordered": false
+                      },
+                      "children": [
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "You want collection operations (add/delete) to trigger reactions"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "But don't want the items in the collections to become observable"
+                          ]
+                        },
+                        {
+                          "$$mdtype": "Tag",
+                          "name": "ListItem",
+                          "attributes": {},
+                          "children": [
+                            "Working with class instances or objects with collections that need specific",
+                            " ",
+                            "observable behavior"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "toc": [
+          {
+            "id": "the-three-implementations",
+            "level": 2,
+            "title": "The Three Implementations",
+            "children": [
+              {
+                "id": "_1-using-observable-with-shallowref-true-option",
+                "level": 3,
+                "title": "1. Using observable() with { shallowRef: true } option",
+                "children": []
+              },
+              {
+                "id": "_2-using-observableshallow-annotation",
+                "level": 3,
+                "title": "2. Using observable.shallow annotation",
+                "children": []
+              },
+              {
+                "id": "_3-using-observableref-annotation",
+                "level": 3,
+                "title": "3. Using observable.ref annotation",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "why-three-different-implementations",
+            "level": 2,
+            "title": "Why Three Different Implementations?",
+            "children": [
+              {
+                "id": "react-props-use-case",
+                "level": 3,
+                "title": "React Props Use Case",
+                "children": []
+              },
+              {
+                "id": "collection-level-reactivity",
+                "level": 3,
+                "title": "Collection-Level Reactivity",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "implementation-details",
+            "level": 2,
+            "title": "Implementation Details",
+            "children": []
+          },
+          {
+            "id": "when-to-use-which",
+            "level": 2,
+            "title": "When To Use Which",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "slug": "index",
+      "path": "/",
+      "title": "Documentation Home",
+      "sourcePath": "generated-index",
+      "frontmatter": {
+        "redirect": "/core-docs-controlling-comparisons",
+        "hideInNav": true,
+        "description": "FobX Documentation - Redirecting to homepage",
+        "showEditButton": false
+      },
+      "content": {
+        "ast": {},
+        "toc": []
+      }
+    }
+  ],
+  "lastUpdated": "2025-06-04T06:12:03.194Z",
+  "siteInfo": {
+    "title": "FobX Documentation",
+    "description": "Documentation for FobX state management library",
+    "version": "1.0.0",
+    "baseUrl": "/fobx"
+  },
+  "navigation": {
+    "mainNav": [
+      {
+        "label": "Documentation",
+        "path": "/"
+      },
+      {
+        "label": "GitHub",
+        "path": "https://github.com/jereklas/fobx",
+        "isExternal": true
+      }
+    ],
+    "sidebar": [
+      {
+        "title": "Core",
+        "items": [
+          {
+            "label": "Controlling Comparisons in FobX",
+            "path": "/core-docs-controlling-comparisons"
+          },
+          {
+            "label": "Creating Observable State in FobX",
+            "path": "/core-docs-creating-observable-state"
+          },
+          {
+            "label": "Shallow Observables in FobX",
+            "path": "/core-docs-shallow-observables"
+          }
+        ]
+      }
+    ]
+  }
+}

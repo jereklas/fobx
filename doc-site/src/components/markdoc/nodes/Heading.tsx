@@ -12,11 +12,10 @@ interface HeadingProps {
 const Heading: FunctionComponent<HeadingProps> = (
   props,
 ) => {
-  console.log("Heading props:", props)
   const { id, level, children } = props
   const Tag = `h${level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
 
-  return <Tag id={id} class="anchor-heading">{children}</Tag>
+  return <Tag id={id}>{children}</Tag>
 }
 
 export default Heading

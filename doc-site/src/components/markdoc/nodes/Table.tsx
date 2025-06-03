@@ -9,7 +9,7 @@ interface TableProps {
  */
 const Table: FunctionComponent<TableProps> = ({ children }) => {
   return (
-    <div className="table-container">
+    <div>
       <table>{children}</table>
     </div>
   )

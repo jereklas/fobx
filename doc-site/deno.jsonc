@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "build": "deno run -A src/build.ts",
+    "build": "rm -rf ../docs && deno run -A src/build.ts && cp -r public ../docs",
     "start": "deno run -A src/dev-server.ts"
   },
   "imports": {
@@ -8,7 +8,8 @@
     "@std/fs": "jsr:@std/fs@^1.0.18",
     "@std/path": "jsr:@std/path@^1.1.0",
     "esbuild": "npm:esbuild@^0.25.5",
-    "preact": "npm:preact@^10.26.8"
+    "preact": "npm:preact@^10.26.8",
+    "preact-render-to-string": "npm:preact-render-to-string@^6.5.13"
   },
   "compilerOptions": {
     "jsx": "react-jsx",

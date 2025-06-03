@@ -1,27 +1,38 @@
-import { join } from "@std/path"
-import { MarkdownFile } from "./crawler.ts"
+import { relative } from "@std/path"
+import { crawlFiles } from "@fobx/utils"
+import {
+  calculateReadingTime,
+  FileWithFrontmatter,
+  Frontmatter,
+  processFrontmatter,
+} from "./frontmatter.ts"
+import type * as Markdoc from "@markdoc/markdoc"
+import { parseMarkdoc } from "./markdoc.ts"
 
 // Source directory
 const mdFileDir = "/fobx"
 
 /**
- * Supported frontmatter properties for markdown files:
- *
- * ---
- * title: Page Title                # Override auto-detected title (optional)
- * description: Page description    # Custom description for SEO and previews
- * order: 100                       # Controls sort order in navigation (lower numbers appear first)
- * tags: ["tag1", "tag2"]           # Categorize content (comma-separated or array)
- * draft: true                      # If true, page won't be included in production builds
- * hideInNav: true                  # If true, page won't be shown in navigation
- * parent: parent-slug              # Override auto-detected parent based on file structure
- * redirect: /new-url               # Redirect to another page
- * disableTableOfContents: true     # If true, the table of contents won't be shown
- * showEditButton: false            # If false, edit button won't be displayed
- * lastModified: 2025-05-30         # Override the auto-detected file modification date
- * author: Author Name              # Content author
- * ---
+ * Options for metadata generation
  */
+export interface MetadataOptions {
+  contentDirs: string[]
+  excludeDirs?: string[]
+  extensions?: string[]
+  baseUrl?: string
+}
+
+export interface SiteInfo {
+  title: string
+  description: string
+  version: string
+  baseUrl: string
+}
+
+export interface NavigationMetadata {
+  mainNav: NavItem[]
+  sidebar: SidebarSection[]
+}
 
 /**
  * Interface for site metadata
@@ -29,16 +40,8 @@ const mdFileDir = "/fobx"
 export interface SiteMetadata {
   routes: RouteMetadata[]
   lastUpdated: string
-  siteInfo: {
-    title: string
-    description: string
-    version: string
-    baseUrl: string
-  }
-  navigation: {
-    mainNav: NavItem[]
-    sidebar: SidebarSection[]
-  }
+  siteInfo: SiteInfo
+  navigation: NavigationMetadata
 }
 
 /**
@@ -51,16 +54,26 @@ export interface RouteMetadata {
   sourcePath: string
   parentSlug?: string
   children?: string[]
-  order?: number
-  description?: string
-  tags?: string[]
   lastModified?: string
-  draft?: boolean
-  hideInNav?: boolean
-  redirect?: string
-  disableTableOfContents?: boolean
-  showEditButton?: boolean
-  author?: string
+  readingTime?: {
+    minutes: number
+    words: number
+  }
+  frontmatter: Frontmatter
+  content: {
+    ast: Markdoc.RenderableTreeNode
+    toc: TableOfContentsItem[]
+  }
+}
+
+/**
+ * Interface for table of contents item
+ */
+export interface TableOfContentsItem {
+  id: string
+  level: number
+  title: string
+  children?: TableOfContentsItem[]
 }
 
 /**
@@ -84,11 +97,17 @@ export interface SidebarSection {
  * Generate and write site metadata
  */
 export async function generateMetadata(
-  files: MarkdownFile[],
-  dirs: Record<string, string>,
-  outputIndividualFiles = true,
+  options: MetadataOptions,
 ): Promise<SiteMetadata> {
-  console.log("Generating site metadata...")
+  const {
+    contentDirs,
+    excludeDirs = ["node_modules", ".git", "dist", "build", "coverage"],
+    extensions = [".mdoc"],
+    baseUrl,
+  } = options
+
+  // Find all markdown files and process their frontmatter
+  const files = await crawlMarkdownFiles(contentDirs, excludeDirs, extensions)
 
   // Create route metadata for each file
   const routes: RouteMetadata[] = files.map((file) => {
@@ -99,20 +118,12 @@ export async function generateMetadata(
       ? pathSegments.slice(0, -1).join("/")
       : undefined
 
-    // Parse frontmatter for additional metadata
-    const frontmatter = extractFrontmatter(file.content)
-
     // Extract file stats for last modified date if available
     let lastModified: string | undefined = undefined
     try {
-      // If frontmatter specifies lastModified, use that instead
-      if (frontmatter.lastModified) {
-        lastModified = new Date(frontmatter.lastModified).toISOString()
-      } else {
-        const fileInfo = Deno.statSync(file.path)
-        if (fileInfo.mtime) {
-          lastModified = fileInfo.mtime.toISOString()
-        }
+      const fileInfo = Deno.statSync(file.path)
+      if (fileInfo.mtime) {
+        lastModified = fileInfo.mtime.toISOString()
       }
     } catch (e) {
       console.warn(
@@ -132,7 +143,7 @@ export async function generateMetadata(
     }
 
     // Final parent slug priority: frontmatter > inference > directory structure
-    const parentSlug = frontmatter.parent || inferredParentSlug ||
+    const parentSlug = file.frontmatter.parent || inferredParentSlug ||
       (parentDir && pathSegments.length === 2 &&
           file.fileName.toLowerCase() === "readme.md"
         ? undefined // README.md files in top-level dirs are themselves parents
@@ -142,35 +153,111 @@ export async function generateMetadata(
 
     return {
       slug: file.slug || "",
-      title: frontmatter.title || file.title || "Untitled",
       path: `/${file.slug || ""}`,
+      title: file.title,
       sourcePath: file.path,
       parentSlug,
-      order: frontmatter.order,
-      description: frontmatter.description || extractDescription(file.content),
-      tags: frontmatter.tags,
       lastModified,
-      draft: frontmatter.draft || false,
-      hideInNav: frontmatter.hideInNav || false,
-      redirect: frontmatter.redirect,
-      disableTableOfContents: frontmatter.disableTableOfContents || false,
-      showEditButton: frontmatter.showEditButton !== false, // Default to true
-      author: frontmatter.author,
+      readingTime: file.readingTime,
+      frontmatter: {
+        // Core fields
+        description: file.description,
+        order: file.frontmatter.order,
+        tags: file.frontmatter.tags,
+        draft: file.frontmatter.draft,
+        hideInNav: file.frontmatter.hideInNav,
+        parent: file.frontmatter.parent,
+        redirect: file.frontmatter.redirect,
+        author: file.frontmatter.author,
+        disableTableOfContents: file.frontmatter.disableTableOfContents,
+        showEditButton: file.frontmatter.showEditButton !== false,
+        // Navigation enhancements
+        prevPage: file.frontmatter.prevPage,
+        nextPage: file.frontmatter.nextPage,
+        // SEO enhancements
+        keywords: file.frontmatter.keywords,
+        canonical: file.frontmatter.canonical,
+        // Categorization
+        category: file.frontmatter.category,
+        subcategory: file.frontmatter.subcategory,
+        // Display options
+        template: file.frontmatter.template,
+        tocDepth: file.frontmatter.tocDepth,
+        // Version information
+        versionAdded: file.frontmatter.versionAdded,
+        versionUpdated: file.frontmatter.versionUpdated,
+        versionDeprecated: file.frontmatter.versionDeprecated,
+        // Additional content features
+        hasInteractiveExamples: file.frontmatter.hasInteractiveExamples,
+        hasPlayground: file.frontmatter.hasPlayground,
+        // Publishing metadata
+        publishDate: file.frontmatter.publishDate,
+        expiryDate: file.frontmatter.expiryDate,
+        // Allow for custom frontmatter properties
+        ...file.frontmatter,
+      },
+      content: {
+        ast: {} as Markdoc.RenderableTreeNode,
+        toc: [] as TableOfContentsItem[],
+      },
     }
   })
 
   // Filter out draft content in production builds
   const isProduction = Deno.env.get("ENVIRONMENT") === "production"
   const filteredRoutes = isProduction
-    ? routes.filter((route) => !route.draft)
+    ? routes.filter((route) => !route.frontmatter.draft)
     : routes
 
   // Organize routes into parent-child relationships
   const routesWithChildren = organizeRouteHierarchy(filteredRoutes)
 
+  // Check if we have a root index page, if not create one that redirects to the first appropriate page
+  const hasRootIndex = routesWithChildren.some((route) =>
+    route.slug === "index"
+  )
+  if (!hasRootIndex) {
+    // Find the most appropriate page to redirect to
+    // First try to find a top-level route without a parent
+    const topLevelRoutes = routesWithChildren.filter((route) =>
+      !route.parentSlug
+    )
+    let redirectTarget = topLevelRoutes[0] // Default to first top-level route if available
+
+    // If there are no top-level routes, use the first available route
+    if (!redirectTarget && routesWithChildren.length > 0) {
+      redirectTarget = routesWithChildren[0]
+    }
+
+    // Create a synthetic index route that redirects if we found a target
+    if (redirectTarget) {
+      routesWithChildren.push({
+        slug: "index",
+        path: "/",
+        title: "Documentation Home",
+        sourcePath: "generated-index", // Mark as generated
+        frontmatter: {
+          // Set redirect to the target page
+          redirect: redirectTarget.path,
+          hideInNav: true,
+          description: "FobX Documentation - Redirecting to homepage",
+          showEditButton: false,
+        },
+        content: {
+          ast: {} as Markdoc.RenderableTreeNode,
+          toc: [] as TableOfContentsItem[],
+        },
+      })
+      console.log(`Created redirect index.html -> ${redirectTarget.path}`)
+    }
+  }
+
+  // Parse markdown files and add transformed AST content to each route
+  await parseMarkdoc(files, routesWithChildren, { baseUrl: baseUrl || "/" })
+
   // Generate navigation structure from routes
   const { mainNav, sidebar } = generateNavigation(
-    routesWithChildren.filter((route) => !route.hideInNav),
+    routesWithChildren.filter((route) => !route.frontmatter.hideInNav),
   )
 
   // Create the full metadata object
@@ -181,7 +268,7 @@ export async function generateMetadata(
       title: "FobX Documentation",
       description: "Documentation for FobX state management library",
       version: "1.0.0", // This could be read from package.json or deno.jsonc
-      baseUrl: "/",
+      baseUrl: baseUrl || "/",
     },
     navigation: {
       mainNav,
@@ -189,135 +276,70 @@ export async function generateMetadata(
     },
   }
 
-  // Write the main metadata.json file
-  const metadataPath = join(dirs.public, "metadata.json")
-  await Deno.writeTextFile(metadataPath, JSON.stringify(metadata, null, 2))
-  console.log(`Main metadata written to ${metadataPath}`)
-
-  // Optionally write individual metadata files
-  if (outputIndividualFiles) {
-    // Write individual route metadata files
-    for (const route of routesWithChildren) {
-      const routeMetadataPath = join(
-        dirs.metadata,
-        `${route.slug || "index"}.json`,
-      )
-      await Deno.writeTextFile(
-        routeMetadataPath,
-        JSON.stringify(
-          {
-            ...route,
-            // Include direct children data for easier navigation
-            childPages: route.children
-              ? route.children.map((childSlug) => {
-                const childRoute = routesWithChildren.find((r) =>
-                  r.slug === childSlug
-                )
-                return childRoute
-                  ? {
-                    slug: childRoute.slug,
-                    title: childRoute.title,
-                    path: childRoute.path,
-                    description: childRoute.description,
-                  }
-                  : null
-              }).filter(Boolean)
-              : [],
-          },
-          null,
-          2,
-        ),
-      )
-    }
-    console.log(`Individual metadata files written to ${dirs.metadata}/`)
-  }
-
   return metadata
 }
 
 /**
- * Extract frontmatter from markdown content
+ * Crawls multiple directories to find markdown files and process their metadata
  */
-function extractFrontmatter(content: string): Record<string, any> {
-  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/)
-  if (!frontmatterMatch) {
-    return {}
-  }
+export async function crawlMarkdownFiles(
+  contentDirs: string[],
+  excludeDirs: string[],
+  extensions: string[],
+): Promise<FileWithFrontmatter[]> {
+  const files = await crawlFiles(contentDirs, {
+    extensions,
+    excludeDirs,
+    loadContent: true,
+  })
 
-  const frontmatterContent = frontmatterMatch[1]
-  const result: Record<string, any> = {}
+  // Process files to extract frontmatter and generate slugs
+  const markdownFiles = files.map((file) => {
+    // Process frontmatter, title and description in a single pass
+    const { frontmatter, title, description } = processFrontmatter(
+      file.content,
+      file.fileName,
+    )
 
-  // Process each line of the frontmatter
-  frontmatterContent.split("\n").forEach((line) => {
-    const match = line.match(/^(\w+):\s*(.*)/)
-    if (match) {
-      const [, key, value] = match
+    // Calculate reading time
+    const readingTime = calculateReadingTime(file.content)
 
-      // Parse the value based on its content
-      if (value.trim() === "true") {
-        result[key] = true
-      } else if (value.trim() === "false") {
-        result[key] = false
-      } else if (/^\d+$/.test(value.trim())) {
-        result[key] = parseInt(value.trim(), 10)
-      } else if (value.trim().startsWith("[") && value.trim().endsWith("]")) {
-        try {
-          // Parse as JSON array
-          result[key] = JSON.parse(value.trim())
-        } catch {
-          // Fallback to comma-separated string parsing
-          result[key] = value.trim()
-            .substring(1, value.trim().length - 1)
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean)
-        }
-      } else {
-        // Remove surrounding quotes if present
-        result[key] = value.trim().replace(/^["'](.*)["']$/, "$1")
-      }
+    // Create a better slug from the file path
+    // This ensures nested directories create proper URL structures
+    const rootDir = contentDirs[0] // Use the first content directory as root
+    const relativePath = relative(rootDir, file.path)
+
+    // Create slug from the relative path without extension
+    let slug = ""
+    if (file.fileName.toLowerCase() === "readme.md") {
+      // For README.md, use the directory name as the slug
+      // If it's the root README, just use "index"
+      const pathParts = relativePath.split("/").filter(Boolean)
+      slug = pathParts.length > 1
+        ? pathParts.slice(0, -1).join("-").toLowerCase()
+        : "index"
+    } else {
+      // For other files, use the relative path, replacing directories with dashes
+      slug = relativePath
+        .replace(/\.(md|mdoc)$/, "")
+        .replace(/\//g, "-")
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]/g, "")
+    }
+
+    // Return the file with processed frontmatter
+    return {
+      ...file,
+      frontmatter,
+      title,
+      slug,
+      description,
+      readingTime,
     }
   })
 
-  return result
-}
-
-/**
- * Extract description from markdown content
- */
-function extractDescription(content: string): string | undefined {
-  // Try to extract description from frontmatter
-  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/)
-  if (frontmatterMatch) {
-    const frontmatterContent = frontmatterMatch[1]
-    const descriptionLine = frontmatterContent
-      .split("\n")
-      .find((line) => line.startsWith("description:"))
-
-    if (descriptionLine) {
-      const description = descriptionLine.substring(12).trim()
-      // Remove any surrounding quotes if present
-      return description.replace(/^["'](.*)["']$/, "$1")
-    }
-  }
-
-  // If no frontmatter description, try to use the first paragraph
-  const contentWithoutFrontmatter = content.replace(
-    /^---\s*\n[\s\S]*?\n---/,
-    "",
-  ).trim()
-  const firstParagraphMatch = contentWithoutFrontmatter.match(
-    /^(?:(?!#).)*?([^\n]+)/,
-  )
-  if (firstParagraphMatch) {
-    const firstParagraph = firstParagraphMatch[1].trim()
-    // Truncate if too long
-    return firstParagraph.length > 160
-      ? firstParagraph.substring(0, 157) + "..."
-      : firstParagraph
-  }
-
-  return undefined
+  return markdownFiles
 }
 
 /**
@@ -352,8 +374,10 @@ function organizeRouteHierarchy(routes: RouteMetadata[]): RouteMetadata[] {
     }
 
     // If both have same parent status, sort by order if specified
-    if (a.order !== undefined && b.order !== undefined) {
-      return a.order - b.order
+    if (
+      a.frontmatter.order !== undefined && b.frontmatter.order !== undefined
+    ) {
+      return a.frontmatter.order - b.frontmatter.order
     }
 
     // Finally sort alphabetically by title
@@ -388,6 +412,7 @@ function generateNavigation(routes: RouteMetadata[]): {
   // Add GitHub link
   mainNav.push({
     label: "GitHub",
+    // TODO: this should be read from deno.jsonc
     path: "https://github.com/jereklas/fobx",
     isExternal: true,
   })
@@ -398,6 +423,7 @@ function generateNavigation(routes: RouteMetadata[]): {
   // Group items by their top-level parent
   const topLevelRoutes = routes.filter((route) => !route.parentSlug)
 
+  // Handle routes with existing top-level parents
   topLevelRoutes.forEach((topRoute) => {
     const section: SidebarSection = {
       title: topRoute.title,
@@ -427,6 +453,43 @@ function generateNavigation(routes: RouteMetadata[]): {
     if (section.items.length > 0) {
       sidebar.push(section)
     }
+  })
+
+  // Handle orphaned child routes (routes with parentSlug but no existing parent)
+  const orphanedRoutes = routes.filter((route) =>
+    route.parentSlug && !routes.some((r) => r.slug === route.parentSlug)
+  )
+
+  // Group orphaned routes by their parentSlug
+  const orphanedGroups = new Map<string, RouteMetadata[]>()
+  orphanedRoutes.forEach((route) => {
+    if (!orphanedGroups.has(route.parentSlug!)) {
+      orphanedGroups.set(route.parentSlug!, [])
+    }
+    orphanedGroups.get(route.parentSlug!)!.push(route)
+  })
+
+  // Create sections for orphaned groups
+  orphanedGroups.forEach((groupRoutes, parentSlug) => {
+    // Sort routes by order or title
+    const sortedRoutes = groupRoutes.sort((a, b) => {
+      if (
+        a.frontmatter.order !== undefined && b.frontmatter.order !== undefined
+      ) {
+        return a.frontmatter.order - b.frontmatter.order
+      }
+      return a.title.localeCompare(b.title)
+    })
+
+    const section: SidebarSection = {
+      title: parentSlug.charAt(0).toUpperCase() + parentSlug.slice(1), // Capitalize first letter
+      items: sortedRoutes.map((route) => ({
+        label: route.title,
+        path: route.path,
+      })),
+    }
+
+    sidebar.push(section)
   })
 
   return { mainNav, sidebar }

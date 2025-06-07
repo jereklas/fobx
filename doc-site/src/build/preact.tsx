@@ -5,6 +5,7 @@ import { Main } from "../components/Main.tsx"
 
 export const SCRIPTS = {
   common: "COMMON_SCRIPT_PLACEHOLDER",
+  site: "SITE_SCRIPT_PLACEHOLDER",
   page: "PAGE_SCRIPT_PLACEHOLDER",
 }
 
@@ -93,6 +94,11 @@ export async function generateHtmlContent(
       content="width=device-width, initial-scale=1.0"
     />,
     <meta
+      key="base-url"
+      name="base-url"
+      content={siteInfo.baseUrl}
+    />,
+    <meta
       key="description"
       name="description"
       content={route.frontmatter.description || siteInfo.description}
@@ -129,7 +135,7 @@ export async function generateHtmlContent(
         />
 
         {/* Placeholder script tags to replace at build time */}
-        <script>{SCRIPTS.common}</script>
+        <script>{SCRIPTS.site}</script>
         <script>{SCRIPTS.page}</script>
       </head>
       <body>

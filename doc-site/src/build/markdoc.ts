@@ -47,7 +47,9 @@ function createLinkResolver(
 
         if (targetRoute) {
           // Apply baseUrl to the route path
-          return baseUrl === "/" ? targetRoute.path : `${baseUrl}${targetRoute.path}`
+          return baseUrl === "/"
+            ? targetRoute.path
+            : `${baseUrl}${targetRoute.path}`
         }
       }
 

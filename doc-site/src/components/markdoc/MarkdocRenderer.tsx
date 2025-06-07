@@ -69,7 +69,16 @@ const MarkdocRenderer: FunctionComponent<MarkdocRendererProps> = (
         for (let index = 0; index < node.length; index++) {
           const item = node[index]
           const renderedItem = renderNode(item)
-          renderedItems.push(<span key={index}>{renderedItem}</span>)
+          
+          // Check if this item is a ListItem - don't wrap in span if it is
+          const isListItem = typeof item === "object" && item !== null && 
+            !Array.isArray(item) && (item as MarkdocTag).name === "ListItem"
+          
+          if (isListItem) {
+            renderedItems.push(renderedItem)
+          } else {
+            renderedItems.push(<span key={index}>{renderedItem}</span>)
+          }
 
           // Check if this item is an H1 heading and we haven't inserted reading time yet
           if (
@@ -158,6 +167,26 @@ const MarkdocRenderer: FunctionComponent<MarkdocRendererProps> = (
               >
                 {textContent}
               </CodeComponent>
+            )
+          }
+
+          // Special handling for List components - don't wrap ListItem children in spans
+          if (componentName === "List") {
+            const children =
+              tagObject.children?.map((child, _index) => 
+                renderNode(child) // Don't wrap in span for list items
+              ) || []
+
+            const ListComponent = Component as FunctionComponent<
+              { children: preact.ComponentChildren }
+            >
+            return (
+              <ListComponent
+                {...attributes}
+                key={tagObject.attributes?.id || Math.random()}
+              >
+                {children}
+              </ListComponent>
             )
           }
 

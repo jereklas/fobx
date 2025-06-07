@@ -1,0 +1,85 @@
+/* Responsive design and media queries */
+
+/* Ensure dropdown doesn't extend beyond viewport on different screen sizes */
+@media (max-width: 768px) {
+  .docs-search-results {
+    width: 350px;
+    max-width: calc(100vw - 2rem);
+    left: auto;
+    right: 0;
+  }
+}
+
+@media (max-width: 580px) {
+  .docs-search-results {
+    width: 280px;
+    max-width: calc(100vw - 1rem);
+  }
+}
+
+/* Layout responsive breakpoints */
+@media (max-width: 1200px) {
+  .docs-layout {
+    grid-template-areas: 
+      "header header"
+      "sidebar main";
+    grid-template-columns: var(--sidebar-width) 1fr;
+  }
+  
+  .docs-toc {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .docs-layout {
+    grid-template-areas: 
+      "header"
+      "main";
+    grid-template-columns: 1fr;
+  }
+  
+  .docs-sidebar {
+    display: none;
+  }
+  
+  .docs-main {
+    padding: var(--space-lg);
+  }
+  
+  .docs-nav-links {
+    display: none;
+  }
+  
+  .docs-search-input {
+    width: 200px;
+  }
+  
+  .page-nav {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .page-nav-prev,
+  .page-nav-next {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .docs-main {
+    padding: var(--space-md);
+  }
+  
+  .docs-content h1 {
+    font-size: var(--font-size-5xl);
+  }
+  
+  .docs-content h2 {
+    font-size: var(--font-size-3xl);
+  }
+  
+  .docs-search {
+    display: none;
+  }
+}

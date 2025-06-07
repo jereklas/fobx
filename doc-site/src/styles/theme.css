@@ -1,0 +1,125 @@
+/* CSS Custom Properties for Theming */
+:root {
+  /* Atom One Light theme colors - Enhanced for accessibility */
+  --bg-primary: #fafafa;      /* Atom One Light background */
+  --bg-secondary: #f0f0f0;    /* Atom One Light light gray */
+  --bg-tertiary: #e5e5e6;     /* Atom One Light medium gray */
+  --text-primary: #2c2e33;    /* Darker for better contrast (was #383a42) */
+  --text-secondary: #4a4e57;  /* Even darker for better contrast (was #525761) */ 
+  --text-muted: #5a5f68;      /* Much darker for accessibility (was #6a6d73) */    
+  --border-color: #e5e5e6;    /* Atom One Light light gray */
+  --link-color: #0366d6;      /* Darker blue for better contrast (was #4078f2) */
+  --link-hover: #0253a3;      /* Darker hover state */
+  --shadow: rgba(44, 46, 51, 0.1);
+  
+  /* Search highlight colors - Enhanced contrast */
+  --search-highlight-bg: rgba(230, 126, 34, 0.3);  /* More vibrant and opaque orange */
+  --search-highlight-bg-dark: rgba(229, 192, 123, 0.4);
+  
+  /* Table of contents active background */
+  --toc-active-bg: rgba(3, 102, 214, 0.12);  /* Using accessible link color */
+  
+  /* Focus outline color */
+  --focus-outline: rgba(3, 102, 214, 0.3);  /* Using accessible link color */
+  
+  /* Shadow variations */
+  --shadow-sm: 0 4px 6px -1px rgba(44, 46, 51, 0.1), 0 2px 4px -1px rgba(44, 46, 51, 0.06);
+  
+  /* Font sizes */
+  --font-size-xs: 0.8rem;     /* 12.8px - Increased from 12px for better readability */
+  --font-size-sm: 0.85rem;    /* ~13.6px - Increased from ~13px */
+  --font-size-base: 0.9rem;   /* 14.4px - Increased from 14px */
+  --font-size-md: 0.95rem;    /* ~15.2px - Increased from ~14.4px */
+  --font-size-lg: 1rem;       /* 16px - Standard body text */
+  --font-size-xl: 1.125rem;   /* 18px - Lead text, larger paragraphs */
+  --font-size-2xl: 1.25rem;   /* 20px - Logo, brand text */
+  --font-size-3xl: 1.5rem;    /* 24px - H3 headings */
+  --font-size-4xl: 1.875rem;  /* 30px - H2 headings */
+  --font-size-5xl: 2rem;      /* 32px - Mobile H1 */
+  --font-size-6xl: 2.5rem;    /* 40px - Desktop H1 */
+  
+  /* Code font sizes */
+  --font-size-code: 0.875em;  /* Relative to parent for inline code */
+  
+  /* Spacing */
+  --space-2xs: 0.125rem;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Border radius */
+  --radius-xs: 1px;   /* Search highlights */
+  --radius-sm: 3px;   /* Inline code */
+  --radius-md: 4px;   /* Sidebar links, scrollbars */
+  --radius-lg: 6px;   /* Inputs, buttons, containers */
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-all: all 0.2s ease;
+  --transition-color: color 0.2s ease;
+  --transition-bg: background-color 0.2s ease;
+  
+  /* Line heights */
+  --line-height-tight: 1.3;   /* Compact text */
+  --line-height-normal: 1.4;  /* UI elements */
+  --line-height-relaxed: 1.6; /* Standard reading */
+  --line-height-loose: 1.7;   /* Content paragraphs */
+  
+  /* Letter spacing */
+  --letter-spacing-wide: 0.5px; /* Uppercase titles */
+  
+  /* Typography */
+  --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  --line-height: 1.6;
+  
+  /* Layout */
+  --sidebar-width: 280px;
+  --header-height: 60px;
+}
+
+/* Atom One Dark theme - Enhanced for accessibility */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #282c34;     /* Atom One Dark background */
+    --bg-secondary: #21252b;   /* Atom One Dark darker */
+    --bg-tertiary: #2c313c;    /* Atom One Dark medium */
+    --text-primary: #f0f0f0;   /* Even brighter for better contrast (was #e6e6e6) */
+    --text-secondary: #c8cdd6; /* Much brighter for better contrast (was #b8bcc8) */ 
+    --text-muted: #a8b0bd;     /* Much brighter for accessibility (was #8b919e) */    
+    --border-color: #3e4451;   /* Atom One Dark selection */
+    --link-color: #8fd3f0;     /* Even brighter blue for better contrast (was #7ec8e3) */
+    --link-hover: #b3e0f5;     /* Much brighter hover state */
+    --shadow: rgba(0, 0, 0, 0.5);
+    
+    /* Dark theme TOC active background */
+    --toc-active-bg: rgba(143, 211, 240, 0.2);  /* Using accessible link color */
+  }
+}
+
+/* Search term highlighting */
+.search-highlight {
+  background-color: var(--search-highlight-bg);
+  color: inherit;
+  padding: 0;
+  margin: 0;
+  border-radius: 1px;
+  font-weight: 500;
+  /* Reset mark element default styles */
+  display: inline;
+  font-style: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Dark theme search highlighting */
+@media (prefers-color-scheme: dark) {
+  .search-highlight {
+    background-color: var(--search-highlight-bg-dark);
+    color: inherit;
+  }
+}

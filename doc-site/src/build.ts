@@ -78,26 +78,34 @@ export async function buildStaticFiles(baseUrl = "/"): Promise<void> {
   }))
 
   // 3. Bundle JS/CSS assets with esbuild (with code splitting)
-  await bundle({ outdir: dirs.public, entryPoints })
+  const { chunkDependencies } = await bundle({
+    outdir: dirs.public,
+    entryPoints: [...entryPoints, "doc-site/src/scripts/site.ts"],
+  })
 
   // 4. Replace script placeholders with actual script references
   for (const htmlFile of htmlFiles) {
     let updatedContent = htmlFile.content
 
-    // Replace common script placeholder with reference to shared chunks
+    // Replace site script placeholder with reference to site.js
     updatedContent = updatedContent.replace(
-      `<script>${SCRIPTS.common}</script>`,
-      `<script type="module" src="${
-        join(baseUrl, "/scripts/chunks/shared.js")
+      `<script>${SCRIPTS.site}</script>`,
+      `<script rel="preload" type="module" src="${
+        join(baseUrl, "/scripts/site.js")
       }"></script>`,
     )
 
-    // Replace page script placeholder with reference to page-specific script
+    // Generate script tags for dependencies and the main page script
+    const scriptTags = generateScriptTags(
+      htmlFile.slug,
+      chunkDependencies,
+      baseUrl,
+    )
+
+    // Replace page script placeholder with dependency chain script tags
     updatedContent = updatedContent.replace(
       `<script>${SCRIPTS.page}</script>`,
-      `<script type="module" src="${
-        join(baseUrl, "scripts", `${htmlFile.slug}.js`)
-      }"></script>`,
+      scriptTags,
     )
 
     // Write the updated HTML file
@@ -108,6 +116,36 @@ export async function buildStaticFiles(baseUrl = "/"): Promise<void> {
   for await (const entry of Deno.readDir(dirs.temp)) {
     Deno.removeSync(join(dirs.temp, entry.name), { recursive: true })
   }
+}
+
+/**
+ * Generate script tags in the correct dependency order
+ */
+function generateScriptTags(
+  slug: string,
+  chunkDependencies: Record<string, string[]>,
+  baseUrl: string,
+): string {
+  const dependencies = chunkDependencies[slug] || []
+  const scriptTags: string[] = []
+
+  // Add dependency scripts first (chunks)
+  for (const dep of dependencies) {
+    scriptTags.push(
+      `<script rel="preload" type="module" src="${
+        join(baseUrl, "scripts", dep)
+      }"></script>`,
+    )
+  }
+
+  // Add the main page script last
+  scriptTags.push(
+    `<script rel="preload" type="module" src="${
+      join(baseUrl, "scripts", `${slug}.js`)
+    }"></script>`,
+  )
+
+  return scriptTags.join("\n    ")
 }
 
 /**

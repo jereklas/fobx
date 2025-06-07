@@ -1,6 +1,6 @@
 import { startFileServer } from "@fobx/utils/file-server"
 import { join } from "@std/path"
-import { configure, makeObservable } from "@fobx/core"
+import { configure } from "@fobx/core"
 import { deepEqual } from "fast-equals"
 import { buildStaticFiles } from "./build.ts"
 

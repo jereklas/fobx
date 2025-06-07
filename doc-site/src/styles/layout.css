@@ -1,0 +1,89 @@
+/* Base styles and layout containers */
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  line-height: var(--line-height);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Layout containers */
+.docs-layout {
+  display: grid;
+  grid-template-areas: 
+    "header header header"
+    "sidebar main toc";
+  grid-template-columns: var(--sidebar-width) 1fr 240px;
+  grid-template-rows: var(--header-height) 1fr;
+  min-height: 100vh;
+}
+
+.docs-header {
+  grid-area: header;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.docs-sidebar {
+  grid-area: sidebar;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: var(--space-md);
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+}
+
+.docs-main {
+  grid-area: main;
+  padding: var(--space-xl);
+  max-width: none;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.docs-content {
+  max-width: 800px;
+  width: 100%;
+}
+
+.docs-toc {
+  grid-area: toc;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  padding: var(--space-md) var(--space-lg);
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+}
+
+/* Ensure headings have proper scroll margin to account for fixed header */
+.docs-content h1,
+.docs-content h2, 
+.docs-content h3,
+.docs-content h4,
+.docs-content h5,
+.docs-content h6 {
+  scroll-margin-top: 100px;
+}

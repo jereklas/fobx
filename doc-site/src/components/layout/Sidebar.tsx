@@ -7,6 +7,8 @@ interface SidebarProps {
   currentPath: string
 }
 
+// TODO: this or something needs to be converted into a button that's accessible on mobile
+
 const Sidebar: FunctionComponent<SidebarProps> = (
   { navigation, currentPath, siteInfo },
 ) => {

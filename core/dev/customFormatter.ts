@@ -96,8 +96,8 @@ declare global {
  * Gets theme colors based on system preference
  */
 function getThemeColors() {
-  const isDarkMode = globalThis.matchMedia &&
-    globalThis.matchMedia("(prefers-color-scheme: dark)").matches
+  const isDarkMode = (globalThis as any).matchMedia &&
+    (globalThis as any).matchMedia("(prefers-color-scheme: dark)").matches
 
   return {
     string: isDarkMode ? "#5CCAD8" : "#C41A16", // tealish blue in dark, red in light
@@ -129,7 +129,7 @@ if (process.env.NODE_ENV !== "production") {
 
     let theme = getThemeColors()
 
-    const darkModeMediaQuery = globalThis.matchMedia?.(
+    const darkModeMediaQuery = (globalThis as any).matchMedia?.(
       "(prefers-color-scheme: dark)",
     )
     darkModeMediaQuery?.addEventListener?.("change", () => {

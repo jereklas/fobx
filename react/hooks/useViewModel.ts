@@ -25,8 +25,8 @@ export class ViewModel<
     Object.entries(newProps).forEach(([key]) => {
       annotations[key] = "observable"
     })
-    this._props = observable(newProps, annotations, { shallow: true })
-    observable(this, {}, { shallow: true })
+    this._props = observable(newProps, annotations, { shallowRef: true })
+    observable(this, {}, { shallowRef: true })
   }
 
   get props(): T {

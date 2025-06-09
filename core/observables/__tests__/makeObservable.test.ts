@@ -40,6 +40,53 @@ describe("makeObservable", () => {
     })
   })
 
+  test("explicit observable declarations", () => {
+    const user = fobx.makeObservable({
+      name: "Alice",
+      age: 30,
+      profile: {
+        avatar: "alice.jpg",
+        settings: {
+          theme: "dark",
+        },
+      },
+      hobbies: ["reading", "hiking"],
+
+      get fullName() {
+        return `${this.name}, ${this.age} years old`
+      },
+    }, {
+      name: "observable", // Only name is observable
+      age: "observable", // Only age is observable
+      fullName: "computed", // Declare computed property
+      // profile and hobbies are NOT observable because they're not declared
+    })
+
+    const nameReactionFn = fn()
+    fobx.reaction(() => user.name, nameReactionFn)
+
+    const fullNameReactionFn = fn()
+    fobx.reaction(() => user.fullName, fullNameReactionFn)
+
+    const profileReactionFn = fn()
+    fobx.reaction(() => user.profile.settings.theme, profileReactionFn)
+
+    const hobbiesReactionFn = fn()
+    fobx.reaction(() => user.hobbies.length, hobbiesReactionFn)
+
+    // Changes to declared properties should trigger reactions
+    user.name = "Bob"
+    expect(nameReactionFn).toHaveBeenCalledTimes(1)
+    expect(fullNameReactionFn).toHaveBeenCalledTimes(1) // computed depends on name
+
+    // Changes to undeclared properties shouldn't trigger reactions
+    user.profile.settings.theme = "light"
+    expect(profileReactionFn).not.toHaveBeenCalled()
+
+    user.hobbies.push("swimming")
+    expect(hobbiesReactionFn).not.toHaveBeenCalled()
+  })
+
   describe("type validation", () => {
     const errorsTC = [
       { arg: "", expected: typeof "" },

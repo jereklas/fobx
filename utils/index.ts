@@ -61,6 +61,7 @@ export async function generateTypeDefinitions(outDir: string) {
       emitDeclarationOnly: true,
       outDir,
       allowImportingTsExtensions: true,
+      moduleResolution: "bundler",
       types: [new URL("../global.d.ts", import.meta.url).pathname],
       // paths: {
       //   "@fobx/core": ["/fobx/core/index.ts"],

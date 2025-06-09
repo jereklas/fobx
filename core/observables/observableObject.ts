@@ -184,8 +184,16 @@ const processProperty = <T extends object>(
 ): void => {
   const { addToPrototype, shallow, annotationConfig } = options
 
-  // If no annotation is provided, skip this property
-  if (!annotationConfig) return
+  // If no annotation is provided, copy the property as-is (non-observable)
+  if (!annotationConfig) {
+    // For makeObservable (inferAnnotations=false), we should copy unannotated properties
+    // as regular properties without making them observable
+    if (!addToPrototype) {
+      // Only copy if we're working on the instance (not prototype)
+      Object.defineProperty(observableObject, key, desc)
+    }
+    return
+  }
 
   // Parse annotation config to get annotation and equality options
   const [annotation, equalityOption] = parseAnnotationConfig(annotationConfig)

@@ -22,7 +22,7 @@ function createLinkResolver(
     // Handle relative links to .mdoc files
     if (href.endsWith(".mdoc")) {
       // Remove .mdoc extension and any leading ./
-      let targetFile = href.replace(/^\.\//, "").replace(/\.mdoc$/, "")
+      const targetFile = href.replace(/^\.\//, "").replace(/\.mdoc$/, "")
 
       // If it's just a filename (no path), we need to find the actual route
       // by looking at the current route's context
@@ -55,7 +55,7 @@ function createLinkResolver(
 
       // If we can't find a specific route, fall back to the generic transformation
       // Convert path separators to dashes for nested files
-      let slug = targetFile.replace(/\//g, "-").toLowerCase()
+      const slug = targetFile.replace(/\//g, "-").toLowerCase()
       const fallbackPath = `/${slug}`
       return baseUrl === "/" ? fallbackPath : `${baseUrl}${fallbackPath}`
     }
@@ -95,7 +95,6 @@ export async function parseMarkdoc(
 
     // Initialize variables in the Markdoc config if not present
     if (!markdocConfig.variables) {
-      // @ts-expect-error - type says variables is readonly, but we're constructing it
       markdocConfig.variables = {}
     }
 
@@ -107,13 +106,12 @@ export async function parseMarkdoc(
 
     // Override the link node configuration to use our custom transformer
     if (!markdocConfig.nodes) {
-      // @ts-expect-error - type says nodes is readonly, but we're constructing it
       markdocConfig.nodes = {}
     }
 
-    // @ts-expect-error - we're dynamically adding link transformation
     markdocConfig.nodes.link = {
       ...baseMarkdocConfig.nodes?.link,
+      // deno-lint-ignore no-explicit-any
       transform: (node: any, config: any) => {
         const attributes = node.transformAttributes(config)
         const children = node.transformChildren(config)

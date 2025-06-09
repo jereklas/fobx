@@ -15,7 +15,7 @@ export type MainProps = {
 }
 
 export const Main = (
-  { siteInfo, route, navigation, lastUpdated }: MainProps,
+  { siteInfo, route, navigation }: MainProps,
 ) => {
   return (
     <Suspense fallback={<div className="loading">Loading...</div>}>

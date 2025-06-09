@@ -14,8 +14,8 @@ export interface Frontmatter {
   hideInNav?: boolean
   showEditButton?: boolean
   disableTableOfContents?: boolean
-  prevPage?: string
-  nextPage?: string
+  prevPage?: { path: string; title: string }
+  nextPage?: { path: string; title: string }
   // SEO enhancements
   keywords?: string[]
   canonical?: string
@@ -73,6 +73,14 @@ export function processFrontmatter(
           result[key] = false
         } else if (/^\d+$/.test(value.trim())) {
           result[key] = parseInt(value.trim(), 10)
+        } else if (value.trim().startsWith("{") && value.trim().endsWith("}")) {
+          try {
+            // Parse as JSON object
+            result[key] = JSON.parse(value.trim())
+          } catch {
+            // Fallback to string if JSON parsing fails
+            result[key] = value.trim().replace(/^["'](.*)["']$/, "$1")
+          }
         } else if (value.trim().startsWith("[") && value.trim().endsWith("]")) {
           try {
             // Parse as JSON array

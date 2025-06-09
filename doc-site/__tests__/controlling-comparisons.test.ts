@@ -1,4 +1,4 @@
-// Test file to validate examples from the FobX documentation
+// Test file to validate examples from the controlling-comparisons.mdoc documentation
 import * as fobx from "@fobx/core"
 import { deepEqual } from "fast-equals"
 import {
@@ -9,7 +9,7 @@ import {
   fn,
   test,
 } from "@fobx/testing"
-import { runInAction } from "../transactions/action.ts"
+import { runInAction } from "../../core/transactions/action.ts"
 
 beforeEach(() => {
   // Configure with structural comparer for all tests
@@ -27,7 +27,7 @@ afterEach(() => {
   })
 })
 
-describe("controlling-comparisons.md examples", () => {
+describe("controlling-comparisons.mdoc examples", () => {
   describe("structural comparison", () => {
     test("makeObservable with structural comparison", () => {
       const user = fobx.makeObservable({

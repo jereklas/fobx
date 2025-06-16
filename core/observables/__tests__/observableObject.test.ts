@@ -7,6 +7,7 @@ import type { ReactionWithAdmin } from "../../reactions/reaction.ts"
 import { $fobx } from "../../state/global.ts"
 import * as fobx from "@fobx/core"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
+import { ViewModel } from "@fobx/react"
 
 beforeEach(() => {
   fobx.configure({ enforceActions: false })
@@ -33,7 +34,7 @@ test("observable(this) called in both super and base class does not incorrectly 
       Object.entries(props).forEach(([key]) => {
         annotations[key] = "observable"
       })
-      this._props = fobx.observable(props, annotations, { shallow: true })
+      this._props = fobx.observable(props, annotations, { shallowRef: true })
       fobx.observable(this)
     }
 
@@ -529,7 +530,7 @@ test("annotations work as expected in inheritance", () => {
   class GrandParent {
     g = 3
     constructor() {
-      fobx.observable(this, {}, { shallow: true })
+      fobx.observable(this, {}, { shallowRef: true })
     }
     get g2() {
       return this.g
@@ -542,7 +543,7 @@ test("annotations work as expected in inheritance", () => {
     p = 2
     constructor() {
       super()
-      fobx.observable(this, { g: "none", p2: "none", pfn: "none" })
+      fobx.observable(this, { p2: "none", pfn: "none" })
     }
     get p2() {
       return this.p
@@ -567,6 +568,28 @@ test("annotations work as expected in inheritance", () => {
   expect(fobx.isAction(c.pfn)).toBe(false)
   expect(fobx.isComputed(c, "p2")).toBe(false)
   expect(c.p2).toBe(2)
-  expect(fobx.isObservable(c, "g")).toBe(false)
+  expect(fobx.isObservable(c, "g")).toBe(true)
   expect(c.g).toBe(3)
+})
+
+test("computed values are correctly applied for each instance of a class, not just the first", () => {
+  class Vm extends ViewModel {
+    private _a = 1
+    constructor() {
+      super()
+      fobx.observable(this)
+    }
+
+    get a() {
+      return this._a + 1
+    }
+  }
+
+  const vm1 = new Vm()
+  const vm2 = new Vm()
+  expect(fobx.isComputed(vm1, "a")).toBe(true)
+  expect(
+    fobx.isComputed(vm2, "a"),
+    "second instance of class lost the computed property annotation",
+  ).toBe(true)
 })

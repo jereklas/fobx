@@ -1,38 +1,33 @@
-import {
+import type {
   $fobx,
-  type Any,
-  type ComparisonType,
-  type EqualityChecker,
-  type IFobxAdmin,
+  Any,
+  ComparisonType,
+  EqualityChecker,
+  IFobxAdmin,
 } from "../state/global.ts"
 import type { IObservable } from "./observableBox.ts"
-import { isObservableObject, isPlainObject } from "../utils/predicates.ts"
 import {
-  addObservableAdministration,
-  getPropertyDescriptors,
-  handleNoneOrResetAnnotation,
-  inferAnnotationType,
-} from "./utils/property.ts"
-import { createShallowObservableForCollection } from "./utils/create.ts"
-import {
-  annotateProperty,
-  markPropertyAsAnnotated,
-  parseAnnotationConfig,
-} from "./utils/annotations.ts"
-import { resolveShallowOption } from "./utils/equality.ts"
-import { getType, warnNonExtensibleObject } from "./utils/errors.ts"
-import { createEqualityOptions } from "./utils/equality.ts"
+  isMap,
+  isObservableObject,
+  isPlainObject,
+  isSet,
+} from "../utils/predicates.ts"
+import { addObservableAdministration } from "./helpers.ts"
+import { annotateObject } from "./annotationProcessor.ts"
+
+export type BaseAnnotation =
+  | "none"
+  | "action"
+  | "computed"
+  | "observable"
+  | "flow"
 
 export type Annotation =
-  | "action"
+  | BaseAnnotation
   | "action.bound"
-  | "computed"
-  | "flow"
   | "flow.bound"
-  | "observable"
   | "observable.shallow"
   | "observable.ref"
-  | "none"
 
 export type AnnotationConfig =
   | Annotation
@@ -56,31 +51,53 @@ export type ObservableObjectOptions = {
   shallowRef?: boolean
 }
 
-/**
- * Options for the processAnnotations function
- */
-export interface ProcessAnnotationsOptions<E> {
-  addToPrototype: boolean
-  annotations: AnnotationsMap<E, Any> | Record<string, Any>
-  shallow: boolean
-  inferAnnotations?: boolean
-}
-
-/**
- * Options for processing a single property
- */
-export interface ProcessPropertyOptions {
-  addToPrototype: boolean
-  shallow: boolean
-  annotationConfig: Any
-}
-
 export type ObservableObject<T = Any> = T
 export interface ObservableObjectWithAdmin {
   [$fobx]: IObservableObjectAdmin
 }
 export interface IObservableObjectAdmin extends IFobxAdmin {
   values: Map<PropertyKey, IObservable>
+}
+
+export const getType = (obj: unknown): string => {
+  if (typeof obj === "object") {
+    if (obj === null) return "null"
+    if (Array.isArray(obj)) return "array"
+    if (isMap(obj)) return "map"
+    if (isSet(obj)) return "set"
+    return "object"
+  }
+  return typeof obj
+}
+
+/**
+ * Resolve shallow options handling both deprecated and current option names
+ */
+export const resolveShallowOption = (
+  options?: { shallow?: boolean; shallowRef?: boolean },
+): boolean => {
+  if (!options) return false
+
+  let effectiveShallow = false
+
+  // Check for deprecated shallow option
+  if (options.shallow !== undefined) {
+    // deno-lint-ignore no-process-global
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[@fobx/core] The 'shallow: true' option is deprecated. Please use 'shallowRef: true' instead. " +
+          "'shallow: true' will be removed in a future version.",
+      )
+    }
+    effectiveShallow = options.shallow
+  }
+
+  // shallowRef takes precedence if both are specified
+  if (options.shallowRef !== undefined) {
+    effectiveShallow = options.shallowRef
+  }
+
+  return effectiveShallow
 }
 
 /**
@@ -139,10 +156,19 @@ export const createAutoObservableObject = <T extends object>(
   const isPlainObj = isPlainObject(obj)
   const observableObject = prepareObservableObject(obj, isPlainObj)
 
-  processAnnotations(observableObject, obj, {
-    addToPrototype: !isPlainObj,
-    annotations: overrides,
-    shallow: effectiveShallow,
+  if (
+    // deno-lint-ignore no-process-global
+    process.env.NODE_ENV !== "production" &&
+    !isObservableObject(observableObject)
+  ) {
+    console.warn(
+      "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
+      observableObject,
+    )
+  }
+
+  annotateObject(obj, observableObject, overrides, {
+    shallowRef: effectiveShallow,
     inferAnnotations: true,
   })
 
@@ -161,112 +187,10 @@ export const extendObservable = <T extends object, E extends object>(
   }
   const observableObject = prepareObservableObject(source, false, true)
 
-  processAnnotations(observableObject, extension, {
-    // extending should always add to instance instead of prototype
-    addToPrototype: false,
-    annotations,
-    shallow: false,
+  annotateObject(extension, observableObject, annotations, {
+    shallowRef: false,
     inferAnnotations: true,
   })
+
   return observableObject as unknown as T & E
-}
-
-/**
- * Process a single property during annotation
- */
-const processProperty = <T extends object>(
-  observableObject: T,
-  key: PropertyKey,
-  desc: PropertyDescriptor,
-  proto: unknown,
-  admin: IObservableObjectAdmin,
-  options: ProcessPropertyOptions,
-): void => {
-  const { addToPrototype, shallow, annotationConfig } = options
-
-  // If no annotation is provided, copy the property as-is (non-observable)
-  if (!annotationConfig) {
-    // For makeObservable (inferAnnotations=false), we should copy unannotated properties
-    // as regular properties without making them observable
-    if (!addToPrototype) {
-      // Only copy if we're working on the instance (not prototype)
-      Object.defineProperty(observableObject, key, desc)
-    }
-    return
-  }
-
-  // Parse annotation config to get annotation and equality options
-  const [annotation, equalityOption] = parseAnnotationConfig(annotationConfig)
-  const equalityOptions = createEqualityOptions(equalityOption)
-
-  // Handle "none" annotation as a special case first
-  if (annotation === "none") {
-    handleNoneOrResetAnnotation(observableObject, key, desc, admin, {
-      addToPrototype,
-      proto,
-    })
-    return
-  }
-
-  // Special case for observable + shallow combination
-  if (annotation === "observable" && shallow && "value" in desc) {
-    const value = desc.value
-    if (
-      createShallowObservableForCollection(
-        observableObject,
-        key,
-        value,
-        admin,
-      )
-    ) {
-      markPropertyAsAnnotated(key, addToPrototype ? proto : observableObject)
-      return
-    }
-  }
-
-  // For all other annotations, delegate to annotateProperty
-  annotateProperty(observableObject, key, desc, annotation, admin, {
-    addToPrototype,
-    proto,
-    shallow: annotation === "observable.shallow" ||
-      (annotation === "observable" && shallow),
-    skipIfAlreadyAnnotated: true,
-    equalityOptions,
-  })
-}
-
-/**
- * Process annotations for an object, applying the appropriate behaviors to each property
- */
-export const processAnnotations = <T extends object, E extends object>(
-  observableObject: T,
-  source: E,
-  options: ProcessAnnotationsOptions<E>,
-): void => {
-  if (!isObservableObject(observableObject)) {
-    warnNonExtensibleObject(observableObject)
-    return
-  }
-
-  // remove prototype from the annotations object so prototype functions are not considered as an annotation
-  Object.setPrototypeOf(options.annotations, null)
-
-  const { addToPrototype, shallow, inferAnnotations = false } = options
-  const admin = (observableObject as ObservableObjectWithAdmin)[$fobx]
-
-  getPropertyDescriptors(source).forEach((value, key) => {
-    const { desc, owner: proto } = value
-
-    // Get the annotation config, or infer it if not provided
-    const annotationConfig =
-      options.annotations[key as keyof typeof options.annotations] ||
-      (inferAnnotations ? inferAnnotationType(desc) : undefined)
-
-    // Process the property
-    processProperty(observableObject, key, desc, proto, admin, {
-      addToPrototype,
-      shallow,
-      annotationConfig,
-    })
-  })
 }

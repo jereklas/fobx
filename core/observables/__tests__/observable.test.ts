@@ -4,7 +4,7 @@ import type { Any } from "../../state/global.ts"
 
 test("creating an observable object with shallow=true works correctly", () => {
   const obj = { a: { b: "c" }, arr: [], set: new Set(), map: new Map() }
-  const shallow = fobx.observable(obj, {}, { shallow: true })
+  const shallow = fobx.observable(obj, {}, { shallowRef: true })
   const deep = fobx.observable(obj)
 
   // the first level props are always observable
@@ -137,7 +137,7 @@ test("observable with observable.shallow annotation creates observable collectio
 test("observable.shallow tracks collection operations, unlike shallow: true", () => {
   // Set up test objects
   const withShallowOption = fobx.observable({ array: [1, 2, 3] }, {}, {
-    shallow: true,
+    shallowRef: true,
   })
   const withShallowAnnotation = fobx.observable({ array: [1, 2, 3] }, {
     array: "observable.shallow",

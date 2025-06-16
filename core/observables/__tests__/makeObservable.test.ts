@@ -687,7 +687,7 @@ describe("makeObservable", () => {
       })
 
       const objWithShallow = fobx.observable({ array, map, set }, {}, {
-        shallow: true,
+        shallowRef: true,
       })
 
       // Both should maintain the original references

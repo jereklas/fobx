@@ -111,3 +111,197 @@ test("ObservableSet does not make values observable when shallow = true", () => 
   expect(fobx.isObservable(values[0], "a")).toBe(false)
   expect(fobx.isObservable(values[1], "a")).toBe(false)
 })
+
+test("#8 - observable Set only reacts when keys requested change", () => {
+  const map = fobx.observable(new Set())
+  let counter = 0
+  fobx.autorun(() => {
+    counter++
+    // Specifically request for a key that does not exist
+    map.has("a")
+  })
+
+  // Make sure that the reaction does not fire when we set a key that is not requested
+  map.add("b")
+  expect(counter).toBe(1)
+
+  // Now that the requested key "a" is set, the reaction should fire
+  map.add("a")
+  expect(counter).toBe(2)
+})
+
+// Helper function to test pendingKey solution with replace operations
+const testPendingKeyReplace = (
+  inputType: "array" | "Set",
+  createInput: (values: string[]) => string[] | Set<string>,
+) => {
+  test(`#8 - pendingKey solution works with replace() using ${inputType}`, () => {
+    const set = fobx.observable(new Set<string>())
+    let counter = 0
+    let hasTargetValue = false
+
+    // Set up autorun that requests a value that doesn't exist yet
+    const dispose = fobx.autorun(() => {
+      counter++
+      hasTargetValue = set.has("targetValue")
+    })
+
+    expect(counter).toBe(1)
+    expect(hasTargetValue).toBe(false)
+
+    // Add some existing values
+    set.add("existingValue1")
+    set.add("existingValue2")
+    expect(counter).toBe(1) // Should not have changed
+
+    // Now replace the set with a collection that includes the tracked value
+    const newValues = createInput(["targetValue", "anotherValue"])
+    set.replace(newValues)
+
+    // The autorun should have re-run because "targetValue" now exists
+    expect(counter).toBe(2)
+    expect(hasTargetValue).toBe(true)
+
+    // Verify that the set now contains the new values and not the old ones
+    expect(set.has("targetValue")).toBe(true)
+    expect(set.has("anotherValue")).toBe(true)
+    expect(set.has("existingValue1")).toBe(false) // Should be removed by replace
+    expect(set.has("existingValue2")).toBe(false) // Should be removed by replace
+
+    // Verify that further changes to the tracked value still trigger reactions
+    set.delete("targetValue")
+    expect(counter).toBe(3)
+    expect(hasTargetValue).toBe(false)
+
+    set.add("targetValue")
+    expect(counter).toBe(4)
+    expect(hasTargetValue).toBe(true)
+
+    // Verify that changes to non-tracked values don't trigger reactions
+    set.add("nonTrackedValue")
+    expect(counter).toBe(4) // Should not have changed
+
+    dispose()
+  })
+}
+
+// Test replace with array input
+testPendingKeyReplace("array", (values) => values)
+
+// Test replace with Set input
+testPendingKeyReplace("Set", (values) => new Set(values))
+
+test("#8 - replace() handles multiple pending values correctly", () => {
+  const set = fobx.observable(new Set<string>())
+  let counter = 0
+  let hasValue1 = false
+  let hasValue2 = false
+  let hasValue3 = false
+
+  // Set up autorun that requests multiple values that don't exist yet
+  const dispose = fobx.autorun(() => {
+    counter++
+    hasValue1 = set.has("value1")
+    hasValue2 = set.has("value2")
+    hasValue3 = set.has("value3")
+  })
+
+  expect(counter).toBe(1)
+  expect(hasValue1).toBe(false)
+  expect(hasValue2).toBe(false)
+  expect(hasValue3).toBe(false)
+
+  // Replace with only some of the tracked values
+  set.replace(["value1", "value3", "untracked"])
+
+  // Should trigger reaction because value1 and value3 were added
+  expect(counter).toBe(2)
+  expect(hasValue1).toBe(true)
+  expect(hasValue2).toBe(false) // Still false
+  expect(hasValue3).toBe(true)
+
+  // Now replace again with value2
+  set.replace(["value2", "value1"]) // Keep value1, add value2, remove value3
+
+  // Should trigger another reaction
+  expect(counter).toBe(3)
+  expect(hasValue1).toBe(true) // Still true
+  expect(hasValue2).toBe(true) // Now true
+  expect(hasValue3).toBe(false) // Now false (removed)
+
+  dispose()
+})
+
+test("#8 - replace() after tracking non-existent values maintains reactivity", () => {
+  const set = fobx.observable(new Set<string>())
+  let counter = 0
+  let trackedValues: boolean[] = []
+
+  // Set up autorun that tracks multiple non-existent values
+  const dispose = fobx.autorun(() => {
+    counter++
+    trackedValues = [
+      set.has("alpha"),
+      set.has("beta"),
+      set.has("gamma"),
+    ]
+  })
+
+  expect(counter).toBe(1)
+  expect(trackedValues).toEqual([false, false, false])
+
+  // Add some other values to verify they don't trigger the reaction
+  set.add("other1")
+  set.add("other2")
+  expect(counter).toBe(1) // Should not have changed
+
+  // Replace with some of the tracked values
+  set.replace(["alpha", "gamma", "other3"])
+
+  expect(counter).toBe(2)
+  expect(trackedValues).toEqual([true, false, true])
+
+  // Verify the set contains the expected values
+  expect(Array.from(set).sort()).toEqual(["alpha", "gamma", "other3"])
+
+  // Replace again to test continued reactivity
+  set.replace(["beta", "alpha"]) // Remove gamma, add beta, keep alpha
+
+  expect(counter).toBe(3)
+  expect(trackedValues).toEqual([true, true, false])
+
+  dispose()
+})
+
+test("#8 - replace() clears all existing values and replaces with new ones", () => {
+  const set = fobx.observable(new Set(["existing1", "existing2", "existing3"]))
+  let counter = 0
+  let sizeValue = 0
+  let hasExisting1 = false
+  let hasNewValue = false
+
+  const dispose = fobx.autorun(() => {
+    counter++
+    sizeValue = set.size
+    hasExisting1 = set.has("existing1")
+    hasNewValue = set.has("newValue")
+  })
+
+  expect(counter).toBe(1)
+  expect(sizeValue).toBe(3)
+  expect(hasExisting1).toBe(true)
+  expect(hasNewValue).toBe(false)
+
+  // Replace all values
+  set.replace(["newValue", "anotherNew"])
+
+  expect(counter).toBe(2)
+  expect(sizeValue).toBe(2)
+  expect(hasExisting1).toBe(false) // Should be removed
+  expect(hasNewValue).toBe(true) // Should be added
+
+  // Verify the set only contains the new values
+  expect(Array.from(set).sort()).toEqual(["anotherNew", "newValue"])
+
+  dispose()
+})

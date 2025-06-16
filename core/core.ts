@@ -2,11 +2,6 @@ export type { ObservableArray } from "./observables/observableArray.ts"
 export type { ObservableMap } from "./observables/observableMap.ts"
 export type { ObservableSet } from "./observables/observableSet.ts"
 export type { ObservableBox } from "./observables/observableBox.ts"
-export type {
-  ExplicitAnnotation,
-  ExplicitAnnotationConfig,
-  ExplicitAnnotationMap,
-} from "./observables/makeObservable.ts"
 
 export { extendObservable } from "./observables/observableObject.ts"
 export {

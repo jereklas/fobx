@@ -24,8 +24,16 @@ const globalState = /* @__PURE__ */ getGlobalState()
 export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   #keys: ObservableSetWithAdmin<K>
   #shallow: boolean
+  #pendingKeys: Map<K, IObservable<V | undefined>>
   override toString(): string {
     return `[object ObservableMap]`
+  }
+
+  #moveToPendingIfTracked(key: K, ov: IObservable<V | undefined>): void {
+    const ovAdmin = (ov as ObservableBoxWithAdmin<V | undefined>)[$fobx]
+    if (ovAdmin.observers.length > 0) {
+      this.#pendingKeys.set(key, ov)
+    }
   }
 
   constructor()
@@ -48,6 +56,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     const name = `ObservableMap@${globalState.getNextId()}`
     this.#shallow = options?.shallow ?? false
     this.#keys = observable(new Set<K>()) as ObservableSetWithAdmin
+    this.#pendingKeys = new Map<K, IObservable<V | undefined>>()
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
     this.constructor = Object.getPrototypeOf(new Map()).constructor
     // make sure options are set before we add initial values
@@ -71,6 +80,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       },
     })
   }
+
   #delete(
     this: ObservableMap,
     key: K,
@@ -85,6 +95,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     return result
   }
+
   #set(
     this: ObservableMap,
     key: K,
@@ -96,6 +107,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       : value
     const reused = reusableValues.get(key) as IObservable<V>
     const ov = reused ?? (super.get(key) as IObservable<V>)
+
     this.#keys.add(key)
 
     if (ov) {
@@ -106,6 +118,20 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         super.set(key, ov as V)
       }
       ov.value = val
+      return
+    }
+
+    const pendingOv = this.#pendingKeys.get(key)
+
+    if (pendingOv) {
+      // Remove from pending and place into actual map
+      this.#pendingKeys.delete(key)
+      super.set(key, pendingOv as V)
+
+      if (pendingOv.value !== val) {
+        incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
+      }
+      pendingOv.value = value
     } else {
       super.set(key, observableBox(val) as V)
     }
@@ -142,8 +168,18 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   override clear(this: ObservableMap) {
     const admin = (this as ObservableMapWithAdmin)[$fobx]
     runInAction(() => {
+      this.#pendingKeys.forEach((pendingOv, key) => {
+        if (super.has(key)) {
+          pendingOv.value = undefined
+        }
+      })
       // Cannot call super.clear() it stops observability
       this.forEach((_value, key) => {
+        const ov = super.get(key) as IObservable<V | undefined> | undefined
+        if (ov) {
+          // Move to pending keys if someone is tracking it
+          this.#moveToPendingIfTracked(key, ov)
+        }
         this.set(key, undefined)
         this.#delete(key)
       })
@@ -170,10 +206,15 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
 
     return runInAction(() => {
       if (ov) {
+        // Move the observable to pending keys if someone might be tracking it
+        this.#moveToPendingIfTracked(key, ov)
         ov.value = undefined
       }
       const result = this.#delete(key, { preventNotification: true })
       if (result) {
+        if (!this.#pendingKeys.has(key)) {
+          this.#pendingKeys.set(key, observableBox(undefined as V | undefined))
+        }
         incrementChangeCount(admin)
         sendChange(admin)
       }
@@ -191,19 +232,25 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     }
     super.forEach(cb, thisArg)
   }
+
   override has(this: ObservableMap, key: K): boolean {
     trackObservable((this as ObservableMapWithAdmin)[$fobx])
     return super.has(key)
   }
+
   override get(this: ObservableMap, key: K): V | undefined {
-    const ov = super.get(key) as ObservableBoxWithAdmin<V> | undefined
-    if (ov) {
-      trackObservable(ov[$fobx])
-    } else {
-      trackObservable((this as ObservableMapWithAdmin)[$fobx])
+    let ov = super.get(key) as IObservable<V | undefined> | undefined
+    if (!ov) {
+      ov = this.#pendingKeys.get(key)
+      if (!ov) {
+        ov = observableBox(undefined as V | undefined)
+        this.#pendingKeys.set(key, ov)
+      }
     }
-    return ov?.value
+    trackObservable((ov as ObservableBoxWithAdmin<V | undefined>)[$fobx])
+    return ov.value
   }
+
   override set(key: K, value: V): this {
     const oldValue = (super.get(key) as IObservable<V> | undefined)?.value
     if (oldValue === value) return this
@@ -281,6 +328,8 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
           return
         }
         oldValue.set(key, (ov as IObservable).value)
+        // Move to pending if being tracked
+        this.#moveToPendingIfTracked(key, ov as IObservable<V | undefined>)
         ;(ov as IObservable).value = undefined
         this.#delete(key)
       })

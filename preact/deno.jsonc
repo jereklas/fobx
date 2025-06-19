@@ -1,6 +1,6 @@
 {
   "name": "@fobx/preact",
-  "version": "0.8.0",
+  "version": "0.9.1",
   "description": "React higher order function reaction.",
   "keywords": [
     "fobx",
@@ -16,7 +16,7 @@
   "module": "index.js",
   "types": "index.d.ts",
   "peerDependencies": {
-    "@fobx/core": ">=0.6.0",
+    "@fobx/core": ">=0.10.0",
     "preact": ">=10"
   },
   /* everything below this is replaced in build.ts */

@@ -1,6 +1,6 @@
 {
   "name": "@fobx/react",
-  "version": "0.8.0",
+  "version": "0.9.1",
   "description": "React higher order function reaction.",
   "keywords": [
     "fobx",
@@ -16,7 +16,7 @@
   "module": "index.js",
   "types": "index.d.ts",
   "peerDependencies": {
-    "@fobx/core": ">=0.6.0",
+    "@fobx/core": ">=0.10.0",
     "react": ">=18"
   },
   /* everything below this is replaced in build.ts */

@@ -2,6 +2,7 @@ import type { ObservableMapWithAdmin } from "../observableMap.ts"
 import { $fobx } from "../../state/global.ts"
 import * as fobx from "@fobx/core"
 import { beforeEach, expect, fn, test } from "@fobx/testing"
+import { autorun } from "../../reactions/autorun.ts"
 
 beforeEach(() => {
   fobx.configure({ enforceActions: false })
@@ -120,6 +121,35 @@ test("reaction to map as a collection work as expected", () => {
   expect(reactionFn).toHaveBeenCalledTimes(4)
   m.clear()
   expect(reactionFn).toHaveBeenCalledTimes(5)
+})
+
+test("issue #8 - map.has when looking at a non-existant key only gets notified when that key changes", () => {
+  const m = fobx.observable(new Map())
+
+  let runs = -1
+  autorun(() => {
+    runs++
+    m.has("a")
+  })
+
+  m.set("b", 1)
+  expect(runs).toBe(0)
+
+  m.set("a", 2)
+  expect(runs).toBe(1)
+})
+
+test("issue #8 - pending keys need to support case where value assigned is undefined", () => {
+  const m = fobx.observable(new Map())
+
+  let runs = -1
+  autorun(() => {
+    runs++
+    m.get("a")
+  })
+
+  m.set("a", undefined)
+  expect(runs).toBe(1)
 })
 
 test("#8 - observable map only reacts when keys requested change", () => {
@@ -339,7 +369,7 @@ test("#8 - merge() handles multiple pending keys correctly", () => {
   // Should trigger reaction because key1 and key3 were updated
   expect(counter).toBe(2)
   expect(key1Value).toBe("value1")
-  expect(key2Value).toBe(undefined) // Still undefined
+  expect(key2Value).toBe(undefined)
   expect(key3Value).toBe("value3")
 
   // Now add key2

@@ -585,7 +585,7 @@ test("issue 893", () => {
     "toJS",
   ]
   for (const key of keys) {
-    expect(m.get(key)).toBe(undefined)
+    expect(m.get(key), `key "${key}" should be undefined`).toBe(undefined)
   }
 })
 

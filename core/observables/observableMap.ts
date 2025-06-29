@@ -20,17 +20,18 @@ export type ObservableMapWithAdmin = ObservableMap & {
 export type MapOptions = { shallow?: boolean }
 
 const globalState = /* @__PURE__ */ getGlobalState()
+const uniqueValue = Symbol("uniqueValue")
 
 export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   #keys: ObservableSetWithAdmin<K>
   #shallow: boolean
-  #pendingKeys: Map<K, IObservable<V | undefined>>
+  #pendingKeys: Map<K, IObservable<V>>
   override toString(): string {
     return `[object ObservableMap]`
   }
 
-  #moveToPendingIfTracked(key: K, ov: IObservable<V | undefined>): void {
-    const ovAdmin = (ov as ObservableBoxWithAdmin<V | undefined>)[$fobx]
+  #moveToPendingIfTracked(key: K, ov: IObservable<V>): void {
+    const ovAdmin = (ov as ObservableBoxWithAdmin<V>)[$fobx]
     if (ovAdmin.observers.length > 0) {
       this.#pendingKeys.set(key, ov)
     }
@@ -55,8 +56,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     super()
     const name = `ObservableMap@${globalState.getNextId()}`
     this.#shallow = options?.shallow ?? false
-    this.#keys = observable(new Set<K>()) as ObservableSetWithAdmin
-    this.#pendingKeys = new Map<K, IObservable<V | undefined>>()
+    this.#keys = observable(new Set<K>(), {
+      shallow: true,
+    }) as ObservableSetWithAdmin
+    this.#pendingKeys = new Map<K, IObservable<V>>()
     // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
     this.constructor = Object.getPrototypeOf(new Map()).constructor
     // make sure options are set before we add initial values
@@ -128,10 +131,8 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       this.#pendingKeys.delete(key)
       super.set(key, pendingOv as V)
 
-      if (pendingOv.value !== val) {
-        incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
-      }
-      pendingOv.value = value
+      incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
+      pendingOv.value = val
     } else {
       super.set(key, observableBox(val) as V)
     }
@@ -170,17 +171,17 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     runInAction(() => {
       this.#pendingKeys.forEach((pendingOv, key) => {
         if (super.has(key)) {
-          pendingOv.value = undefined
+          pendingOv.value = uniqueValue
         }
       })
       // Cannot call super.clear() it stops observability
       this.forEach((_value, key) => {
-        const ov = super.get(key) as IObservable<V | undefined> | undefined
+        const ov = super.get(key) as IObservable<V>
         if (ov) {
           // Move to pending keys if someone is tracking it
           this.#moveToPendingIfTracked(key, ov)
         }
-        this.set(key, undefined)
+        this.set(key, uniqueValue)
         this.#delete(key)
       })
       incrementChangeCount(admin)
@@ -189,7 +190,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   }
   override delete(this: ObservableMap, key: K): boolean {
     const admin = (this as ObservableMapWithAdmin)[$fobx]
-    const ov = super.get(key) as IObservable<V | undefined> | undefined
+    const ov = super.get(key) as IObservable<V>
 
     // deno-lint-ignore no-process-global
     if (process.env.NODE_ENV !== "production") {
@@ -208,12 +209,12 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       if (ov) {
         // Move the observable to pending keys if someone might be tracking it
         this.#moveToPendingIfTracked(key, ov)
-        ov.value = undefined
+        ov.value = uniqueValue as V
       }
       const result = this.#delete(key, { preventNotification: true })
       if (result) {
         if (!this.#pendingKeys.has(key)) {
-          this.#pendingKeys.set(key, observableBox(undefined as V | undefined))
+          this.#pendingKeys.set(key, observableBox(uniqueValue))
         }
         incrementChangeCount(admin)
         sendChange(admin)
@@ -234,26 +235,41 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   }
 
   override has(this: ObservableMap, key: K): boolean {
-    trackObservable((this as ObservableMapWithAdmin)[$fobx])
-    return super.has(key)
+    if (super.has(key)) {
+      trackObservable((super.get(key) as ObservableBoxWithAdmin)[$fobx])
+      return true
+    } else {
+      let ov = this.#pendingKeys.get(key)
+      if (!ov) {
+        ov = observableBox(uniqueValue as V)
+        this.#pendingKeys.set(key, ov)
+      }
+      trackObservable((ov as ObservableBoxWithAdmin)[$fobx])
+      return false
+    }
   }
 
   override get(this: ObservableMap, key: K): V | undefined {
-    let ov = super.get(key) as IObservable<V | undefined> | undefined
+    let ov = super.get(key) as IObservable<V> | undefined
     if (!ov) {
       ov = this.#pendingKeys.get(key)
       if (!ov) {
-        ov = observableBox(undefined as V | undefined)
+        ov = observableBox(uniqueValue as V)
         this.#pendingKeys.set(key, ov)
       }
     }
-    trackObservable((ov as ObservableBoxWithAdmin<V | undefined>)[$fobx])
-    return ov.value
+    trackObservable((ov as ObservableBoxWithAdmin<V>)[$fobx])
+    const value = ov.value
+    // maps return undefined when key doesn't exist, so make sure that happens if
+    // we're actually in a pendingKey scenario
+    return value === uniqueValue ? undefined : value
   }
 
   override set(key: K, value: V): this {
-    const oldValue = (super.get(key) as IObservable<V> | undefined)?.value
-    if (oldValue === value) return this
+    if (super.has(key)) {
+      const oldValue = (super.get(key) as IObservable<V>)?.value
+      if (oldValue === value) return this
+    }
     const admin = (this as unknown as ObservableMapWithAdmin)[$fobx]
 
     // deno-lint-ignore no-process-global
@@ -329,8 +345,8 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
         }
         oldValue.set(key, (ov as IObservable).value)
         // Move to pending if being tracked
-        this.#moveToPendingIfTracked(key, ov as IObservable<V | undefined>)
-        ;(ov as IObservable).value = undefined
+        this.#moveToPendingIfTracked(key, ov as IObservable<V>)
+        ;(ov as IObservable).value = uniqueValue
         this.#delete(key)
       })
 

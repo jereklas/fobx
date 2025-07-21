@@ -5,9 +5,10 @@ import { $fobx, type Any, getGlobalState } from "../state/global.ts"
 import { isMap, isObject, isObservable } from "../utils/predicates.ts"
 import { trackObservable } from "../transactions/tracking.ts"
 import { runInAction } from "../transactions/action.ts"
-import { instanceState } from "../state/instance.ts"
+import { instanceState, isDifferent } from "../state/instance.ts"
 import { sendChange } from "./notifications.ts"
 import {
+  type EqualityOptions,
   type IObservable,
   type IObservableAdmin,
   observableBox,
@@ -17,7 +18,10 @@ import {
 export type ObservableMapWithAdmin = ObservableMap & {
   [$fobx]: IObservableCollectionAdmin
 }
-export type MapOptions = { shallow?: boolean }
+
+export interface MapOptions extends EqualityOptions {
+  shallow?: boolean
+}
 
 const globalState = /* @__PURE__ */ getGlobalState()
 const uniqueValue = Symbol("uniqueValue")
@@ -26,6 +30,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
   #keys: ObservableSetWithAdmin<K>
   #shallow: boolean
   #pendingKeys: Map<K, IObservable<V>>
+  #equalityOptions: EqualityOptions
   override toString(): string {
     return `[object ObservableMap]`
   }
@@ -56,6 +61,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     super()
     const name = `ObservableMap@${globalState.getNextId()}`
     this.#shallow = options?.shallow ?? false
+    this.#equalityOptions = {
+      equals: options?.equals,
+      comparer: options?.comparer,
+    }
     this.#keys = observable(new Set<K>(), {
       shallow: true,
     }) as ObservableSetWithAdmin
@@ -114,7 +123,13 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     this.#keys.add(key)
 
     if (ov) {
-      if (ov.value !== val) {
+      if (
+        isDifferent(
+          ov.value,
+          val,
+          this.#equalityOptions?.equals ?? this.#equalityOptions.comparer,
+        )
+      ) {
         incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
       }
       if (reused) {
@@ -134,7 +149,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
       pendingOv.value = val
     } else {
-      super.set(key, observableBox(val) as V)
+      super.set(key, observableBox(val, this.#equalityOptions) as V)
     }
   }
   #addEntries(
@@ -214,7 +229,10 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
       const result = this.#delete(key, { preventNotification: true })
       if (result) {
         if (!this.#pendingKeys.has(key)) {
-          this.#pendingKeys.set(key, observableBox(uniqueValue))
+          this.#pendingKeys.set(
+            key,
+            observableBox(uniqueValue, this.#equalityOptions),
+          )
         }
         incrementChangeCount(admin)
         sendChange(admin)
@@ -241,7 +259,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     } else {
       let ov = this.#pendingKeys.get(key)
       if (!ov) {
-        ov = observableBox(uniqueValue as V)
+        ov = observableBox(uniqueValue as V, this.#equalityOptions)
         this.#pendingKeys.set(key, ov)
       }
       trackObservable((ov as ObservableBoxWithAdmin)[$fobx])
@@ -254,7 +272,7 @@ export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
     if (!ov) {
       ov = this.#pendingKeys.get(key)
       if (!ov) {
-        ov = observableBox(uniqueValue as V)
+        ov = observableBox(uniqueValue as V, this.#equalityOptions)
         this.#pendingKeys.set(key, ov)
       }
     }

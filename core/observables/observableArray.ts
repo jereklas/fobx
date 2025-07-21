@@ -4,12 +4,13 @@ import { incrementChangeCount, wrapIteratorForTracking } from "./helpers.ts"
 import { $fobx, type Any, getGlobalState } from "../state/global.ts"
 import { isObject, isObservable } from "../utils/predicates.ts"
 import { trackObservable } from "../transactions/tracking.ts"
-import { instanceState } from "../state/instance.ts"
+import { instanceState, isDifferent } from "../state/instance.ts"
 import { sendChange } from "./notifications.ts"
+import type { EqualityOptions } from "./observableBox.ts"
 
 const globalState = /* @__PURE__ */ getGlobalState()
 
-export type ArrayOptions = {
+export interface ArrayOptions extends EqualityOptions {
   shallow?: boolean
 }
 
@@ -33,12 +34,16 @@ export function createObservableArray<T = Any>(
   options?: ArrayOptions,
 ) {
   const shallow = options?.shallow ?? false
+  const equalityOptions = {
+    equals: options?.equals,
+    comparer: options?.comparer,
+  }
   const arr: T[] = []
   // have to use for-loop as forEach ignores empty slots (i.e. observable(new Array(10)) wont correctly be length 10)
   for (let i = 0; i < initialValue.length; i += 1) {
     arr.push(
       !shallow && isObject(initialValue[i]) && !isObservable(initialValue[i])
-        ? (observable(initialValue[i] as Any) as T)
+        ? (observable(initialValue[i] as Any, equalityOptions) as T)
         : initialValue[i],
     )
   }
@@ -164,12 +169,12 @@ export function createObservableArray<T = Any>(
             if (prop === "push" || prop === "unshift" || prop === "splice") {
               const start = prop === "splice" ? 2 : 0
               for (let i = start; i < args.length; i += 1) {
-                args[i] = convertValue(args[i], shallow)
+                args[i] = convertValue(args[i], shallow, equalityOptions)
               }
               result = value.apply(target, args)
             } else if (prop === "replace") {
               for (let i = 0; i < args[0].length; i += 1) {
-                args[0][i] = convertValue(args[0][i], shallow)
+                args[0][i] = convertValue(args[0][i], shallow, equalityOptions)
               }
               result = value.apply(target, args)
             } else {
@@ -189,13 +194,16 @@ export function createObservableArray<T = Any>(
         admin.temp.push(target[prop as unknown as number])
         target[prop as unknown as number] = newValue
       } else {
-        if (target[prop as unknown as number] === newValue) return true
+        const fn = equalityOptions?.equals ?? equalityOptions.comparer
+        if (!isDifferent(target[prop as unknown as number], newValue, fn)) {
+          return true
+        }
         incrementChangeCount(admin)
 
         runInAction(() => {
           target[prop as unknown as number] = prop === "length"
             ? newValue
-            : convertValue(newValue, shallow)
+            : convertValue(newValue, shallow, equalityOptions)
           sendChange(admin)
         })
       }
@@ -236,10 +244,14 @@ const twoArgFns = new Set([
 ])
 const threeArgFns = new Set(["copyWithin", "fill"])
 
-function convertValue<T>(value: T, shallow: boolean) {
+function convertValue<T>(
+  value: T,
+  shallow: boolean,
+  equalityOptions: EqualityOptions,
+): T {
   if (shallow) return value
   return isObject(value) && !isObservable(value)
-    ? (observable(value as Any) as T)
+    ? (observable(value as Any, equalityOptions) as T)
     : value
 }
 

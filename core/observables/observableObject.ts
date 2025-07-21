@@ -33,11 +33,9 @@ export type AnnotationConfig =
   | Annotation
   | [Annotation, EqualityChecker | ComparisonType]
 
-export type AnnotationsMap<T, AdditionalFields extends PropertyKey> =
-  & {
-    [P in keyof T]?: AnnotationConfig
-  }
-  & Record<AdditionalFields, AnnotationConfig>
+export type AnnotationsMap<T> = {
+  [P in keyof T]?: AnnotationConfig
+}
 
 export type ObservableObjectOptions = {
   /**
@@ -147,7 +145,7 @@ export const prepareObservableObject = <T extends object>(
 
 export const createAutoObservableObject = <T extends object>(
   obj: T,
-  overrides: AnnotationsMap<T, Any> = {},
+  overrides: AnnotationsMap<T> = {},
   options?: ObservableObjectOptions,
 ) => {
   // Use the shared utility function for handling shallow options
@@ -178,7 +176,7 @@ export const createAutoObservableObject = <T extends object>(
 export const extendObservable = <T extends object, E extends object>(
   source: T,
   extension: E,
-  annotations: AnnotationsMap<E, Any> = {},
+  annotations: AnnotationsMap<E> = {},
 ): T & E => {
   if (!isPlainObject(extension)) {
     throw new Error(

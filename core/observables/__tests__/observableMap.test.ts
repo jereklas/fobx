@@ -3,9 +3,59 @@ import { $fobx } from "../../state/global.ts"
 import * as fobx from "@fobx/core"
 import { beforeEach, expect, fn, test } from "@fobx/testing"
 import { autorun } from "../../reactions/autorun.ts"
+import { deepEqual } from "fast-equals"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } })
+})
+
+test("observable map respects structural option", () => {
+  const m = fobx.observable(new Map([["a", { a: 1 }]]), {
+    comparer: "structural",
+  })
+  let runs = -1
+
+  autorun(() => {
+    runs++
+    m.get("a")
+  })
+  expect(runs).toBe(0)
+
+  // structurally equal object does not cause reaction to run
+  m.set("a", { a: 1 })
+  expect(runs).toBe(0)
+
+  // structurally different object causes reaction to run
+  m.set("a", { a: 2 })
+  expect(runs).toBe(1)
+
+  m.set("a", { a: 2 })
+  expect(runs).toBe(1)
+})
+
+test("observable map made through object observable respects structural option", () => {
+  fobx.observable({ a: 1 })
+  const o = fobx.observable({ m: new Map([["a", { a: 1 }]]) }, {
+    m: ["observable", "structural"],
+  })
+  let runs = -1
+
+  autorun(() => {
+    runs++
+    o.m.get("a")
+  })
+  expect(runs).toBe(0)
+
+  // structurally equal object does not cause reaction to run
+  o.m.set("a", { a: 1 })
+  expect(runs).toBe(0)
+
+  // structurally different object causes reaction to run
+  o.m.set("a", { a: 2 })
+  expect(runs).toBe(1)
+
+  o.m.set("a", { a: 2 })
+  expect(runs).toBe(1)
 })
 
 test("observable API for maps successfully constructs map", () => {

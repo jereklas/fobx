@@ -2,9 +2,56 @@ import type { ObservableArrayWithAdmin } from "../observableArray.ts"
 import { $fobx } from "../../state/global.ts"
 import * as fobx from "@fobx/core"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
+import { deepEqual } from "fast-equals"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } })
+})
+
+test("observable array respects structural option", () => {
+  const a = fobx.observable([{ a: 1 }], { comparer: "structural" })
+  let runs = -1
+
+  fobx.autorun(() => {
+    runs++
+    a[0]
+  })
+  expect(runs).toBe(0)
+
+  // structurally equal object does not cause reaction to run
+  a[0] = { a: 1 }
+  expect(runs).toBe(0)
+
+  // structurally different object causes reaction to run
+  a[0] = { a: 2 }
+  expect(runs).toBe(1)
+
+  a[0] = { a: 2 }
+  expect(runs).toBe(1)
+})
+
+test("observable array made through object observable respects structural option", () => {
+  const o = fobx.observable({ a: [{ a: 1 }] }, {
+    a: ["observable", "structural"],
+  })
+  let runs = -1
+
+  fobx.autorun(() => {
+    runs++
+    o.a[0]
+  })
+  expect(runs).toBe(0)
+
+  // structurally equal object does not cause reaction to run
+  o.a[0] = { a: 1 }
+  expect(runs).toBe(0)
+
+  // structurally different object causes reaction to run
+  o.a[0] = { a: 2 }
+  expect(runs).toBe(1)
+
+  o.a[0] = { a: 2 }
+  expect(runs).toBe(1)
 })
 
 test("observable API for arrays successfully constructs arrays", () => {

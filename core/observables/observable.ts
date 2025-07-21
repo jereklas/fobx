@@ -47,7 +47,7 @@ export function observable<
   AdditionalFields extends PropertyKey,
 >(
   obj: T,
-  annotations?: AnnotationsMap<T, AdditionalFields>,
+  annotations?: AnnotationsMap<T>,
   options?: ObservableObjectOptions,
 ): ObservableObject<T>
 export function observable(obj: Any, a?: Any, b?: Any) {

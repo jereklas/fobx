@@ -8,9 +8,34 @@ import { $fobx } from "../../state/global.ts"
 import * as fobx from "@fobx/core"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 import { ViewModel } from "@fobx/react"
+import { deepEqual } from "fast-equals"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } })
+})
+
+test("nested objects respect individually specified structural option", () => {
+  const o = fobx.observable({ a: { b: 1 } }, {
+    a: ["observable", "structural"],
+  })
+  let runs = -1
+
+  fobx.autorun(() => {
+    runs++
+    o.a
+  })
+  expect(runs).toBe(0)
+
+  // structurally equal object does not cause reaction to run
+  o.a = { b: 1 }
+  expect(runs).toBe(0)
+
+  // structurally different object causes reaction to run
+  o.a = { b: 2 }
+  expect(runs).toBe(1)
+
+  o.a = { b: 2 }
+  expect(runs).toBe(1)
 })
 
 const noErrorOnObservableTC = [

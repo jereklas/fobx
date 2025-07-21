@@ -63,7 +63,7 @@ type AnnotationHandler = (
 export function annotateObject(
   source: Any,
   target: ObservableObject,
-  annotations: AnnotationsMap<Any, Any>,
+  annotations: AnnotationsMap<Any>,
   options: {
     shallowRef?: boolean
     inferAnnotations: boolean
@@ -188,11 +188,13 @@ const observableAnnotationHandler: AnnotationHandler = (options) => {
 
     const valueTransform = (v: Any) => {
       if (Array.isArray(v)) {
-        return isObservableArray(v) ? v : createObservableArray(v, { shallow })
+        return isObservableArray(v)
+          ? v
+          : createObservableArray(v, { shallow, ...equalityOptions })
       } else if (isMap(v)) {
         return isObservableMap(v)
           ? v
-          : new ObservableMap(v.entries(), { shallow })
+          : new ObservableMap(v.entries(), { shallow, ...equalityOptions })
       } else if (isSet(v)) {
         return isObservableSet(v) ? v : new ObservableSet(v, { shallow })
       } else if (isObject(v)) {
@@ -320,7 +322,7 @@ type ParsedAnnotation = {
 }
 
 function parseAnnotation(
-  annotations: AnnotationsMap<Any, Any>,
+  annotations: AnnotationsMap<Any>,
   key: string,
   options: {
     shallowRef: boolean | undefined

@@ -26,10 +26,14 @@ export interface IObservableAdmin<T = Any> extends IFobxAdmin {
   value: T
   observers: IReactionAdmin[]
 }
-export type ObservableBoxOptions<T> = {
-  valueTransform?: (value: T) => Any
+
+export interface EqualityOptions {
   equals?: EqualityChecker
   comparer?: ComparisonType
+}
+
+export interface ObservableBoxOptions<T> extends EqualityOptions {
+  valueTransform?: (value: T) => Any
 }
 
 export class ObservableBox<T = Any> implements IObservable<T> {

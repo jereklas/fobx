@@ -1,4 +1,3 @@
-import type { Any } from "../state/global.ts"
 import { isPlainObject } from "../utils/predicates.ts"
 import { annotateObject } from "./annotationProcessor.ts"
 import {
@@ -15,7 +14,7 @@ import {
  */
 export function makeObservable<T extends object>(
   source: T,
-  annotations: AnnotationsMap<T, Any>,
+  annotations: AnnotationsMap<T>,
 ): T {
   const isPlainObj = isPlainObject(source)
   const observableObject = prepareObservableObject(source, isPlainObj)

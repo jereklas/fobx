@@ -5,7 +5,8 @@
     "./preact",
     "./utils",
     "./testing",
-    "./doc-site"
+    "./doc-site",
+    "./v2"
     // "./playground"
   ],
   "fmt": {

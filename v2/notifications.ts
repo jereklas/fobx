@@ -21,9 +21,24 @@ export function notifyObservers(
   for (let i = 0; i < length; i++) {
     const reaction = observers[i]
 
-    // CRITICAL: Skip the currently executing reaction to prevent re-queuing itself
-    // A reaction should not be notified of changes it's causing while it's running
+    // Handle the currently tracking reaction specially:
+    // - If a PURE observable (box, array, map, set) is modified during tracking,
+    //   re-queue the reaction for another run after tracking completes. This handles
+    //   autorun bodies that modify observables they read.
+    // - If a COMPUTED is recomputed lazily during tracking (e.g., reaction expression
+    //   calls c.get() which triggers recomputation), do NOT re-queue. The tracking
+    //   reaction already received the new value from the get() call.
     if (reaction === $global.tracking) {
+      // Pure observables don't have 'state'; computed admins do (via ReactionAdmin)
+      const isPureObservable = !("state" in observable)
+      if (
+        isPureObservable &&
+        notificationType === NotificationType.CHANGED &&
+        reaction.state === ReactionState.UP_TO_DATE
+      ) {
+        reaction.state = ReactionState.STALE
+        $global.pending.push(reaction)
+      }
       continue
     }
 

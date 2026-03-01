@@ -1,15 +1,26 @@
-// Reaction (two-phase) implementation
+/**
+ * Reaction — two-phase: expression (tracked) → effect (untracked on change).
+ */
 
-import { $fobx, $global, type EqualityComparison, getNextId } from "./global.ts"
+import {
+  $fobx,
+  _batchDepth,
+  type Any,
+  type Dispose,
+  type EqualityComparison,
+  getNextId,
+  KIND_COLLECTION,
+  KIND_REACTION,
+  pushPending,
+  type ReactionAdmin,
+  STALE,
+  UP_TO_DATE,
+} from "./global.ts"
 import { resolveComparer } from "./instance.ts"
-import type { Dispose, ReactionAdmin } from "./types.ts"
-import { ReactionState } from "./types.ts"
 import { removeFromAllDeps, withoutTracking, withTracking } from "./tracking.ts"
-import { safeRunReaction } from "./graph.ts"
-import { isObservableArray, isObservableMap, isObservableSet } from "./utils.ts"
+import { safeRunReaction } from "./batch.ts"
+import { hasFobxAdmin } from "./utils.ts"
 
-// Symbol to represent "no previous value yet" (undefined is a valid value)
-// Using Symbol.for allows consumers to identify it if they need to
 export const UNDEFINED = Symbol.for("fobx-undefined")
 
 export interface ReactionOptions<T> {
@@ -18,11 +29,6 @@ export interface ReactionOptions<T> {
   comparer?: EqualityComparison
 }
 
-/**
- * Creates a two-phase reaction
- * Phase 1: expression function (tracked) - computes a value
- * Phase 2: effect function (untracked) - runs side effects when value changes
- */
 export function reaction<T>(
   expression: (dispose: Dispose) => T,
   effect: (
@@ -35,77 +41,59 @@ export function reaction<T>(
   let isDisposed = false
   let isFirst = true
   let previousValue: T | typeof UNDEFINED = UNDEFINED
-  let previousChanges: number | undefined = undefined // Track changes counter for collections
+  let previousChanges: number | undefined = undefined
 
-  // Resolve comparer
   const comparer = resolveComparer(options.comparer)
 
-  // Dispose function
   const dispose: Dispose = () => {
     if (isDisposed) return
     isDisposed = true
     removeFromAllDeps(admin)
   }
 
-  // Create admin for the reaction
+  const id = getNextId()
   const admin: ReactionAdmin = {
-    id: getNextId(),
-    name: options.name || `Reaction@${getNextId()}`,
-    state: ReactionState.STALE,
+    kind: KIND_REACTION,
+    id,
+    name: options.name || `Reaction@${id}`,
+    state: STALE,
     deps: [],
     run: () => {
       if (isDisposed) return
+      admin.state = UP_TO_DATE
 
-      // Set state to UP_TO_DATE before running
-      admin.state = ReactionState.UP_TO_DATE
-
-      // Phase 1: Track dependencies while computing new value
+      // Phase 1: Track dependencies
       const newValue = withTracking(admin, () => expression(dispose))
 
-      const isObservableCollection = isObservableArray(newValue) ||
-        isObservableMap(newValue) ||
-        isObservableSet(newValue)
-
-      // CRITICAL: If the result is an observable (array/map/set), register as observer
-      // This handles cases like: reaction(() => arr, ...)
-      // Without this, returning the array reference doesn't register as a dependency
-      if (isObservableCollection) {
-        const observable = (newValue as any)[$fobx]
-        if (observable) {
-          // Ensure this reaction is registered as an observer
-          const deps = admin.deps
-          if (deps.indexOf(observable) === -1) {
-            deps.push(observable)
-          }
-          const observers = observable.observers
-          if (observers.indexOf(admin) === -1) {
-            observers.push(admin)
-          }
-        }
-      }
-
-      // Snapshot the changes counter for collections
+      // Check if result is an observable collection (array, map, or set)
       let currentChanges: number | undefined = undefined
+      const collectionAdmin = hasFobxAdmin(newValue)
+        ? (newValue as Any)[$fobx]
+        : undefined
+      const isObservableCollection = collectionAdmin?.kind === KIND_COLLECTION
+
+      // If result is an observable collection, register as observer and snapshot changes
       if (isObservableCollection) {
-        const observable = (newValue as any)[$fobx]
-        if (observable && "changes" in observable) {
-          currentChanges = observable.changes
+        const deps = admin.deps
+        if (deps.indexOf(collectionAdmin) === -1) {
+          deps.push(collectionAdmin)
         }
+        const observers = collectionAdmin.observers
+        if (observers.indexOf(admin) === -1) {
+          observers.push(admin)
+        }
+        currentChanges = collectionAdmin.changes
       }
 
-      // Check if value changed (or first run with fireImmediately)
-      // For collections with changes counter, compare that instead of reference
+      // Check if value changed
       let valueChanged: boolean
       if (previousValue === UNDEFINED) {
-        // First run - value always "changed" (though we check fireImmediately below)
         valueChanged = true
       } else if (
         currentChanges !== undefined && previousChanges !== undefined
       ) {
-        // Collection: compare changes counter
         valueChanged = currentChanges !== previousChanges
       } else {
-        // Regular value: use comparer
         valueChanged = !comparer(previousValue as T, newValue)
       }
 
@@ -114,7 +102,6 @@ export function reaction<T>(
         : valueChanged
 
       if (shouldRun) {
-        // Phase 2: Run effect without tracking (side effects shouldn't create dependencies)
         withoutTracking(() => {
           effect(newValue, previousValue, dispose)
         })
@@ -126,9 +113,8 @@ export function reaction<T>(
     },
   }
 
-  // If in a transaction, queue for later execution; otherwise run immediately
-  if ($global.batchDepth > 0) {
-    $global.pending.push(admin)
+  if (_batchDepth > 0) {
+    pushPending(admin)
   } else {
     safeRunReaction(admin)
   }

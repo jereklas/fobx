@@ -1,103 +1,116 @@
-// Dependency tracking functions
+/**
+ * Dependency tracking with epoch-based duplicate detection.
+ *
+ * Each ObservableAdmin is stamped with the current epoch when tracked.
+ * If it already matches, the dep is skipped (O(1) duplicate check).
+ */
 
-import { $global } from "./global.ts"
-import type { ObservableAdmin, ReactionAdmin } from "./types.ts"
+import {
+  _epoch,
+  _tracking,
+  nextEpoch,
+  type ObservableAdmin,
+  type ReactionAdmin,
+  setTracking,
+} from "./global.ts"
+
+// ─── Module-level state ──────────────────────────────────────────────────────
+
+let _prevTracking: ReactionAdmin | null = null
+let _oldDeps: ObservableAdmin[] = []
 
 /**
- * Track access to an observable during a reaction
- * Called when an observable is read - registers dependency and observer
- * 
- * PERF: Optimized for hot paths with indexOf checks to avoid duplicates
+ * Track access to an observable during a reaction.
+ * Called when an observable is read.
  */
 export function trackAccess(admin: ObservableAdmin): void {
-  const tracking = $global.tracking
-  if (tracking === null) return // Not in a reaction, nothing to track
+  const t = _tracking
+  if (t === null) return
 
-  // Add observable to current reaction's dependencies (if not already present)
-  const deps = tracking.deps
-  if (deps.indexOf(admin) === -1) {
-    deps.push(admin)
-  }
+  // O(1) duplicate check: if this admin was already tracked this epoch, skip
+  if (admin._epoch === _epoch) return
+  admin._epoch = _epoch
 
-  // Add reaction to observable's observers (if not already present)
-  const observers = admin.observers
-  if (observers.indexOf(tracking) === -1) {
-    observers.push(tracking)
-  }
+  // Add bidirectional links
+  t.deps.push(admin)
+  admin.observers.push(t)
 }
 
 /**
- * Begins tracking dependencies for a reaction
+ * Begin tracking dependencies for a reaction.
+ * Uses module-level vars to avoid allocating a return object.
  */
-export function startTracking(
-  reaction: ReactionAdmin,
-): { oldDeps: ObservableAdmin[]; prevTracking: ReactionAdmin | null } {
-  // Cache the current dependencies before clearing
-  const oldDeps = reaction.deps
+export function startTracking(reaction: ReactionAdmin): void {
+  // Increment epoch for this tracking pass (used by trackAccess dedup)
+  nextEpoch()
 
-  // Clear deps array to collect fresh dependencies
+  // Stash current deps for cleanup
+  _oldDeps = reaction.deps
   reaction.deps = []
 
-  // Set as currently tracking reaction
-  const prevTracking = $global.tracking
-  $global.tracking = reaction
-
-  // Return old deps and previous tracking for cleanup
-  return { oldDeps, prevTracking }
+  // Stash previous tracking context
+  _prevTracking = _tracking
+  setTracking(reaction)
 }
 
 /**
- * Ends tracking and restores previous context
+ * Get the old deps saved by startTracking (for callers that need them).
+ */
+export function getOldDeps(): ObservableAdmin[] {
+  return _oldDeps
+}
+
+/**
+ * Get the previous tracking context saved by startTracking.
+ */
+export function getPrevTracking(): ReactionAdmin | null {
+  return _prevTracking
+}
+
+/**
+ * End tracking and restore previous context.
+ * Takes the saved prevTracking value to correctly handle nested tracking
+ * (module-level _prevTracking gets overwritten by inner startTracking calls).
  */
 export function stopTracking(prevTracking: ReactionAdmin | null): void {
-  // Restore previous tracking context
-  $global.tracking = prevTracking
+  setTracking(prevTracking)
 }
 
 /**
- * Internal helper: removes a specific dependency from reaction's observer list
- * Used by both cleanupGraph and removeFromAllDeps
+ * Remove a reaction from a single dep's observers list.
+ * Uses swap-and-pop for O(1) removal.
  */
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
   const observers = dep.observers
   const idx = observers.indexOf(reaction)
   if (idx >= 0) {
-    // PERF: Swap-and-pop for O(1) removal
-    observers[idx] = observers[observers.length - 1]
+    const last = observers.length - 1
+    if (idx !== last) observers[idx] = observers[last]
     observers.pop()
-    
-    // CRITICAL: Notify dependency it lost an observer (enables computed suspension)
     dep.onLoseObserver?.()
   }
 }
 
 /**
- * Cleans up dependency graph edges for dependencies that are no longer tracked
+ * Clean up old dependency graph edges after tracking.
+ *
+ * Always removes the old observer link for every previous dep.
+ * - For stale deps (not re-tracked): removes the only link → fully disconnected.
+ * - For re-tracked deps: trackAccess already added a fresh link, so removing
+ *   the old one leaves exactly one. This prevents O(N) observer list growth.
  */
 export function cleanupGraph(
   reaction: ReactionAdmin,
   oldDeps: ObservableAdmin[],
 ): void {
-  // newDeps is already in reaction.deps (populated during tracking)
-  const newDeps = reaction.deps
-
-  // Remove reaction from observers that are no longer dependencies
   for (let i = 0; i < oldDeps.length; i++) {
-    const dep = oldDeps[i]
-    if (newDeps.indexOf(dep) === -1) {
-      // This dependency is no longer needed
-      removeObserver(dep, reaction)
-    }
+    removeObserver(oldDeps[i], reaction)
   }
-
-  // reaction.deps already contains the new dependencies (no reassignment needed)
 }
 
 /**
- * Removes a reaction from all its dependencies' observer lists
- * Used when a reaction is being disposed or suspended
- * 
- * PERF: Uses swap-and-pop for O(1) removal from observer arrays
+ * Remove a reaction from ALL its dependencies' observer lists.
+ * Used when disposing a reaction.
  */
 export function removeFromAllDeps(reaction: ReactionAdmin): void {
   const deps = reaction.deps
@@ -108,10 +121,13 @@ export function removeFromAllDeps(reaction: ReactionAdmin): void {
 }
 
 /**
- * Execute a function with dependency tracking enabled
+ * Execute fn with dependency tracking enabled.
+ * Handles startTracking → fn → stopTracking → cleanupGraph.
  */
 export function withTracking<T>(reaction: ReactionAdmin, fn: () => T): T {
-  const { oldDeps, prevTracking } = startTracking(reaction)
+  startTracking(reaction)
+  const oldDeps = _oldDeps
+  const prevTracking = _prevTracking
   try {
     return fn()
   } finally {
@@ -121,14 +137,14 @@ export function withTracking<T>(reaction: ReactionAdmin, fn: () => T): T {
 }
 
 /**
- * Execute a function with dependency tracking disabled
+ * Execute fn with dependency tracking disabled.
  */
 export function withoutTracking<T>(fn: () => T): T {
-  const prevTracking = $global.tracking
-  $global.tracking = null
+  const prev = _tracking
+  setTracking(null)
   try {
     return fn()
   } finally {
-    $global.tracking = prevTracking
+    setTracking(prev)
   }
 }

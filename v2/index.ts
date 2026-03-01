@@ -26,14 +26,15 @@ export { withoutTracking } from "./tracking.ts"
 // Utilities
 export {
   hasFobxAdmin,
-  isPlainObject,
   isComputed,
   isObservable,
   isObservableArray,
   isObservableBox,
+  isObservableCollection,
   isObservableMap,
   isObservableObject,
   isObservableSet,
+  isPlainObject,
   isTransaction,
 } from "./utils.ts"
 
@@ -59,11 +60,11 @@ export type {
 } from "./object.ts"
 export type { ConfigureOptions } from "./instance.ts"
 export type { EqualityChecker, EqualityComparison } from "./global.ts"
+export { POSSIBLY_STALE, STALE, UP_TO_DATE } from "./global.ts"
 export type {
   ComputedAdmin,
   Dispose,
   FobxAdmin,
   ObservableAdmin,
   ReactionAdmin,
-} from "./types.ts"
-export { ReactionState } from "./types.ts"
+} from "./global.ts"

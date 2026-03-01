@@ -1,68 +1,178 @@
-// Batching and transaction functions
+/**
+ * Batch processing and graph resolution — the scheduler.
+ *
+ * The scheduling cycle:
+ *   startBatch() → mutations → endBatch() → runPendingReactions() → safeRunReaction()
+ */
 
-import { $fobx, $global } from "./global.ts"
-import { runPendingReactions } from "./graph.ts"
+import {
+  $fobx,
+  _actionThrew,
+  _batchDepth,
+  _pending,
+  type Any,
+  clearPending,
+  decBatch,
+  drainPendingInto,
+  incBatch,
+  KIND_COMPUTED,
+  POSSIBLY_STALE,
+  type ReactionAdmin,
+  setActionThrew,
+  STALE,
+  swapPending,
+  UP_TO_DATE,
+} from "./global.ts"
+import { isNotProduction, setRunPendingReactions } from "./notifications.ts"
 import { withoutTracking } from "./tracking.ts"
 
-/**
- * Start a batch - increments the batch depth counter
- */
+// ─── Batch API ───────────────────────────────────────────────────────────────
+
 export function startBatch(): void {
-  $global.batchDepth++
+  incBatch()
 }
 
-/**
- * End a batch - decrements the batch depth counter and runs pending reactions if at 0
- */
 export function endBatch(): void {
-  $global.batchDepth--
-
-  if ($global.batchDepth === 0) {
+  decBatch()
+  if (_batchDepth === 0) {
     runPendingReactions()
   }
 }
+
+// ─── Graph Resolution ────────────────────────────────────────────────────────
+
+/**
+ * Safely run a reaction's computation, catching and logging errors.
+ * Wraps execution in batch context to ensure nested mutations are batched.
+ */
+export function safeRunReaction(reaction: ReactionAdmin): void {
+  incBatch()
+  try {
+    reaction.run()
+  } catch (error) {
+    if (_actionThrew) {
+      if (isNotProduction) {
+        console.error(
+          `[@fobx/core] "${reaction.name}" exception suppressed because a transaction threw an error first. Fix the transaction's error.`,
+        )
+      }
+    } else {
+      if (isNotProduction) {
+        console.error(`[@fobx/core] "${reaction.name}" threw an exception`)
+        console.error(error)
+      }
+    }
+  } finally {
+    decBatch()
+    if (_batchDepth === 0) {
+      runPendingReactions()
+    }
+  }
+}
+
+/**
+ * Resolve the dependency graph by running all pending reactions.
+ * Called when batchDepth reaches 0.
+ */
+function runPendingReactions(): void {
+  // Early bail when nothing is pending.
+  if (_pending.length === 0) return
+
+  let currentBatch = swapPending()
+  let unresolved: ReactionAdmin[] = []
+  let iterations = 0
+
+  while (currentBatch.length > 0) {
+    iterations++
+    if (iterations > 100) {
+      console.error(
+        "[@fobx/core] Reaction doesn't converge to a stable state after 100 iterations. " +
+          "Likely cycle in reactive graph or reaction mutating state causing infinite loop. " +
+          "Abandoning remaining reactions to prevent app crash.",
+      )
+      break
+    }
+
+    const batchLength = currentBatch.length
+    for (let i = 0; i < batchLength; i++) {
+      const reaction = currentBatch[i]
+      let resolved = false
+
+      if (reaction.state === UP_TO_DATE) {
+        resolved = true
+      } else if (reaction.state === STALE) {
+        safeRunReaction(reaction)
+        resolved = true
+      } else if (reaction.state === POSSIBLY_STALE) {
+        // Check if all deps are up to date
+        let allDepsUpToDate = true
+        const deps = reaction.deps
+        const depsLength = deps.length
+        for (let j = 0; j < depsLength; j++) {
+          const dep = deps[j]
+          // Pure observables (box, collection) don't have state — skip
+          if (dep.kind === KIND_COMPUTED) {
+            const depState = (dep as unknown as ReactionAdmin).state
+            if (
+              depState === STALE ||
+              depState === POSSIBLY_STALE
+            ) {
+              allDepsUpToDate = false
+              break
+            }
+          }
+        }
+        if (allDepsUpToDate) {
+          reaction.state = UP_TO_DATE
+          resolved = true
+        }
+      }
+
+      if (!resolved) {
+        unresolved.push(reaction)
+      }
+    }
+
+    // Check if reactions mutated state and pushed more into pending
+    drainPendingInto(unresolved)
+
+    currentBatch = unresolved
+    unresolved = []
+  }
+
+  clearPending()
+}
+
+// Wire up the notification module's forward reference
+setRunPendingReactions(runPendingReactions)
+
+// ─── Transaction API ─────────────────────────────────────────────────────────
 
 export interface TransactionOptions {
   name?: string
 }
 
-/**
- * Execute a function within a transaction (batched and untracked)
- *
- * Can be called two ways:
- * 1. As executor: transaction(() => code) - runs immediately
- * 2. As wrapper: transaction(fn, options) - returns wrapped function
- *
- * Transactions are batched and untracked:
- * - Batched: mutations don't trigger reactions until transaction completes
- * - Untracked: reading observables inside transaction doesn't create dependencies
- */
-export function transaction<T extends (...args: any[]) => any>(
+export function transaction<T extends (...args: Any[]) => Any>(
   fn: T,
   options?: TransactionOptions,
 ): T {
   const name = options?.name || fn.name || "<unnamed transaction>"
 
-  const wrapper = function (this: unknown, ...args: any[]) {
-    startBatch()
+  const wrapper = function (this: unknown, ...args: Any[]) {
+    incBatch()
     try {
       return withoutTracking(() => fn.apply(this, args))
     } catch (e) {
-      $global.actionThrew = true
+      setActionThrew(true)
       throw e
     } finally {
-      endBatch()
-      $global.actionThrew = false
+      decBatch()
+      if (_batchDepth === 0) runPendingReactions()
+      setActionThrew(false)
     }
   }
 
-  // Set the function name
-  Object.defineProperty(wrapper, "name", {
-    value: name,
-    configurable: true,
-  })
-
-  // Mark as transaction with $fobx symbol
+  Object.defineProperty(wrapper, "name", { value: name, configurable: true })
   Object.defineProperty(wrapper, $fobx, {
     value: true,
     enumerable: false,
@@ -72,30 +182,24 @@ export function transaction<T extends (...args: any[]) => any>(
   return wrapper as T
 }
 
-/**
- * Execute code immediately in a transaction
- */
 export function runInTransaction<T>(fn: () => T): T {
-  startBatch()
+  incBatch()
   try {
     return withoutTracking(() => fn())
   } catch (e) {
-    $global.actionThrew = true
+    setActionThrew(true)
     throw e
   } finally {
-    endBatch()
-    $global.actionThrew = false
+    decBatch()
+    if (_batchDepth === 0) runPendingReactions()
+    setActionThrew(false)
   }
 }
 
-/**
- * Create a bound transaction wrapper for a method
- * The returned function is bound to 'this' when created
- */
-export function transactionBound<T, F extends (this: T, ...args: any[]) => any>(
+export function transactionBound<T, F extends (this: T, ...args: Any[]) => Any>(
   fn: F,
 ): F {
-  return function (this: T, ...args: any[]) {
+  return function (this: T, ...args: Any[]) {
     return transaction(() => fn.apply(this, args))
   } as F
 }

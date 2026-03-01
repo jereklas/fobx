@@ -1,59 +1,139 @@
-// Global state and utilities for the reactive system
-
-import type { ReactionAdmin } from "./types.ts"
-
-// Incrementing ID for unique identification
-// OVERFLOW: Protects against Number.MAX_SAFE_INTEGER issues
-// Using modulo is faster than conditional checks (if id === MAX_SAFE_INTEGER)
-// At 10M, duplicate IDs are extremely unlikely in practice
-// Worst case: something recalculates once more than needed (not catastrophic)
-const OVERFLOW = 10_000_000
-let nextId = 0
-
-export function getNextId(): number {
-  nextId++
-  return nextId % OVERFLOW
-}
+// ─── Global state, types, and utilities for the reactive system ──────────────
 
 // deno-lint-ignore no-explicit-any
-export type EqualityChecker = (a: any, b: any) => boolean
+export type Any = any
 
+// ─── Admin Kind Discriminant ─────────────────────────────────────────────────
+
+export const KIND_BOX = 0
+export const KIND_COMPUTED = 1
+export const KIND_AUTORUN = 2
+export const KIND_REACTION = 3
+export const KIND_WHEN = 4
+export const KIND_COLLECTION = 5 // keysAdmin / collectionAdmin on maps/sets/arrays
+
+// ─── Reaction State ──────────────────────────────────────────────────────────
+
+export const UP_TO_DATE = 0
+export const POSSIBLY_STALE = 1
+export const STALE = 2
+
+// ─── Notification Type ───────────────────────────────────────────────────────
+
+export const NOTIFY_CHANGED = 0
+export const NOTIFY_INDETERMINATE = 1
+
+// ─── IDs ─────────────────────────────────────────────────────────────────────
+
+const OVERFLOW = 10_000_000
+let _nextId = 0
+
+export function getNextId(): number {
+  return (++_nextId) % OVERFLOW
+}
+
+// ─── Equality ────────────────────────────────────────────────────────────────
+
+export type EqualityChecker = (a: Any, b: Any) => boolean
 export type EqualityComparison = EqualityChecker | "structural" | "default"
 
-// used for a key on objects in the system for tracking state
-export const $fobx = Symbol("fobx-admin")
-
-// Sentinel value to distinguish "no cached value" from "cached undefined"
-export const NOT_CACHED = Symbol("not-cached")
-
-// Global state for dependency tracking and batch processing
-interface GlobalState {
-  tracking: ReactionAdmin | null
-  batchDepth: number
-  pending: ReactionAdmin[]
-  actionThrew: boolean // Set to true when a transaction throws, cleared in finally block
-}
-
-export const $global: GlobalState = {
-  tracking: null,
-  batchDepth: 0,
-  pending: [],
-  actionThrew: false,
-}
-
-// Default equality comparer - reference equality + NaN handling
 export function defaultComparer(a: unknown, b: unknown): boolean {
-  // If the items are strictly equal, no need to do a value comparison
-  if (a === b) {
-    return true
-  }
-  // If the items are not non-nullish objects, then the only possibility of them being equal but
-  // not strictly is if they are both `NaN`. Since `NaN` is uniquely not equal to itself, we can
-  // use self-comparison of both objects, which is faster than `isNaN()`.
+  if (a === b) return true
   if (
     a == null || b == null || typeof a !== "object" || typeof b !== "object"
   ) {
-    return a !== a && b !== b
+    return a !== a && b !== b // NaN check
   }
   return false
+}
+
+// ─── Symbols & Sentinels ─────────────────────────────────────────────────────
+
+export const $fobx = Symbol("fobx-admin")
+export const NOT_CACHED = Symbol("not-cached")
+
+// ─── Admin Interfaces ────────────────────────────────────────────────────────
+
+export interface ObservableAdmin<T = unknown> {
+  kind: number
+  id: number
+  name: string
+  value: T
+  observers: ReactionAdmin[]
+  comparer: EqualityChecker
+  /** Epoch-based tracking: last epoch this admin was added as a dep */
+  _epoch: number
+  /** Optional: called when losing an observer (enables computed suspension) */
+  onLoseObserver?: () => void
+  /** Collection mutation counter (used by array/map/set admins) */
+  changes?: number
+}
+
+export interface ReactionAdmin {
+  kind: number
+  id: number
+  name: string
+  state: number
+  deps: ObservableAdmin[]
+  run: () => void
+}
+
+export interface ComputedAdmin<T = unknown>
+  extends ReactionAdmin, ObservableAdmin<T> {
+  isInsideSetter?: boolean
+}
+
+export type Dispose = () => void
+
+export interface FobxAdmin {
+  id: number
+  name: string
+}
+
+// ─── Global Mutable State ────────────────────────────────────────────────────
+
+/** Currently-tracking reaction (set during reaction execution) */
+export let _tracking: ReactionAdmin | null = null
+/** Batch nesting depth. Reactions only run when this reaches 0. */
+export let _batchDepth = 0
+/** Reactions queued for execution at end of batch */
+export let _pending: ReactionAdmin[] = []
+/** Set to true when a transaction throws, cleared in finally */
+export let _actionThrew = false
+/** Monotonically increasing epoch for dependency tracking */
+export let _epoch = 0
+
+// ─── Mutator Functions ───────────────────────────────────────────────────────
+
+export function setTracking(v: ReactionAdmin | null): void {
+  _tracking = v
+}
+export function incBatch(): void {
+  _batchDepth++
+}
+export function decBatch(): void {
+  _batchDepth--
+}
+export function pushPending(r: ReactionAdmin): void {
+  _pending.push(r)
+}
+/** Swap pending queue for a fresh one, returning the old batch. */
+export function swapPending(): ReactionAdmin[] {
+  const old = _pending
+  _pending = []
+  return old
+}
+export function clearPending(): void {
+  _pending.length = 0
+}
+/** Drain extra items from pending into target array, then clear pending. */
+export function drainPendingInto(target: ReactionAdmin[]): void {
+  for (let i = 0; i < _pending.length; i++) target.push(_pending[i])
+  _pending.length = 0
+}
+export function setActionThrew(v: boolean): void {
+  _actionThrew = v
+}
+export function nextEpoch(): number {
+  return ++_epoch
 }

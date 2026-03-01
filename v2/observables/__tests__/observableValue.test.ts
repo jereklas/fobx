@@ -1,4 +1,4 @@
-import type { ReactionAdmin } from "../../types.ts"
+import type { ReactionAdmin } from "../../global.ts"
 import type { ObservableBox } from "../../box.ts"
 import { $fobx } from "../../global.ts"
 import * as fobx from "../../index.ts"

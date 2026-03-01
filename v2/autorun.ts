@@ -1,58 +1,61 @@
-import { $global, getNextId } from "./global.ts"
-import type { Dispose, ReactionAdmin } from "./types.ts"
-import { ReactionState } from "./types.ts"
+/**
+ * Autorun reaction — runs immediately, re-runs on dependency changes.
+ */
+
+import {
+  _batchDepth,
+  type Dispose,
+  getNextId,
+  KIND_AUTORUN,
+  pushPending,
+  type ReactionAdmin,
+  STALE,
+  UP_TO_DATE,
+} from "./global.ts"
 import { removeFromAllDeps, withTracking } from "./tracking.ts"
-import { safeRunReaction } from "./graph.ts"
+import { safeRunReaction } from "./batch.ts"
 import { isTransaction } from "./utils.ts"
 
 export interface AutorunOptions {
   name?: string
 }
 
-/**
- * Creates an autorun reaction
- * Runs immediately and re-runs whenever any observed observables change
- */
 export function autorun(
   fn: (dispose: Dispose) => void,
   options: AutorunOptions = {},
 ): Dispose {
   let isDisposed = false
+
   if (isTransaction(fn)) {
     throw new Error(
       "[@fobx/core] Autorun cannot have a transaction as the tracked function.",
     )
   }
 
-  // Dispose function
   const dispose: Dispose = () => {
     if (isDisposed) return
     isDisposed = true
     removeFromAllDeps(admin)
   }
 
-  // Create admin for the reaction
+  const id = getNextId()
   const admin: ReactionAdmin = {
-    id: getNextId(),
-    name: options.name || `Autorun@${getNextId()}`,
-    state: ReactionState.STALE,
+    kind: KIND_AUTORUN,
+    id,
+    name: options.name || `Autorun@${id}`,
+    state: STALE,
     deps: [],
     run: () => {
       if (isDisposed) return
-
-      // Set state to UP_TO_DATE before running
-      admin.state = ReactionState.UP_TO_DATE
-
-      // Track dependencies while running the effect
+      admin.state = UP_TO_DATE
       withTracking(admin, () => {
         fn(dispose)
       })
     },
   }
 
-  // If in a transaction, queue for later execution; otherwise run immediately
-  if ($global.batchDepth > 0) {
-    $global.pending.push(admin)
+  if (_batchDepth > 0) {
+    pushPending(admin)
   } else {
     safeRunReaction(admin)
   }

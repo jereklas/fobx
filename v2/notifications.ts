@@ -1,43 +1,66 @@
-// Notification propagation functions - OPTIMIZED
+/**
+ * Notification propagation.
+ *
+ * Uses `kind` discriminant for type checks and inlines per-observer logic.
+ * `notifyChanged` centralizes the notify + runPending pattern.
+ */
 
-import { $global } from "./global.ts"
-import type { ComputedAdmin, ObservableAdmin } from "./types.ts"
-import { NotificationType, ReactionState } from "./types.ts"
+import {
+  _batchDepth,
+  _pending,
+  _tracking,
+  type ComputedAdmin,
+  KIND_BOX,
+  KIND_COLLECTION,
+  KIND_COMPUTED,
+  NOTIFY_CHANGED,
+  NOTIFY_INDETERMINATE,
+  type ObservableAdmin,
+  POSSIBLY_STALE,
+  pushPending,
+  STALE,
+  UP_TO_DATE,
+} from "./global.ts"
+
+// Forward declaration — set by batch.ts to break circular dep
+let _runPendingReactions: () => void = () => {}
+
+export function setRunPendingReactions(fn: () => void): void {
+  _runPendingReactions = fn
+}
+
+// Cache dev mode check at module level (supports both Deno and Node)
+const isNotProduction =
+  (typeof Deno !== "undefined" && Deno.env?.get("NODE_ENV") !== "production") ||
+  // deno-lint-ignore no-process-global no-process-global
+  (typeof process !== "undefined" && process.env?.NODE_ENV !== "production")
 
 /**
- * Sends notifications to all observers of an observable
- * PERF: This runs on every observable write with observers - CRITICAL HOT PATH
- *
- * OPTIMIZED: Inlined handleNotification logic to eliminate function call overhead
+ * Notify all observers of an observable that it changed.
+ * This is the core propagation function — runs on every observable write with observers.
  */
 export function notifyObservers(
   observable: ObservableAdmin,
-  notificationType: NotificationType,
+  notificationType: number,
 ): void {
   const observers = observable.observers
   const length = observers.length
 
-  // PERF: Inline notification logic - eliminates function call per observer
   for (let i = 0; i < length; i++) {
     const reaction = observers[i]
 
-    // Handle the currently tracking reaction specially:
-    // - If a PURE observable (box, array, map, set) is modified during tracking,
-    //   re-queue the reaction for another run after tracking completes. This handles
-    //   autorun bodies that modify observables they read.
-    // - If a COMPUTED is recomputed lazily during tracking (e.g., reaction expression
-    //   calls c.get() which triggers recomputation), do NOT re-queue. The tracking
-    //   reaction already received the new value from the get() call.
-    if (reaction === $global.tracking) {
-      // Pure observables don't have 'state'; computed admins do (via ReactionAdmin)
-      const isPureObservable = !("state" in observable)
+    // Handle the currently-tracking reaction specially
+    if (reaction === _tracking) {
+      // Pure observables (box, collection) can re-queue the tracker
+      // Computed lazy recomputation during tracking should NOT re-queue
+      const kind = observable.kind
       if (
-        isPureObservable &&
-        notificationType === NotificationType.CHANGED &&
-        reaction.state === ReactionState.UP_TO_DATE
+        (kind === KIND_BOX || kind === KIND_COLLECTION) &&
+        notificationType === NOTIFY_CHANGED &&
+        reaction.state === UP_TO_DATE
       ) {
-        reaction.state = ReactionState.STALE
-        $global.pending.push(reaction)
+        reaction.state = STALE
+        pushPending(reaction)
       }
       continue
     }
@@ -45,39 +68,52 @@ export function notifyObservers(
     const state = reaction.state
 
     if (
-      state === ReactionState.STALE || state === ReactionState.POSSIBLY_STALE
+      state === STALE || state === POSSIBLY_STALE
     ) {
       // Upgrade to STALE if receiving CHANGED notification
-      if (notificationType === NotificationType.CHANGED) {
-        reaction.state = ReactionState.STALE
+      if (notificationType === NOTIFY_CHANGED) {
+        reaction.state = STALE
       }
-      // Short circuit - already in pending queue, already propagated downstream
-      continue
-    } else if (state === ReactionState.UP_TO_DATE) {
-      // Transition state based on notification type
-      reaction.state = notificationType === NotificationType.CHANGED
-        ? ReactionState.STALE
-        : ReactionState.POSSIBLY_STALE
+      continue // Already queued
+    }
 
-      // CRITICAL: Only queue reactions with observers (don't queue suspended computeds)
-      // A computed with no observers should not be re-run just because dependency changed
-      const isComputed = "observers" in reaction
-      const hasobservers = isComputed
-        ? (reaction as ComputedAdmin).observers.length > 0
-        : true
+    // state === UP_TO_DATE
+    reaction.state = notificationType === NOTIFY_CHANGED
+      ? STALE
+      : POSSIBLY_STALE
 
-      if (hasobservers) {
-        // Add to pending queue
-        $global.pending.push(reaction)
-      }
+    // Only queue reactions that have observers (don't queue suspended computeds)
+    const isComp = reaction.kind === KIND_COMPUTED
+    const hasObservers = isComp
+      ? (reaction as unknown as ComputedAdmin).observers.length > 0
+      : true
 
-      // PERF: Check if this is a computed (has observers property) to propagate
-      if (isComputed && hasobservers) {
-        notifyObservers(
-          reaction as unknown as ObservableAdmin,
-          NotificationType.INDETERMINATE,
-        )
-      }
+    if (hasObservers) {
+      pushPending(reaction)
+    }
+
+    // Propagate through computed chain
+    if (isComp && hasObservers) {
+      notifyObservers(
+        reaction as unknown as ObservableAdmin,
+        NOTIFY_INDETERMINATE,
+      )
     }
   }
 }
+
+/**
+ * Single helper: notify observers that a value changed + run pending if not batching.
+ * Centralizes the notify + runPending pattern to avoid per-call-site duplication.
+ */
+export function notifyChanged(admin: ObservableAdmin): void {
+  if (admin.observers.length > 0) {
+    notifyObservers(admin, NOTIFY_CHANGED)
+  }
+  // Skip runPendingReactions when nothing was queued (common for unobserved writes).
+  if (_batchDepth === 0 && _pending.length > 0) {
+    _runPendingReactions()
+  }
+}
+
+export { isNotProduction }

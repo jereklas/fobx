@@ -1,5 +1,5 @@
 import { $fobx } from "../global.ts"
-import type { ObservableAdmin } from "../types.ts"
+import type { ObservableAdmin } from "../global.ts"
 import * as fobx from "../index.ts"
 import {
   beforeEach,
@@ -106,6 +106,9 @@ describe("reaction", () => {
 })
 
 test("An exception thrown in the side effect gets logged to stderr", () => {
+  const onReactionError = fn()
+  fobx.configure({ enforceActions: false, onReactionError })
+
   const a = fobx.box(0)
   fobx.reaction(
     () => a.get(),
@@ -119,4 +122,5 @@ test("An exception thrown in the side effect gets logged to stderr", () => {
       a.set(a.get() + 1)
     }),
   ).toMatch(/\[@fobx\/core\] "Reaction@.* threw an exception/)
+  expect(onReactionError).toHaveBeenCalledWith(Error("hmm"), expect.anything())
 })

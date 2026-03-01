@@ -15,16 +15,24 @@ import {
 import { removeFromAllDeps, withoutTracking, withTracking } from "./tracking.ts"
 import { safeRunReaction } from "./batch.ts"
 
+const ERR_TIMEOUT = "When reaction timed out"
+const ERR_CANCEL = "When reaction was canceled"
+const ERR_ABORT = "When reaction was aborted"
+
 export interface WhenOptions {
   name?: string
   timeout?: number
+  onError?: (error: Error) => void
+  signal?: AbortSignal
 }
+
+export type WhenPromise = Promise<void> & { cancel: () => void }
 
 // Overloads
 export function when(
   predicate: () => boolean,
   options?: WhenOptions,
-): Promise<void>
+): WhenPromise
 export function when(
   predicate: () => boolean,
   effect: () => void,
@@ -34,7 +42,7 @@ export function when(
   predicate: () => boolean,
   effectOrOptions?: (() => void) | WhenOptions,
   maybeOptions?: WhenOptions,
-): Promise<void> | Dispose {
+): WhenPromise | Dispose {
   const hasEffect = typeof effectOrOptions === "function"
   const effect = hasEffect ? effectOrOptions : undefined
   const options = hasEffect
@@ -42,27 +50,12 @@ export function when(
     : effectOrOptions as WhenOptions | undefined
 
   if (!effect) {
-    return new Promise<void>((resolve, reject) => {
-      let timerId: ReturnType<typeof setTimeout> | undefined
-      const dispose = createWhen(
-        predicate,
-        () => {
-          if (timerId !== undefined) clearTimeout(timerId)
-          resolve()
-        },
-        options,
-        (error) => {
-          if (timerId !== undefined) clearTimeout(timerId)
-          reject(error)
-        },
+    if (options?.onError) {
+      throw new Error(
+        "[@fobx/core] Cannot use onError option when using async when.",
       )
-      if (options?.timeout) {
-        timerId = setTimeout(() => {
-          dispose()
-          reject(new Error("[@fobx/core] Timeout waiting for condition"))
-        }, options.timeout)
-      }
-    })
+    }
+    return createWhenPromise(predicate, options)
   }
 
   return createWhen(predicate, effect, options)
@@ -72,14 +65,31 @@ function createWhen(
   predicate: (dispose: Dispose) => boolean,
   effect: () => void,
   options?: WhenOptions,
-  onError?: (error: Error) => void,
 ): Dispose {
   let isDisposed = false
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
 
   const dispose: Dispose = () => {
     if (isDisposed) return
     isDisposed = true
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle)
     removeFromAllDeps(admin)
+  }
+
+  if (options?.timeout) {
+    timeoutHandle = setTimeout(
+      () => {
+        if (isDisposed) return
+        dispose()
+        const err = new Error(ERR_TIMEOUT)
+        if (options.onError) {
+          options.onError(err)
+        } else {
+          throw err
+        }
+      },
+      options.timeout,
+    )
   }
 
   const id = getNextId()
@@ -98,23 +108,27 @@ function createWhen(
         predicateResult = withTracking(admin, () => predicate(dispose))
       } catch (error) {
         dispose()
-        if (onError) {
-          onError(error instanceof Error ? error : new Error(String(error)))
+        if (options?.onError) {
+          options.onError(
+            error instanceof Error ? error : new Error(String(error)),
+          )
         }
         return
       }
 
       if (predicateResult) {
+        dispose()
         withoutTracking(() => {
           try {
             effect()
           } catch (error) {
-            if (onError) {
-              onError(error instanceof Error ? error : new Error(String(error)))
+            if (options?.onError) {
+              options.onError(
+                error instanceof Error ? error : new Error(String(error)),
+              )
             }
           }
         })
-        dispose()
       }
     },
   }
@@ -126,4 +140,32 @@ function createWhen(
   }
 
   return dispose
+}
+
+function createWhenPromise(
+  predicate: () => boolean,
+  options?: WhenOptions,
+): WhenPromise {
+  let cancel!: () => void
+  let abort!: () => void
+  const promise = new Promise<void>((resolve, reject) => {
+    const dispose = createWhen(predicate, resolve, {
+      ...options,
+      onError: reject,
+    })
+    cancel = () => {
+      dispose()
+      reject(new Error(ERR_CANCEL))
+    }
+    abort = () => {
+      dispose()
+      reject(new Error(ERR_ABORT))
+    }
+    options?.signal?.addEventListener("abort", abort)
+  }).finally(() =>
+    options?.signal?.removeEventListener("abort", abort)
+  ) as WhenPromise
+  promise.cancel = cancel
+
+  return promise
 }

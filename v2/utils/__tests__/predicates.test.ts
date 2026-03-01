@@ -50,6 +50,12 @@ describe("isObservableCollection", () => {
     expect(fobx.isObservableMap(arr)).toBe(false)
     expect(fobx.isObservableSet(arr)).toBe(false)
   })
+
+  test("returns false when administration is invalid", () => {
+    const arr = [1]
+    Object.defineProperty(arr, $fobx, { value: "str" })
+    expect(fobx.isObservableCollection(arr)).toBe(false)
+  })
 })
 
 test("isObservable works as expected", () => {

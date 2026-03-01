@@ -24,6 +24,7 @@ import {
   UP_TO_DATE,
 } from "./global.ts"
 import { isNotProduction, setRunPendingReactions } from "./notifications.ts"
+import { $instance } from "./instance.ts"
 import { withoutTracking } from "./tracking.ts"
 
 // ─── Batch API ───────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
         console.error(`[@fobx/core] "${reaction.name}" threw an exception`)
         console.error(error)
       }
+      $instance.onReactionError?.(error, reaction)
     }
   } finally {
     decBatch()
@@ -178,6 +180,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
     enumerable: false,
     configurable: false,
   })
+  Object.setPrototypeOf(wrapper, fn)
 
   return wrapper as T
 }

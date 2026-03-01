@@ -1019,7 +1019,12 @@ export function extendObservable<T extends object, E extends object>(
 
       processProperty(admin, key, descriptor, annotation, target)
 
-      if (descriptor.value !== undefined && !descriptor.get) {
+      // Skip value assignment for transaction/flow — processProperty already installs them
+      if (
+        descriptor.value !== undefined && !descriptor.get &&
+        annotation !== "transaction" && annotation !== "transaction.bound" &&
+        annotation !== "flow"
+      ) {
         ;(target as Any)[key] = descriptor.value
       }
     }

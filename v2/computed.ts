@@ -31,6 +31,7 @@ import { notifyObservers } from "./notifications.ts"
 export interface Computed<T> {
   get(): T
   set(value: T): void
+  dispose(): void
   [$fobx]: ComputedAdmin<T>
 }
 
@@ -71,6 +72,9 @@ export function computed<T>(
     },
     set(value: T): void {
       setComputedValue(admin, value, userSetter, bindContext)
+    },
+    dispose(): void {
+      removeFromAllDeps(admin)
     },
   }
 }

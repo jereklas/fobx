@@ -1,0 +1,42 @@
+import * as fobx from "../index.ts"
+import { expect, test } from "@fobx/testing"
+
+test("library has expected exports", () => {
+  expect(Object.keys(fobx).sort()).toEqual([
+    "$fobx",
+    "POSSIBLY_STALE",
+    "STALE",
+    "UNDEFINED",
+    "UP_TO_DATE",
+    "array",
+    "autorun",
+    "box",
+    "computed",
+    "configure",
+    "extendObservable",
+    "getBoxValue",
+    "hasFobxAdmin",
+    "isComputed",
+    "isObservable",
+    "isObservableArray",
+    "isObservableBox",
+    "isObservableCollection",
+    "isObservableMap",
+    "isObservableObject",
+    "isObservableSet",
+    "isPlainObject",
+    "isTransaction",
+    "makeObservable",
+    "map",
+    "object",
+    "observable",
+    "reaction",
+    "runInTransaction",
+    "set",
+    "setBoxValue",
+    "transaction",
+    "transactionBound",
+    "when",
+    "withoutTracking",
+  ])
+})

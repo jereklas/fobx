@@ -1,5 +1,5 @@
 import { $fobx } from "../global.ts"
-import type { ComputedAdmin, ObservableAdmin } from "../types.ts"
+import type { ComputedAdmin, ObservableAdmin } from "../global.ts"
 import type { Computed } from "../computed.ts"
 import type { ObservableBox } from "../box.ts"
 import * as fobx from "../index.ts"
@@ -218,4 +218,24 @@ describe("computed", () => {
     expect(cAdmin.deps.includes(bAdmin as never)).toBe(true)
     dispose()
   })
+})
+
+test("computed value removes references to dependencies", () => {
+  const a = fobx.box(10)
+  const aAdmin = a[$fobx] as ObservableAdmin
+  const c = fobx.computed(() => {
+    return a.get() + 1
+  })
+  const cAdmin = c[$fobx] as ComputedAdmin
+  expect(cAdmin.deps.length).toBe(0)
+
+  // need a reaction to make computed run
+  const reactionFn = fn()
+  fobx.reaction(() => c.get(), reactionFn)
+  expect(cAdmin.deps.length).toBe(1)
+  expect(aAdmin.observers.length).toBe(1)
+
+  c.dispose()
+  expect(cAdmin.deps.length).toBe(0)
+  expect(aAdmin.observers.length).toBe(0)
 })

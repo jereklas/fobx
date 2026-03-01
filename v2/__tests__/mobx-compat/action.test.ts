@@ -10,8 +10,10 @@ import {
   runInTransaction,
   transaction,
 } from "../../index.ts"
+import * as fobx from "../../index.ts"
 import {
   beforeEach,
+  describe,
   expect,
   fn,
   grabConsole,
@@ -204,7 +206,7 @@ test.skip("should be able to change observed state in a transaction called from 
   d()
 })
 
-test("transaction should not be converted to computed when using observable", () => {
+test("transaction should not be converted to computed when using (extend)observable", () => {
   const a = observable({
     a: 1,
     // deno-lint-ignore no-explicit-any
@@ -217,6 +219,22 @@ test("transaction should not be converted to computed when using observable", ()
   expect(isTransaction(a.b)).toBe(true)
   a.b()
   expect(a.a).toBe(2)
+
+  fobx.extendObservable(a, {
+    // deno-lint-ignore no-explicit-any
+    c: transaction(function (this: any) {
+      this.a *= 3
+    }),
+  })
+
+  // here to remove typescript type errors when accessing "c" below
+  if (!("c" in a)) throw Error("failed to extend")
+  if (typeof a.c !== "function") throw Error("failed to extend")
+
+  expect(isComputed(a.c)).toBe(false)
+  expect(isTransaction(a.c)).toBe(true)
+  a.c()
+  expect(a.a).toBe(6)
 })
 
 test("exceptions thrown inside of transaction should not effect global state", () => {
@@ -474,4 +492,79 @@ test("given anonymous transaction, the name should be <unnamed transaction>", ()
 test("given function declaration, the transaction name should be as the function name", () => {
   const a1 = transaction(function testAction() {})
   expect(a1.name).toBe("testAction")
+})
+
+test("make sure extendObservable correctly annotates transaction if source isn't an observable object", () => {
+  const x = fobx.extendObservable(
+    {},
+    {
+      method() {},
+    },
+    { method: "transaction" },
+  )
+  x.method()
+  expect(isTransaction(x.method)).toBe(true)
+})
+
+test("transaction retains original function's prototype", () => {
+  const fn = () => {}
+  Object.defineProperty(fn, "toString", { value: () => "abc" })
+  expect(fn.toString()).toBe("abc")
+
+  const a = transaction(fn)
+  expect(a.toString()).toBe("abc")
+})
+
+describe("runInTransaction", () => {
+  test("returns the value of the supplied function", () => {
+    const a1 = (a: number, b: number) => {
+      return a + b
+    }
+
+    expect(fobx.runInTransaction(() => a1(1, 2))).toBe(3)
+  })
+
+  test("allows multiple observables to be set with only one reaction occurring from those value changes", () => {
+    const o1 = fobx.box(1)
+    const o2 = fobx.box(2)
+    const o3 = fobx.box(3)
+    const reactionFn = fn()
+    const computedFn = fn(() => o1.get() + o2.get() + o3.get())
+    const c = fobx.computed(computedFn)
+    const dispose = fobx.reaction(() => {
+      return [o1.get(), o2.get(), o3.get(), c.get()]
+    }, reactionFn)
+
+    // computed runs one time after being added to the reaction
+    expect(computedFn).toHaveBeenCalledTimes(1)
+    o1.set(o1.get() + 1)
+    o2.set(o2.get() + 1)
+    o3.set(o3.get() + 1)
+    expect(computedFn).toHaveBeenCalledTimes(4)
+    expect(reactionFn).toHaveBeenCalledTimes(3)
+    expect(c.get()).toBe(9)
+
+    // clear call count for clarity below
+    reactionFn.mockClear()
+    computedFn.mockClear()
+    expect(computedFn).toHaveBeenCalledTimes(0)
+    expect(reactionFn).toHaveBeenCalledTimes(0)
+
+    // transaction changes multiple observables, but the reactions only update once in response
+    const result = fobx.runInTransaction(() => {
+      o1.set(5)
+      o2.set(6)
+      o3.set(7)
+    })
+    expect(result).toBe(undefined)
+    // computed
+    expect(reactionFn).toHaveBeenCalledTimes(1)
+    expect(computedFn).toHaveBeenCalledTimes(1)
+    expect(reactionFn).toHaveBeenCalledWith(
+      [5, 6, 7, 18],
+      [2, 3, 4, 9],
+      expect.anything(),
+    )
+    dispose()
+  })
 })

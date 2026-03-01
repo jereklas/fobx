@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { deepEqual } from "fast-equals"
 import * as fobx from "../../index.ts"
-import { $fobx, $global } from "../../global.ts"
+import { $fobx, _batchDepth, _pending } from "../../global.ts"
 import {
   beforeAll,
   beforeEach,
@@ -42,7 +42,7 @@ test("basic", function () {
   x.set(5)
   expect(x.get()).toBe(5)
   expect(b).toEqual([5])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("basic2", function () {
@@ -62,7 +62,7 @@ test("basic2", function () {
   expect(z.get()).toBe(10)
   expect(y.get()).toBe(15)
 
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("computed with asStructure modifier", function () {
@@ -94,7 +94,7 @@ test("computed with asStructure modifier", function () {
   })
 
   expect(b).toEqual([{ sum: 8 }, { sum: 9 }])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("dynamic", function () {
@@ -112,7 +112,7 @@ test("dynamic", function () {
   expect(5).toBe(y.get())
 
   expect(b).toEqual([3, 5])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("dynamic2", function () {
@@ -133,7 +133,7 @@ test("dynamic2", function () {
 
   //no intermediate value 15!
   expect(b).toEqual([25])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("box uses equals", function () {
@@ -155,7 +155,7 @@ test("box uses equals", function () {
   x.set("C")
 
   expect(b).toEqual(["b", "C"])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("box uses equals2", function () {
@@ -181,7 +181,7 @@ test("box uses equals2", function () {
   x.set("03")
 
   expect(b).toEqual([2, 3])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("readme1", function () {
@@ -208,7 +208,7 @@ test("readme1", function () {
   expect(b).toEqual([24])
   order.price.set(10)
   expect(b).toEqual([24, 12])
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("batch", function () {
@@ -320,7 +320,7 @@ test("scope", function () {
   order.price.set(10)
   order.amount.set(3)
   expect(36).toBe(order.total.get())
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("props1", function () {
@@ -351,7 +351,7 @@ test("props1", function () {
   order.amount = 5
   expect(totals).toEqual([36, 48])
 
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("props2", function () {
@@ -480,7 +480,7 @@ test("observables removed", function () {
   expect(c.get()).toBe(9)
   expect(calcs).toBe(3)
 
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("lazy evaluation", function () {
@@ -557,7 +557,7 @@ test("lazy evaluation", function () {
 
   expect(observerChanges).toBe(1)
 
-  expect($global.batchDepth).toBe(0)
+  expect(_batchDepth).toBe(0)
 })
 
 test("multiple view dependencies", function () {
@@ -1066,8 +1066,8 @@ test("603 - transaction should not kill reactions", () => {
     // empty
   }
 
-  expect($global.batchDepth).toEqual(0)
-  expect($global.pending.length).toEqual(0)
+  expect(_batchDepth).toEqual(0)
+  expect(_pending.length).toEqual(0)
 
   expect(b).toBe(2)
   a.set(3)
@@ -1290,4 +1290,214 @@ test("#3747", () => {
     o.set(1)
     expect(c.get()).toBe(1) // would fail
   })
+})
+
+test("change count optimization", function () {
+  let bCalcs = 0
+  let cCalcs = 0
+  const a = fobx.box(3)
+  const b = fobx.computed(function () {
+    bCalcs += 1
+    return 4 + a.get() - a.get()
+  })
+  const c = fobx.computed(function () {
+    cCalcs += 1
+    return b.get()
+  })
+
+  fobx.autorun(() => c.get())
+
+  expect(b.get()).toBe(4)
+  expect(c.get()).toBe(4)
+  expect(bCalcs).toBe(1)
+  expect(cCalcs).toBe(1)
+
+  a.set(5)
+
+  expect(b.get()).toBe(4)
+  expect(c.get()).toBe(4)
+  expect(bCalcs).toBe(2)
+  expect(cCalcs).toBe(1)
+
+  expect(_batchDepth).toBe(0)
+})
+
+test("nested observable2", function () {
+  const factor = fobx.box(0)
+  const price = fobx.box(100)
+  let totalCalcs = 0
+  let innerCalcs = 0
+
+  const total = fobx.computed(function () {
+    totalCalcs += 1 // outer observable shouldn't re-calc if inner observable didn't publish a real change
+    return (
+      price.get() *
+      fobx.computed(function () {
+        innerCalcs += 1
+        return factor.get() % 2 === 0 ? 1 : 3
+      }).get()
+    )
+  })
+
+  const b: number[] = []
+  fobx.reaction(
+    () => total.get(),
+    function (x) {
+      b.push(x)
+    },
+  )
+  expect(total.get()).toBe(100)
+
+  price.set(150)
+  factor.set(7) // triggers innerCalc twice, because changing the outcome triggers the outer calculation which recreates the inner calculation
+  factor.set(5) // doesn't trigger outer calc
+  factor.set(3) // doesn't trigger outer calc
+  factor.set(4) // triggers innerCalc twice
+  price.set(20)
+
+  expect(b).toEqual([150, 450, 150, 20])
+  expect(innerCalcs).toBe(9)
+  expect(totalCalcs).toBe(5)
+})
+
+test("verify calculation count", () => {
+  const calcs: string[] = []
+  const a = fobx.box(1)
+  const b = fobx.computed(() => {
+    calcs.push("b")
+    return a.get()
+  })
+  const c = fobx.computed(() => {
+    calcs.push("c")
+    return b.get()
+  })
+  const d = fobx.autorun(() => {
+    calcs.push("d")
+    return b.get()
+  })
+  const e = fobx.autorun(() => {
+    calcs.push("e")
+    return c.get()
+  })
+  const f = fobx.computed(() => {
+    calcs.push("f")
+    return c.get()
+  })
+
+  expect(f.get()).toBe(1)
+
+  calcs.push("change")
+  a.set(2)
+
+  expect(f.get()).toBe(2)
+
+  calcs.push("transaction")
+  fobx.runInTransaction(() => {
+    expect(b.get()).toBe(2)
+    expect(c.get()).toBe(2)
+    expect(f.get()).toBe(2)
+    expect(f.get()).toBe(2)
+    calcs.push("change")
+    a.set(3)
+    expect(b.get()).toBe(3)
+    expect(b.get()).toBe(3)
+    calcs.push("try c")
+    expect(c.get()).toBe(3)
+    expect(c.get()).toBe(3)
+    calcs.push("try f")
+    expect(f.get()).toBe(3)
+    expect(f.get()).toBe(3)
+    calcs.push("end transaction")
+  })
+
+  expect(calcs).toEqual([
+    "d",
+    "b",
+    "e",
+    "c",
+    "f",
+    "change",
+    "b",
+    "d",
+    "c",
+    "e",
+    "f",
+    "transaction",
+    "f",
+    "change",
+    "b",
+    "try c",
+    "c",
+    "try f",
+    "f",
+    "end transaction",
+    "d",
+    "e",
+  ])
+
+  d()
+  e()
+})
+
+const MAX_SPLICE_SIZE = 10000
+test("ObservableArray.replace", () => {
+  // both lists are small
+  let ar = fobx.observable([1]) as fobx.ObservableArray<number>
+  let del = ar.replace([2])
+  expect(ar.toJSON()).toEqual([2])
+  expect(del).toEqual([1])
+
+  // the replacement is large
+  ar = fobx.observable([1]) as fobx.ObservableArray<number>
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE }))
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE)
+  expect(del).toEqual([1])
+
+  // the original is large
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE })) as fobx.ObservableArray<number>
+  del = ar.replace([2])
+  expect(ar).toEqual([2])
+  expect(del.length).toEqual(MAX_SPLICE_SIZE)
+
+  // both are large; original larger than replacement
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE }))
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE)
+  expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
+
+  // both are large; replacement larger than original
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE })) as fobx.ObservableArray<number>
+  del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE + 1 }))
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE + 1)
+  expect(del.length).toEqual(MAX_SPLICE_SIZE)
+})
+
+test("ObservableArray.splice", () => {
+  // Deleting 1 item from a large list
+  let ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  let del = ar.splice(1, 1)
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE)
+  expect(del.length).toEqual(1)
+
+  // Deleting many items from a large list
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 2 })) as fobx.ObservableArray<number>
+  del = ar.splice(1, MAX_SPLICE_SIZE + 1)
+  expect(ar.length).toEqual(1)
+  expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
+
+  // Deleting 1 item from a large list and inserting many items
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  del = ar.splice(1, 1, ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }))
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE * 2 + 1)
+  expect(del.length).toEqual(1)
+
+  // Deleting many items from a large list and inserting many items
+  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 10 })) as fobx.ObservableArray<number>
+  del = ar.splice(
+    1,
+    MAX_SPLICE_SIZE + 1,
+    ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }),
+  )
+  expect(ar.length).toEqual(MAX_SPLICE_SIZE + 10)
+  expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
 })

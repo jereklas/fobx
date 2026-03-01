@@ -265,6 +265,12 @@ test("observable with tuple annotation supports structural comparison", () => {
 
   observed.person = { name: "Bob", age: 25 }
   expect(reactions).toEqual([{ name: "Bob", age: 25 }])
+
+  // Reset configuration
+  fobx.configure({
+    comparer: { structural: undefined },
+    enforceActions: false,
+  })
 })
 
 test("observable.shallow with tuple annotation supports custom equality functions", () => {

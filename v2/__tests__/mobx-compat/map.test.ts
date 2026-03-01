@@ -594,6 +594,7 @@ test("work with 'toString' key", () => {
   expect(m.get("toString")).toBe("test")
 })
 
+// TODO: enforceActions warning not yet implemented in v2 — observable setters don't check enforceActions
 test.skip("issue 940, should not be possible to change maps outside strict mode", () => {
   fobx.configure({ enforceActions: true })
 

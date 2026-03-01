@@ -20,7 +20,7 @@ export const $instance = {
   structuralCompare: null as EqualityChecker | null,
   
   // Action enforcement
-  enforceActions: false,
+  enforceActions: true,
   
   // Error handling
   onReactionError: undefined as ((error: Any, reaction: Any) => void) | undefined,

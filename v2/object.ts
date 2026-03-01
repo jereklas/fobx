@@ -109,10 +109,34 @@ interface PropertyInfo {
 }
 
 /**
+ * Metadata stored per-property for prototype-level annotations.
+ * Used to recreate admin entries for second+ instances of a class
+ * without re-installing prototype descriptors.
+ */
+interface AnnotatedPropertyMeta {
+  type: "computed" | "data" | "action" | "flow" | "none"
+  // For computed properties
+  originalGetter?: () => Any
+  originalSetter?: ((value: Any) => void) | undefined
+  // For actions/flows: the original unwrapped function
+  originalValue?: Any
+  // For data properties
+  annotation?: "observable" | "observable.ref" | "observable.shallow"
+  // Equality options
+  equalityOptions?: EqualityOptions
+  // Which prototype the property was installed on
+  prototype?: object | null
+}
+
+/**
  * Track which properties have been annotated on each prototype
  * Prevents double-annotation in inheritance hierarchies
+ * Stores metadata needed to create admin entries for new instances
  */
-const annotatedPrototypes = new WeakMap<object, Set<PropertyKey>>()
+const annotatedPrototypes = new WeakMap<
+  object,
+  Map<PropertyKey, AnnotatedPropertyMeta>
+>()
 
 /**
  * Check if value is a plain object (not a class instance)
@@ -150,24 +174,32 @@ function isPlainObject(value: Any): boolean {
  * @param value - Value to convert
  * @returns Observable version of the value (or original if primitive/already observable)
  */
-export function convertToObservable(value: Any): Any {
+export function convertToObservable(value: Any, comparerOption?: EqualityComparison): Any {
   // Fast path: already observable (includes boxes, computeds, collections, observable objects)
   if (isObservable(value) || isObservableObject(value)) return value
 
-  // Collections
+  // Collections - pass comparer through
   if (Array.isArray(value)) {
-    return array(value) // Deep observability
+    return array(value, comparerOption ? { comparer: comparerOption } : undefined) // Deep observability
   }
   if (value instanceof Map) {
-    return map(value) // Deep observability
+    return map(value, comparerOption ? { comparer: comparerOption } : undefined) // Deep observability
   }
   if (value instanceof Set) {
-    return set(value) // Deep observability
+    return set(value) // Deep observability (Set doesn't use value comparer)
   }
 
   // Plain objects (recursively make observable)
   if (isPlainObject(value)) {
     return object(value)
+  }
+
+  // Non-plain objects: check extensibility before attempting to observe
+  if (typeof value === "object" && value !== null && !Object.isExtensible(value)) {
+    console.warn(
+      "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
+    )
+    return value
   }
 
   // Primitives and other values - return as-is
@@ -229,10 +261,19 @@ function installDataProperty(
 ): void {
   // Handle value conversion based on annotation
   let boxValue = initialValue
+  // Resolve the comparer option for forwarding to collections
+  const comparerForCollections = equalityOptions?.comparer
+    ? ((() => {
+      // We need to find the original EqualityComparison (string or function)
+      // passed to resolveComparer. Since we already have the resolved function,
+      // just pass it directly.
+      return equalityOptions.comparer
+    })() as EqualityComparison)
+    : undefined
 
   if (annotation === "observable") {
     // Deep conversion: recursively convert nested structures
-    boxValue = convertToObservable(initialValue)
+    boxValue = convertToObservable(initialValue, comparerForCollections)
   } else if (annotation === "observable.shallow") {
     // Shallow collection: convert collections with shallow flag
     if (Array.isArray(initialValue)) {
@@ -270,7 +311,7 @@ function installDataProperty(
       // Apply conversion on write (based on annotation)
       let convertedValue = v
       if (annotation === "observable") {
-        convertedValue = convertToObservable(v)
+        convertedValue = convertToObservable(v, comparerForCollections)
       } else if (annotation === "observable.shallow") {
         if (Array.isArray(v)) {
           convertedValue = array(v, { shallow: true })
@@ -466,6 +507,7 @@ function getPropertyDescriptors(target: object): PropertyInfo[] {
  * Process a single property with its annotation
  *
  * PERF: Fast path for common annotations, slow path for edge cases
+ * Returns metadata useful for recreating admin entries on new instances
  */
 function processProperty(
   admin: ObservableObjectAdmin,
@@ -473,7 +515,7 @@ function processProperty(
   descriptor: PropertyDescriptor,
   annotationValue: AnnotationValue,
   installTarget: object,
-): void {
+): AnnotatedPropertyMeta {
   // Parse annotation value (string or array)
   let annotation: AnnotationString
   let equalityOptions: EqualityOptions | undefined
@@ -501,7 +543,13 @@ function processProperty(
     case "observable":
     case "observable.ref":
     case "observable.shallow":
-      return installDataProperty(
+      // Validate: observable annotations cannot be used on getter/setter properties
+      if (descriptor.get) {
+        throw new Error(
+          `[@fobx/core] "${baseAnnotation}" cannot be used on getter/setter properties`,
+        )
+      }
+      installDataProperty(
         admin,
         key,
         descriptor.value,
@@ -509,6 +557,7 @@ function processProperty(
         baseAnnotation,
         equalityOptions,
       )
+      return { type: "data", annotation: baseAnnotation, equalityOptions }
 
     case "computed":
       if (!descriptor.get) {
@@ -516,7 +565,7 @@ function processProperty(
           `${String(key)} must be a getter to use "computed" annotation`,
         )
       }
-      return installComputedProperty(
+      installComputedProperty(
         admin,
         key,
         descriptor.get,
@@ -524,6 +573,12 @@ function processProperty(
         equalityOptions,
         descriptor.set,
       )
+      return {
+        type: "computed",
+        originalGetter: descriptor.get,
+        originalSetter: descriptor.set,
+        equalityOptions,
+      }
 
     case "transaction":
       if (typeof descriptor.value !== "function") {
@@ -531,13 +586,14 @@ function processProperty(
           `${String(key)} must be a function to use "transaction" annotation`,
         )
       }
-      return installAction(
+      installAction(
         admin,
         key,
         descriptor.value,
         installTarget,
         isBound,
       )
+      return { type: "action", originalValue: descriptor.value }
 
     case "flow":
       if (typeof descriptor.value !== "function") {
@@ -545,15 +601,25 @@ function processProperty(
           `${String(key)} must be a generator to use "flow" annotation`,
         )
       }
-      return installFlow(
+      // Validate: flow must be a generator function
+      if (
+        descriptor.value.constructor === undefined ||
+        descriptor.value.constructor.name !== "GeneratorFunction"
+      ) {
+        throw new Error(
+          `[@fobx/core] "${String(key)}" was marked as a flow but is not a generator function.`,
+        )
+      }
+      installFlow(
         admin,
         key,
         descriptor.value,
         installTarget,
         isBound,
       )
+      return { type: "flow", originalValue: descriptor.value }
     case "none":
-      return
+      return { type: "none" }
     default:
       throw new Error(`Unknown annotation: ${annotation}`)
   }
@@ -568,17 +634,95 @@ function processProperty(
  * Modifies target in-place. For class instances, prototype members
  * get their descriptors installed on the prototype.
  */
+/**
+ * Get a descriptive type string for error messages
+ */
+function getTypeString(value: unknown): string {
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "array"
+  if (value instanceof Map) return "map"
+  if (value instanceof Set) return "set"
+  return typeof value
+}
+
 export function makeObservable<T extends object>(
   target: T,
   annotations: AnnotationsMap<T>,
   options?: MakeObservableOptions,
 ): T {
-  // Validation
-  if (isObservableObject(target)) {
-    throw new Error("Object already observable")
+  // Type validation - reject non-plain-object types
+  if (
+    target == null ||
+    typeof target === "string" ||
+    typeof target === "number" ||
+    typeof target === "boolean" ||
+    typeof target === "symbol" ||
+    typeof target === "bigint" ||
+    typeof target === "undefined" ||
+    typeof target === "function" ||
+    Array.isArray(target) ||
+    target instanceof Map ||
+    target instanceof Set
+  ) {
+    throw new Error(
+      `[@fobx/core] Cannot make an observable object out of type "${getTypeString(target)}"`,
+    )
   }
+
+  // Already observable: additive re-entrant call (e.g. Derived extends Base,
+  // both constructors call makeObservable). Process additional annotations.
+  if (isObservableObject(target)) {
+    const admin = (target as Any)[$fobx] as ObservableObjectAdmin
+    const descriptors = getPropertyDescriptors(target)
+
+    startBatch()
+    try {
+      const annotationEntries = Object.entries(annotations)
+      const len = annotationEntries.length
+
+      for (let i = 0; i < len; i++) {
+        const [key, annotationValue] = annotationEntries[i]
+        if (annotationValue === false) continue
+        if (admin.values.has(key)) continue // Already processed by parent
+
+        const found = descriptors.find((d) => d.key === key)
+        if (!found) {
+          throw new Error(`Property ${String(key)} not found on object`)
+        }
+
+        const installTarget = found.prototype ?? target
+        processProperty(
+          admin,
+          key,
+          found.descriptor,
+          annotationValue as AnnotationValue,
+          installTarget,
+        )
+      }
+    } finally {
+      endBatch()
+    }
+    return target
+  }
+
   if (!Object.isExtensible(target)) {
-    throw new Error("Cannot make non-extensible object observable")
+    // For plain non-extensible objects: create a new extensible copy (like v1 behavior)
+    if (isPlainObject(target)) {
+      const newTarget = {} as T
+      // Copy all own property descriptors to the new object
+      const ownKeys = Object.getOwnPropertyNames(target)
+      for (const key of ownKeys) {
+        const desc = Object.getOwnPropertyDescriptor(target, key)
+        if (desc) Object.defineProperty(newTarget, key, desc)
+      }
+      // Recurse with the new extensible copy
+      return makeObservable(newTarget, annotations, options)
+    }
+    // For class instances: cannot make observable, warn and return
+    console.warn(
+      "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
+    )
+    return target
   }
 
   // Create admin
@@ -686,21 +830,103 @@ export function object<T extends object>(
 ): Any {
   // Fast path: already observable
   if (isObservable(target) || isObservableObject(target)) {
+    // For class instances: re-entrant call from subclass constructor
+    // Need to process new own properties and apply annotation overrides
+    if (isObservableObject(target)) {
+      const admin = (target as Any)[$fobx] as ObservableObjectAdmin
+      const annotations = annotationsOrOptions as
+        | Partial<AnnotationsMap<T>>
+        | undefined
+      const opts = maybeOptions as ObservableOptions | undefined
+      const defaultAnnotation = opts?.defaultAnnotation || "observable"
+
+      startBatch()
+      try {
+        // 1. Process new own properties not yet in admin.values
+        const ownKeys = Object.getOwnPropertyNames(target)
+        for (let i = 0; i < ownKeys.length; i++) {
+          const key = ownKeys[i]
+          if (key === "constructor" || key === ($fobx as Any)) continue
+          if (admin.values.has(key)) continue // Already processed
+
+          const descriptor = Object.getOwnPropertyDescriptor(target, key)
+          if (!descriptor) continue
+
+          const annotationVal =
+            (annotations as Any)?.[key] ?? defaultAnnotation
+          if (annotationVal === "none") continue
+
+          processProperty(admin, key, descriptor, annotationVal, target)
+        }
+
+        // 2. Apply annotation overrides for explicitly annotated properties
+        if (annotations) {
+          for (const key of Object.keys(annotations)) {
+            const annotationVal = (annotations as Any)[key]
+            if (annotationVal === "none") {
+              // Remove from admin if it was previously processed
+              admin.values.delete(key)
+
+              // Restore original descriptor on the prototype
+              let proto = Object.getPrototypeOf(target)
+              while (proto && proto !== Object.prototype) {
+                const annotatedMap = annotatedPrototypes.get(proto)
+                if (annotatedMap?.has(key)) {
+                  const meta = annotatedMap.get(key)!
+                  if (meta.type === "computed" && meta.originalGetter) {
+                    Object.defineProperty(proto, key, {
+                      get: meta.originalGetter,
+                      set: meta.originalSetter,
+                      enumerable: true,
+                      configurable: true,
+                    })
+                  } else if (
+                    (meta.type === "action" || meta.type === "flow") &&
+                    meta.originalValue
+                  ) {
+                    Object.defineProperty(proto, key, {
+                      value: meta.originalValue,
+                      writable: true,
+                      enumerable: true,
+                      configurable: true,
+                    })
+                  }
+                  // Update meta to reflect "none" so future instances don't re-process
+                  annotatedMap.set(key, { type: "none" })
+                  break
+                }
+                proto = Object.getPrototypeOf(proto)
+              }
+            }
+          }
+        }
+      } finally {
+        endBatch()
+      }
+    }
     return target
   }
 
   // Handle collections
   if (Array.isArray(target)) {
-    // For arrays, second param is options
     return array(target, annotationsOrOptions as ArrayOptions)
   }
   if (target instanceof Map) {
-    // For maps, second param is options
     return map(target, annotationsOrOptions as MapOptions)
   }
   if (target instanceof Set) {
-    // For sets, second param is options
     return set(target, annotationsOrOptions as SetOptions)
+  }
+
+  // Type validation - reject non-object types
+  if (
+    target == null ||
+    typeof target !== "object"
+  ) {
+    const typeStr = getTypeString(target)
+    throw new Error(
+      `[@fobx/core] Cannot make an observable object out of type "${typeStr}"`,
+    )
   }
 
   // Handle plain objects - need to separate annotations from options
@@ -775,15 +1001,46 @@ export function object<T extends object>(
 
       // For prototype properties in class instances, check if already annotated
       if (prototype !== null && !isPlain) {
-        let annotatedSet = annotatedPrototypes.get(prototype)
-        if (annotatedSet?.has(key)) {
-          continue // Already annotated by parent class
+        let annotatedMap = annotatedPrototypes.get(prototype)
+        if (annotatedMap?.has(key)) {
+          // Prototype descriptor already installed by a previous instance.
+          // Still need to create admin entries for THIS instance.
+          const meta = annotatedMap.get(key)!
+          if (meta.type === "computed" && meta.originalGetter) {
+            // Create a new computed bound to this instance's target
+            const boundGetter = meta.originalGetter.bind(observableTarget)
+            const boundSetter = meta.originalSetter
+              ? meta.originalSetter.bind(observableTarget)
+              : undefined
+            const comp = computed(boundGetter, {
+              name: `${admin.name}.${String(key)}`,
+              comparer: meta.equalityOptions?.comparer,
+              set: boundSetter,
+            })
+            admin.values.set(key, comp)
+          } else if (meta.type === "data" && meta.annotation) {
+            // Create a new box for this instance's data property
+            const initialValue = descriptor.value
+            let boxValue = initialValue
+            if (meta.annotation === "observable") {
+              boxValue = convertToObservable(
+                initialValue,
+                meta.equalityOptions?.comparer as EqualityComparison,
+              )
+            }
+            const observableBox = box(boxValue, {
+              name: `${admin.name}.${String(key)}`,
+              comparer: meta.equalityOptions?.comparer,
+            })
+            admin.values.set(key, observableBox)
+          }
+          // For actions/flows/none: no per-instance admin entry needed
+          continue
         }
-        if (!annotatedSet) {
-          annotatedSet = new Set()
-          annotatedPrototypes.set(prototype, annotatedSet)
+        if (!annotatedMap) {
+          annotatedMap = new Map()
+          annotatedPrototypes.set(prototype, annotatedMap)
         }
-        annotatedSet.add(key)
       }
 
       // Determine where to install the descriptor
@@ -801,7 +1058,18 @@ export function object<T extends object>(
 
       if (override !== undefined) {
         // Explicit override provided (can be string or array)
-        processProperty(admin, key, descriptor, override, installTarget)
+        const meta = processProperty(admin, key, descriptor, override, installTarget)
+
+        // Store metadata for prototype properties (needed for subsequent instances)
+        if (prototype !== null && !isPlain) {
+          let annotatedMap = annotatedPrototypes.get(prototype)
+          if (!annotatedMap) {
+            annotatedMap = new Map()
+            annotatedPrototypes.set(prototype, annotatedMap)
+          }
+          meta.prototype = prototype
+          annotatedMap.set(key, meta)
+        }
 
         // For plain objects with "none" annotation, we need to copy the property as-is
         if (isPlain && override === "none") {
@@ -809,9 +1077,10 @@ export function object<T extends object>(
         }
       } else {
         // AUTO-INFER annotation (default behavior)
+        let meta: AnnotatedPropertyMeta | undefined
         if (descriptor.get && !descriptor.set) {
           // Getter only → computed
-          processProperty(admin, key, descriptor, "computed", installTarget)
+          meta = processProperty(admin, key, descriptor, "computed", installTarget)
         } else if (descriptor.get && descriptor.set) {
           // Getter with setter → computed with setter
           installComputedProperty(
@@ -822,13 +1091,29 @@ export function object<T extends object>(
             undefined,
             descriptor.set,
           )
+          meta = {
+            type: "computed",
+            originalGetter: descriptor.get,
+            originalSetter: descriptor.set,
+          }
         } else if (typeof descriptor.value === "function") {
           // Function → transaction
-          processProperty(admin, key, descriptor, "transaction", installTarget)
+          meta = processProperty(admin, key, descriptor, "transaction", installTarget)
         } else if (!descriptor.get) {
           // Data property → use default annotation ("observable" if not specified)
           const type = options?.defaultAnnotation || "observable"
-          processProperty(admin, key, descriptor, type, installTarget)
+          meta = processProperty(admin, key, descriptor, type, installTarget)
+        }
+
+        // Store metadata for prototype properties (needed for subsequent instances)
+        if (meta && prototype !== null && !isPlain) {
+          let annotatedMap = annotatedPrototypes.get(prototype)
+          if (!annotatedMap) {
+            annotatedMap = new Map()
+            annotatedPrototypes.set(prototype, annotatedMap)
+          }
+          meta.prototype = prototype
+          annotatedMap.set(key, meta)
         }
       }
 

@@ -26,6 +26,7 @@ export { withoutTracking } from "./tracking.ts"
 // Utilities
 export {
   hasFobxAdmin,
+  isPlainObject,
   isComputed,
   isObservable,
   isObservableArray,

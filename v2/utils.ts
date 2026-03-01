@@ -17,6 +17,21 @@ export function hasFobxAdmin(value: Any): boolean {
 }
 
 /**
+ * Check if value is a plain object (not array, map, set, class instance, etc.)
+ */
+export function isPlainObject(value: Any): boolean {
+  if (value == null || typeof value !== "object") return false
+  if (Array.isArray(value)) return false
+  if (value instanceof Date) return false
+  if (value instanceof RegExp) return false
+  if (value instanceof Map) return false
+  if (value instanceof Set) return false
+
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+/**
  * Internal helper to get the admin for a value, handling optional property lookup
  * Returns the admin object if valid, or null if not found
  */

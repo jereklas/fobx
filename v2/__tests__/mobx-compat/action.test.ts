@@ -171,6 +171,7 @@ test("should be able to change unobserved state in a transaction called from a c
   d()
 })
 
+// TODO: enforceActions warning not yet implemented in v2 — box/observable setters don't check enforceActions
 test.skip("should be able to change observed state in a transaction called from a computed", () => {
   configure({ enforceActions: true })
 

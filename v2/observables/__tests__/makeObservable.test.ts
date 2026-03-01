@@ -528,7 +528,24 @@ describe("makeObservable", () => {
         }
       }
 
-      expect(() => new Derived()).toThrow()
+      const d = new Derived()
+
+      expect(fobx.isObservable(d, "baseValue")).toBe(true)
+      expect(fobx.isObservable(d, "derivedValue")).toBe(true)
+      expect(fobx.isComputed(d, "baseComputed")).toBe(true)
+      expect(fobx.isComputed(d, "derivedComputed")).toBe(true)
+
+      const computedValues: number[] = []
+      fobx.reaction(
+        () => d.derivedComputed,
+        (value) => computedValues.push(value),
+      )
+
+      d.baseValue = 20
+      expect(computedValues).toEqual([25])
+
+      d.derivedValue = 10
+      expect(computedValues).toEqual([25, 30])
     })
 
   })
@@ -581,7 +598,9 @@ describe("makeObservable", () => {
         }, {
           x: "computed",
         })
-      }).toThrow()
+      }).toThrow(
+        'x must be a getter to use "computed" annotation',
+      )
     })
 
     test("throws when using action annotation on non-function property", () => {
@@ -591,7 +610,9 @@ describe("makeObservable", () => {
         }, {
           x: "transaction",
         })
-      }).toThrow()
+      }).toThrow(
+        'x must be a function to use "transaction" annotation',
+      )
     })
 
     test("throws when using invalid annotation", () => {
@@ -602,7 +623,7 @@ describe("makeObservable", () => {
           // deno-lint-ignore no-explicit-any
           x: "invalid" as any,
         })
-      }).toThrow()
+      }).toThrow('Unknown annotation: invalid')
     })
 
     test("warns when attempting to make non-extensible object observable", () => {

@@ -436,9 +436,6 @@ function wrapArrayMethod(
     case "toLocaleString":
     case "slice":
     case "concat":
-    case "entries":
-    case "keys":
-    case "values":
     case "toReversed":
     case "toSorted":
     case "toSpliced":
@@ -446,6 +443,27 @@ function wrapArrayMethod(
       return function (...args: any[]) {
         trackAccess(admin)
         return fn.apply(arr, args)
+      }
+
+    // Iterator methods - lazy tracking (only track when .next() is called)
+    case "entries":
+    case "keys":
+    case "values":
+      return function (...args: any[]) {
+        const iterator = fn.apply(arr, args)
+        let tracked = false
+        return {
+          next() {
+            if (!tracked) {
+              tracked = true
+              trackAccess(admin)
+            }
+            return iterator.next()
+          },
+          [Symbol.iterator]() {
+            return this
+          },
+        }
       }
 
     // Default: just call the method

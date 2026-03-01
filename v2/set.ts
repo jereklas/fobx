@@ -1,22 +1,17 @@
 /**
  * Observable Set implementation for v2
  *
- * Simplified from Map architecture:
+ * Per-key has() tracking (matching MobX behavior):
  * - Plain class implementing Set interface (NOT extending)
  * - data: Set<T> - plain Set storage (values NOT boxed)
- * - admin: Single admin tracks ALL structural changes
- * - has() tracks the main admin (not per-value)
+ * - admin: Single admin tracks ALL structural changes (for iteration, size, etc.)
+ * - hasMap: Map<T, ObservableBox<boolean>> - lazy per-key has() tracking
+ * - has() lazily creates per-key boxes when tracked
  * - Native iterators for performance
- *
- * Key differences from Map:
- * - Sets have no key/value distinction - only values
- * - Every mutation is structural (no "value changed but structure didn't")
- * - Single admin instead of two (keysAdmin + collectionAdmin)
- * - Values stored directly in Set (not boxed like Map values)
  *
  * Performance targets:
  * - Match or beat MobX across ALL operations
- * - has() tracks entire Set admin (like MobX) instead of per-value boxes
+ * - Lazy has() tracking eliminates unnecessary reactions
  * - Native iterators for best performance
  */
 
@@ -28,6 +23,7 @@ import { notifyObservers } from "./notifications.ts"
 import { runPendingReactions } from "./graph.ts"
 import { processValue } from "./object.ts"
 import { trackAccess } from "./tracking.ts"
+import { box, type ObservableBox, setBoxValue } from "./box.ts"
 
 export interface SetOptions {
   name?: string
@@ -43,15 +39,19 @@ export interface SetAdmin<T = unknown> extends ObservableAdmin<undefined> {
 
 /**
  * Observable Set - Plain class implementing Set<T>
- * Tracks entire Set with single admin (like MobX)
+ * Per-key has() tracking for precise reactivity
  */
 class ObservableSet<T = unknown> implements Set<T> {
   // Plain Set storage
   private data: Set<T>
 
-  private options: SetOptions;
+  private options: SetOptions
+
+  // Per-key has() tracking (lazy created)
+  private hasMap: Map<T, ObservableBox<boolean>>
 
   // Single admin - tracks all structural changes (add/delete/clear)
+  // Used for iteration, size, forEach, etc.
   [$fobx]: SetAdmin<T>
 
   constructor(
@@ -61,6 +61,7 @@ class ObservableSet<T = unknown> implements Set<T> {
     const id = getNextId()
 
     this.data = new Set()
+    this.hasMap = new Map()
     this.options = options
 
     // Single admin - tracks all structural changes
@@ -89,12 +90,25 @@ class ObservableSet<T = unknown> implements Set<T> {
 
   /**
    * has(value): boolean
-   * MobX pattern: Track the entire Set admin, not per-value
-   * This means any structural change (add/delete) will trigger re-evaluation
+   * Per-key tracking: lazily creates an ObservableBox<boolean> for each tracked key.
+   * Only reactions that track specific keys are notified when those keys change.
    */
   has(value: T): boolean {
-    trackAccess(this[$fobx])
-    return this.data.has(value)
+    // Fast path: not tracking
+    if ($global.tracking === null) {
+      return this.data.has(value)
+    }
+
+    // Tracking: lazy create has observable for this specific key
+    let hasBox = this.hasMap.get(value)
+    if (!hasBox) {
+      hasBox = box(this.data.has(value), {
+        name: `${this[$fobx].name}.has(${String(value)})`,
+      })
+      this.hasMap.set(value, hasBox)
+    }
+
+    return hasBox.get()
   }
 
   /**
@@ -106,6 +120,12 @@ class ObservableSet<T = unknown> implements Set<T> {
     const shallow = this.options.shallow ?? false
     const processedValue = processValue(value, shallow)
     this.data.add(processedValue)
+
+    // Update hasMap if it exists for this key
+    const hasBox = this.hasMap.get(value)
+    if (hasBox) {
+      setBoxValue(hasBox[$fobx], true)
+    }
 
     // Notify structural change
     this[$fobx].changes++
@@ -124,6 +144,12 @@ class ObservableSet<T = unknown> implements Set<T> {
     if (!this.data.has(value)) return false
 
     this.data.delete(value)
+
+    // Update hasMap if it exists for this key
+    const hasBox = this.hasMap.get(value)
+    if (hasBox) {
+      setBoxValue(hasBox[$fobx], false)
+    }
 
     // Notify structural change
     this[$fobx].changes++
@@ -146,6 +172,11 @@ class ObservableSet<T = unknown> implements Set<T> {
       // Clear data
       this.data.clear()
 
+      // Update all hasMap entries to false
+      this.hasMap.forEach((hasBox) => {
+        setBoxValue(hasBox[$fobx], false)
+      })
+
       // Notify structural change
       this[$fobx].changes++
       notifyObservers(this[$fobx], NotificationType.CHANGED)
@@ -165,14 +196,31 @@ class ObservableSet<T = unknown> implements Set<T> {
 
   /**
    * values(): SetIterator<T>
+   * Lazy tracking: only tracks when .next() is called
    */
   values(): SetIterator<T> {
-    trackAccess(this[$fobx])
-    return this.data.values()
+    const admin = this[$fobx]
+    const iterator = this.data.values()
+    const origNext = iterator.next.bind(iterator)
+    let tracked = false
+    Object.defineProperty(iterator, "next", {
+      value: function () {
+        if (!tracked) {
+          tracked = true
+          trackAccess(admin)
+        }
+        return origNext()
+      },
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    })
+    return iterator
   }
 
   /**
    * keys(): SetIterator<T> (same as values for Set)
+   * Lazy tracking: only tracks when .next() is called
    */
   keys(): SetIterator<T> {
     return this.values()
@@ -180,10 +228,26 @@ class ObservableSet<T = unknown> implements Set<T> {
 
   /**
    * entries(): SetIterator<[T, T]>
+   * Lazy tracking: only tracks when .next() is called
    */
   entries(): SetIterator<[T, T]> {
-    trackAccess(this[$fobx])
-    return this.data.entries()
+    const admin = this[$fobx]
+    const iterator = this.data.entries()
+    const origNext = iterator.next.bind(iterator)
+    let tracked = false
+    Object.defineProperty(iterator, "next", {
+      value: function () {
+        if (!tracked) {
+          tracked = true
+          trackAccess(admin)
+        }
+        return origNext()
+      },
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    })
+    return iterator
   }
 
   [Symbol.iterator](): SetIterator<T> {
@@ -268,6 +332,11 @@ class ObservableSet<T = unknown> implements Set<T> {
         // Delete values not in replacement
         toDelete.forEach((value) => {
           this.data.delete(value)
+          // Update hasMap for deleted values
+          const hasBox = this.hasMap.get(value)
+          if (hasBox) {
+            setBoxValue(hasBox[$fobx], false)
+          }
         })
 
         // If order changed, rebuild the Set
@@ -280,6 +349,11 @@ class ObservableSet<T = unknown> implements Set<T> {
           // Just add new values
           toAdd.forEach((value) => {
             this.data.add(value)
+            // Update hasMap for added values
+            const hasBox = this.hasMap.get(value)
+            if (hasBox) {
+              setBoxValue(hasBox[$fobx], true)
+            }
           })
         }
 

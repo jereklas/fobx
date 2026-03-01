@@ -3,12 +3,12 @@ import * as fobx from "../../index.ts"
 import { describe, expect, test } from "@fobx/testing"
 
 describe("isPlainObject", () => {
-  test.skip("returns false when non-object is passed", () => {
-    expect(true).toBe(true)
+  test("returns false when non-object is passed", () => {
+    expect(fobx.isPlainObject("str")).toBe(false)
   })
 
   test("returns true for objects with a null prototype", () => {
-    expect(true).toBe(true)
+    expect(fobx.isPlainObject(Object.create(null))).toBe(true)
   })
 })
 

@@ -18,7 +18,7 @@ export function getNextId(): number {
 // deno-lint-ignore no-explicit-any
 export type EqualityChecker = (a: any, b: any) => boolean
 
-export type EqualityComparison = EqualityChecker | "structural"
+export type EqualityComparison = EqualityChecker | "structural" | "default"
 
 // used for a key on objects in the system for tracking state
 export const $fobx = Symbol("fobx-admin")

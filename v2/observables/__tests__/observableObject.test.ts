@@ -118,6 +118,9 @@ describe("isObservableObject", () => {
 })
 
 describe("observableObject", () => {
+  // Note: v1 tested these via createAutoObservableObject (internal, objects-only).
+  // v2's observable() correctly routes arrays/maps/sets to collection constructors,
+  // so those entries are excluded here.
   const errorsTC = [
     { arg: "", expected: typeof "" },
     { arg: 10, expected: typeof 10 },
@@ -127,14 +130,13 @@ describe("observableObject", () => {
     { arg: BigInt(1), expected: typeof BigInt(1) },
     { arg: () => null, expected: typeof (() => null) },
     { arg: null, expected: "null" },
-    { arg: [], expected: "array" },
-    { arg: new Map(), expected: "map" },
-    { arg: new Set(), expected: "set" },
   ]
   // deno-lint-ignore no-explicit-any
   errorsTC.forEach(({ arg, expected }: { arg: any; expected: string }) => {
     test(`throws error if supplied type of '${expected}'`, () => {
-      expect(() => fobx.observable(arg)).toThrow()
+      expect(() => fobx.observable(arg)).toThrow(
+        `[@fobx/core] Cannot make an observable object out of type "${expected}"`,
+      )
     })
   })
 
@@ -430,8 +432,10 @@ describe("observableObject", () => {
 
     o.a.push(4)
     expect(reactionFn).toHaveBeenCalledTimes(1)
+    expect(reactionFn).toHaveBeenCalledWith([1, 2, 3, 4], [1, 2, 3, 4], expect.any(Function))
     o.a[0] = 5
     expect(reactionFn).toHaveBeenCalledTimes(2)
+    expect(reactionFn).toHaveBeenCalledWith([5, 2, 3, 4], [5, 2, 3, 4], expect.any(Function))
 
     const firstArray = o.a as ObservableArray<number>
     expect(r.deps.length).toBeGreaterThanOrEqual(1)
@@ -443,10 +447,13 @@ describe("observableObject", () => {
     expect((o.a as any)[$fobx].name).not.toBe((firstArray as any)[$fobx].name)
     expect((firstArray as any)[$fobx].observers.length).toBe(0)
     expect((o.a as any)[$fobx].observers.length).toBe(1)
+    expect(reactionFn).toHaveBeenCalledTimes(3)
+    expect(reactionFn).toHaveBeenCalledWith([], [5, 2, 3, 4], expect.any(Function))
 
     o.a.push(1)
     expect(o.a).toEqual([1])
     expect(reactionFn).toHaveBeenCalledTimes(4)
+    expect(reactionFn).toHaveBeenCalledWith([1], [1], expect.any(Function))
   })
 
   test("createAutoObservable deeply observes the object", () => {

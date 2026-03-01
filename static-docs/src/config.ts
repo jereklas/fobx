@@ -1,0 +1,39 @@
+import { join, normalize } from "@std/path"
+import type { DocsConfig } from "./types.ts"
+
+export const resolveConfig = (
+  config: DocsConfig = {},
+): Required<DocsConfig> => {
+  const rootDir = normalize(config.rootDir ?? Deno.cwd())
+  const inputDir = normalize(config.inputDir ?? join(rootDir, "content"))
+  const outputDir = normalize(config.outputDir ?? join(rootDir, "dist"))
+  const assetsDir = normalize(config.assetsDir ?? join(outputDir, "assets"))
+  const basePath = normalizeBasePath(config.basePath)
+
+  return {
+    rootDir,
+    inputDir,
+    outputDir,
+    assetsDir,
+    siteTitle: config.siteTitle ?? "Documentation",
+    siteDescription: config.siteDescription ?? "Technical documentation",
+    basePath,
+    includeMdx: config.includeMdx ?? true,
+    cleanOutput: config.cleanOutput ?? true,
+  }
+}
+
+const normalizeBasePath = (value: string | undefined): string => {
+  if (!value || value === "/") {
+    return "/"
+  }
+
+  let basePath = value.trim()
+  if (!basePath.startsWith("/")) {
+    basePath = `/${basePath}`
+  }
+  if (!basePath.endsWith("/")) {
+    basePath = `${basePath}/`
+  }
+  return basePath
+}

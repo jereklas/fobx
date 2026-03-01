@@ -1,0 +1,219 @@
+[0m[32mCheck[0m file:///fobx/v2/__tests__/bench/minimal_comparison.bench.ts
+[0m[38;5;245m    CPU | 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz[0m
+[0m[38;5;245mRuntime | Deno 2.2.12 (x86_64-unknown-linux-gnu)[0m
+
+[0m[38;5;245mfile:///fobx/v2/__tests__/bench/minimal_comparison.bench.ts[0m
+
+benchmark   time/iter (avg)        iter/s      (min … max)           p75      p99     p995
+----------- ----------------------------- --------------------- --------------------------
+
+[0m[38;5;245mgroup[0m [0m[32mobservable-box-create[0m
+fobx        [0m[33m       505.8 ns[0m     1,977,000 ([0m[36m378.8 ns[0m … [0m[35m880.7 ns[0m)[0m[35m 557.7 ns 880.2 ns 880.7 ns[0m
+mobx        [0m[33m       163.5 ns[0m     6,115,000 ([0m[36m 89.9 ns[0m … [0m[35m535.7 ns[0m)[0m[35m 193.9 ns 401.2 ns 447.8 ns[0m
+v2          [0m[33m        66.2 ns[0m    15,100,000 ([0m[36m 32.9 ns[0m … [0m[35m  1.0 µs[0m)[0m[35m  80.7 ns 130.8 ns 158.5 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.47[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     7.64[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mobservable-box-read[0m
+fobx        [0m[33m       734.5 ns[0m     1,362,000 ([0m[36m413.4 ns[0m … [0m[35m  1.5 µs[0m)[0m[35m 851.2 ns   1.5 µs   1.5 µs[0m
+mobx        [0m[33m       322.3 ns[0m     3,102,000 ([0m[36m126.7 ns[0m … [0m[35m  1.1 µs[0m)[0m[35m 357.1 ns 679.4 ns   1.1 µs[0m
+v2          [0m[33m       144.4 ns[0m     6,926,000 ([0m[36m 68.7 ns[0m … [0m[35m446.5 ns[0m)[0m[35m 168.0 ns 382.3 ns 444.9 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.23[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     5.09[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mobservable-box-write[0m
+fobx        [0m[33m       816.1 ns[0m     1,225,000 ([0m[36m462.3 ns[0m … [0m[35m  1.8 µs[0m)[0m[35m 942.1 ns   1.8 µs   1.8 µs[0m
+mobx        [0m[33m       229.5 ns[0m     4,357,000 ([0m[36m150.5 ns[0m … [0m[35m541.0 ns[0m)[0m[35m 260.5 ns 502.8 ns 518.1 ns[0m
+v2          [0m[33m        94.5 ns[0m    10,580,000 ([0m[36m 62.2 ns[0m … [0m[35m344.9 ns[0m)[0m[35m 106.6 ns 238.2 ns 299.4 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.43[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     8.64[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mobservable-box-read-write[0m
+fobx        [0m[33m       563.7 ns[0m     1,774,000 ([0m[36m452.5 ns[0m … [0m[35m  1.1 µs[0m)[0m[35m 621.1 ns   1.1 µs   1.1 µs[0m
+mobx        [0m[33m       227.3 ns[0m     4,400,000 ([0m[36m157.1 ns[0m … [0m[35m464.9 ns[0m)[0m[35m 268.9 ns 422.2 ns 426.6 ns[0m
+v2          [0m[33m       114.8 ns[0m     8,711,000 ([0m[36m 62.9 ns[0m … [0m[35m350.5 ns[0m)[0m[35m 126.0 ns 319.3 ns 323.0 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.98[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     4.91[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-simple-create[0m
+fobx        [0m[33m         1.2 µs[0m       818,900 ([0m[36m844.3 ns[0m … [0m[35m  2.0 µs[0m)[0m[35m   1.3 µs   2.0 µs   2.0 µs[0m
+mobx        [0m[33m       274.5 ns[0m     3,643,000 ([0m[36m187.6 ns[0m … [0m[35m583.1 ns[0m)[0m[35m 295.6 ns 505.9 ns 583.1 ns[0m
+v2          [0m[33m       320.5 ns[0m     3,120,000 ([0m[36m189.5 ns[0m … [0m[35m  1.1 µs[0m)[0m[35m 344.8 ns 662.9 ns   1.1 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[31m     1.17[0mx slower than [0m[1m[36mmobx[0m
+[0m[32m     3.81[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-simple-read[0m
+fobx        [0m[33m         1.7 µs[0m       572,300 ([0m[36m  1.1 µs[0m … [0m[35m  3.1 µs[0m)[0m[35m   2.0 µs   3.1 µs   3.1 µs[0m
+mobx        [0m[33m       701.3 ns[0m     1,426,000 ([0m[36m446.7 ns[0m … [0m[35m  1.8 µs[0m)[0m[35m 788.8 ns   1.8 µs   1.8 µs[0m
+v2          [0m[33m       239.8 ns[0m     4,171,000 ([0m[36m139.2 ns[0m … [0m[35m618.8 ns[0m)[0m[35m 277.4 ns 587.4 ns 592.1 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.92[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     7.29[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-invalidate-recompute[0m
+fobx        [0m[33m         1.3 µs[0m       783,500 ([0m[36m984.5 ns[0m … [0m[35m  2.2 µs[0m)[0m[35m   1.4 µs   2.2 µs   2.2 µs[0m
+mobx        [0m[33m       903.5 ns[0m     1,107,000 ([0m[36m536.1 ns[0m … [0m[35m  1.3 µs[0m)[0m[35m   1.0 µs   1.3 µs   1.3 µs[0m
+v2          [0m[33m       287.6 ns[0m     3,478,000 ([0m[36m149.9 ns[0m … [0m[35m684.4 ns[0m)[0m[35m 336.8 ns 644.0 ns 684.4 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     3.14[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     4.44[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-complex-5-deps[0m
+fobx        [0m[33m         3.7 µs[0m       272,300 ([0m[36m  3.1 µs[0m … [0m[35m  4.9 µs[0m)[0m[35m   3.9 µs   4.9 µs   4.9 µs[0m
+mobx        [0m[33m         1.7 µs[0m       577,900 ([0m[36m  1.4 µs[0m … [0m[35m  2.3 µs[0m)[0m[35m   1.8 µs   2.3 µs   2.3 µs[0m
+v2          [0m[33m       709.3 ns[0m     1,410,000 ([0m[36m512.9 ns[0m … [0m[35m  1.4 µs[0m)[0m[35m 787.9 ns   1.4 µs   1.4 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.44[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     5.18[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-chained-3-levels[0m
+fobx        [0m[33m         3.0 µs[0m       338,100 ([0m[36m  2.2 µs[0m … [0m[35m  3.7 µs[0m)[0m[35m   3.3 µs   3.7 µs   3.7 µs[0m
+mobx        [0m[33m         5.0 µs[0m       199,800 ([0m[36m  3.1 µs[0m … [0m[35m  2.4 ms[0m)[0m[35m   4.8 µs  17.6 µs  24.7 µs[0m
+v2          [0m[33m       664.3 ns[0m     1,505,000 ([0m[36m441.3 ns[0m … [0m[35m  1.6 µs[0m)[0m[35m 741.4 ns   1.6 µs   1.6 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     4.45[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     7.53[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-with-autorun[0m
+fobx        [0m[33m         4.3 µs[0m       231,900 ([0m[36m  2.7 µs[0m … [0m[35m  3.8 ms[0m)[0m[35m   4.3 µs  15.6 µs  21.8 µs[0m
+mobx        [0m[33m         6.1 µs[0m       164,200 ([0m[36m  3.6 µs[0m … [0m[35m  2.5 ms[0m)[0m[35m   6.1 µs  20.3 µs  28.8 µs[0m
+v2          [0m[33m         3.4 µs[0m       296,600 ([0m[36m  1.6 µs[0m … [0m[35m  3.6 ms[0m)[0m[35m   3.5 µs  12.3 µs  14.9 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.28[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     1.81[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mcomputed-blocking-propagation[0m
+fobx        [0m[33m         3.6 µs[0m       279,200 ([0m[36m  3.1 µs[0m … [0m[35m  5.3 µs[0m)[0m[35m   3.6 µs   5.3 µs   5.3 µs[0m
+mobx        [0m[33m         4.3 µs[0m       232,700 ([0m[36m  4.0 µs[0m … [0m[35m  5.4 µs[0m)[0m[35m   4.4 µs   5.4 µs   5.4 µs[0m
+v2          [0m[33m         2.2 µs[0m       450,100 ([0m[36m  1.8 µs[0m … [0m[35m  3.0 µs[0m)[0m[35m   2.3 µs   3.0 µs   3.0 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.61[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     1.93[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mautorun-create[0m
+fobx        [0m[33m         1.6 µs[0m       624,700 ([0m[36m  1.3 µs[0m … [0m[35m  2.4 µs[0m)[0m[35m   1.7 µs   2.4 µs   2.4 µs[0m
+mobx        [0m[33m         1.2 µs[0m       822,500 ([0m[36m910.0 ns[0m … [0m[35m  1.7 µs[0m)[0m[35m   1.4 µs   1.7 µs   1.7 µs[0m
+v2          [0m[33m       449.7 ns[0m     2,224,000 ([0m[36m311.2 ns[0m … [0m[35m  1.3 µs[0m)[0m[35m 520.9 ns 836.4 ns   1.3 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     2.70[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     3.56[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mautorun-trigger[0m
+fobx        [0m[33m         2.4 µs[0m       417,400 ([0m[36m  1.9 µs[0m … [0m[35m  3.5 µs[0m)[0m[35m   2.6 µs   3.5 µs   3.5 µs[0m
+mobx        [0m[33m         3.4 µs[0m       290,100 ([0m[36m  3.0 µs[0m … [0m[35m  4.7 µs[0m)[0m[35m   3.6 µs   4.7 µs   4.7 µs[0m
+v2          [0m[33m         1.6 µs[0m       616,300 ([0m[36m  1.3 µs[0m … [0m[35m  2.2 µs[0m)[0m[35m   1.8 µs   2.2 µs   2.2 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.48[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     2.12[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mreaction-create[0m
+fobx        [0m[33m         5.6 µs[0m       177,000 ([0m[36m  3.9 µs[0m … [0m[35m  8.0 µs[0m)[0m[35m   6.4 µs   8.0 µs   8.0 µs[0m
+mobx        [0m[33m         4.5 µs[0m       222,500 ([0m[36m  3.0 µs[0m … [0m[35m 10.0 µs[0m)[0m[35m   4.3 µs  10.0 µs  10.0 µs[0m
+v2          [0m[33m       501.4 ns[0m     1,994,000 ([0m[36m331.4 ns[0m … [0m[35m  1.4 µs[0m)[0m[35m 581.5 ns 933.0 ns   1.4 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     8.96[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m    11.27[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mreaction-trigger[0m
+fobx        [0m[33m         8.7 µs[0m       114,700 ([0m[36m  4.8 µs[0m … [0m[35m 18.6 ms[0m)[0m[35m   7.2 µs  22.9 µs  38.2 µs[0m
+mobx        [0m[33m         6.0 µs[0m       167,000 ([0m[36m  4.1 µs[0m … [0m[35m  3.8 ms[0m)[0m[35m   6.1 µs  17.6 µs  30.1 µs[0m
+v2          [0m[33m         1.9 µs[0m       514,500 ([0m[36m  1.4 µs[0m … [0m[35m  4.1 µs[0m)[0m[35m   2.0 µs   4.1 µs   4.1 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     3.08[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     4.49[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mmultiple-reactions-10[0m
+fobx        [0m[33m        13.7 µs[0m        73,130 ([0m[36m  9.7 µs[0m … [0m[35m  2.9 ms[0m)[0m[35m  13.8 µs  34.6 µs  59.8 µs[0m
+mobx        [0m[33m        18.5 µs[0m        53,930 ([0m[36m 13.2 µs[0m … [0m[35m  2.7 ms[0m)[0m[35m  18.4 µs  44.5 µs  80.2 µs[0m
+v2          [0m[33m         8.0 µs[0m       125,400 ([0m[36m  5.7 µs[0m … [0m[35m  3.1 ms[0m)[0m[35m   7.7 µs  20.8 µs  26.4 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.72[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     2.33[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mdep-graph-wide-1-to-50[0m
+fobx        [0m[33m        69.2 µs[0m        14,460 ([0m[36m 49.2 µs[0m … [0m[35m  2.6 ms[0m)[0m[35m  73.3 µs 188.3 µs 245.1 µs[0m
+mobx        [0m[33m        89.7 µs[0m        11,150 ([0m[36m 61.8 µs[0m … [0m[35m  2.5 ms[0m)[0m[35m  96.4 µs 275.7 µs 336.5 µs[0m
+v2          [0m[33m        40.3 µs[0m        24,800 ([0m[36m 27.0 µs[0m … [0m[35m  2.9 ms[0m)[0m[35m  41.3 µs 106.7 µs 163.4 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     1.72[0mx faster than [0m[1m[36mfobx[0m
+[0m[32m     2.22[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mrapid-box-100-writes[0m
+fobx        [0m[33m         7.3 µs[0m       136,100 ([0m[36m  4.8 µs[0m … [0m[35m  3.0 ms[0m)[0m[35m   6.9 µs  22.6 µs  35.5 µs[0m
+mobx        [0m[33m         6.0 µs[0m       165,700 ([0m[36m  5.5 µs[0m … [0m[35m  8.6 µs[0m)[0m[35m   6.1 µs   8.6 µs   8.6 µs[0m
+v2          [0m[33m       578.9 ns[0m     1,727,000 ([0m[36m466.6 ns[0m … [0m[35m920.0 ns[0m)[0m[35m 626.0 ns 920.0 ns 920.0 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m    10.43[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m    12.69[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32mrapid-box-with-reaction-100[0m
+fobx        [0m[33m        24.3 µs[0m        41,210 ([0m[36m 16.3 µs[0m … [0m[35m  1.7 ms[0m)[0m[35m  24.9 µs  70.4 µs 112.1 µs[0m
+mobx        [0m[33m        61.4 µs[0m        16,280 ([0m[36m 45.1 µs[0m … [0m[35m  1.3 ms[0m)[0m[35m  67.0 µs 183.1 µs 228.4 µs[0m
+v2          [0m[33m        35.6 µs[0m        28,050 ([0m[36m 27.1 µs[0m … [0m[35m  1.1 ms[0m)[0m[35m  36.8 µs  91.0 µs 138.1 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[31m     1.47[0mx slower than [0m[1m[36mfobx[0m
+[0m[32m     1.72[0mx faster than [0m[1m[36mmobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32maction-simple[0m
+fobx        [0m[33m         4.7 µs[0m       214,200 ([0m[36m  3.2 µs[0m … [0m[35m 11.8 ms[0m)[0m[35m   4.5 µs  11.9 µs  20.4 µs[0m
+mobx        [0m[33m         1.7 µs[0m       604,900 ([0m[36m  1.3 µs[0m … [0m[35m  3.0 µs[0m)[0m[35m   1.8 µs   3.0 µs   3.0 µs[0m
+v2          [0m[33m       232.1 ns[0m     4,308,000 ([0m[36m170.7 ns[0m … [0m[35m599.0 ns[0m)[0m[35m 269.6 ns 511.6 ns 521.9 ns[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     7.12[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m    20.11[0mx faster than [0m[1m[36mfobx[0m
+
+[0m[38;5;245mgroup[0m [0m[32maction-batching-reactions[0m
+fobx        [0m[33m         6.2 µs[0m       162,300 ([0m[36m  5.3 µs[0m … [0m[35m  6.7 µs[0m)[0m[35m   6.6 µs   6.7 µs   6.7 µs[0m
+mobx        [0m[33m         3.7 µs[0m       269,400 ([0m[36m  3.2 µs[0m … [0m[35m  4.9 µs[0m)[0m[35m   3.8 µs   4.9 µs   4.9 µs[0m
+v2          [0m[33m       973.1 ns[0m     1,028,000 ([0m[36m722.1 ns[0m … [0m[35m  2.7 µs[0m)[0m[35m   1.1 µs   2.7 µs   2.7 µs[0m
+
+[0m[38;5;245msummary[0m
+  [0m[1m[36mv2[0m
+[0m[32m     3.81[0mx faster than [0m[1m[36mmobx[0m
+[0m[32m     6.33[0mx faster than [0m[1m[36mfobx[0m
+

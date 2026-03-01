@@ -17,7 +17,9 @@ class TestViewModel {
 
 test("nested objects respect individually specified structural option", () => {
   const o = fobx.observable({ a: { b: 1 } }, {
-    a: ["observable", "structural"],
+    annotations: {
+      a: ["observable", "structural"],
+    },
   })
   let runs = -1
 
@@ -58,7 +60,7 @@ test("observable(this) called in both super and base class does not incorrectly 
       Object.entries(props).forEach(([key]) => {
         annotations[key] = "observable.ref"
       })
-      this._props = fobx.observable(props, annotations)
+      this._props = fobx.observable(props, { annotations })
       fobx.observable(this)
     }
 
@@ -187,7 +189,7 @@ describe("observableObject", () => {
           return this.b + this.a
         },
       },
-      { b: "none" },
+      { annotations: { b: "none" } },
     )
     fobx.reaction(() => obj.c, fn())
     expect(callCount).toBe(1)
@@ -242,7 +244,7 @@ describe("observableObject", () => {
     class WithoutAction {
       b = 1
       constructor() {
-        fobx.observable(this, { test: "none" })
+        fobx.observable(this, { annotations: { test: "none" } })
       }
       test() {
         return this.b
@@ -328,7 +330,7 @@ describe("observableObject", () => {
       callCount = 0
       constructor() {
         this.a = 10
-        fobx.observable(this, { callCount: "none" })
+        fobx.observable(this, { annotations: { callCount: "none" } })
       }
       get b() {
         this.callCount++
@@ -528,7 +530,7 @@ test("annotations work as expected in inheritance", () => {
   class GrandParent {
     g = 3
     constructor() {
-      fobx.observable(this, { g: "observable.ref" })
+      fobx.observable(this, { annotations: { g: "observable.ref" } })
     }
     get g2() {
       return this.g
@@ -541,7 +543,7 @@ test("annotations work as expected in inheritance", () => {
     p = 2
     constructor() {
       super()
-      fobx.observable(this, { p2: "none", pfn: "none" })
+      fobx.observable(this, { annotations: { p2: "none", pfn: "none" } })
     }
     get p2() {
       return this.p

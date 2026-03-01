@@ -1,10 +1,16 @@
 /**
  * Observable Objects — descriptor-based implementation.
  *
- * - observable(plainObject) -> creates NEW object, source untouched
+ * - observable(plainObject) -> creates NEW object, source untouched (unless inPlace: true)
  * - observable(classInstance) -> modifies instance, prototype descriptors for inherited members
  * - makeObservable() -> explicit opt-in, modifies target
- * - extendObservable() -> adds properties to existing observable
+ *
+ * Both makeObservable and observable accept a single options object
+ * that may include an `annotations` key.
+ *
+ * Options:
+ *   inPlace (observable only) — mutate the source plain object instead of creating a copy
+ *   ownPropertiesOnly — install all descriptors on the instance, never on prototypes
  */
 
 import {
@@ -85,16 +91,34 @@ export type AnnotationsMap<T extends object> = {
 /**
  * Options for makeObservable
  */
-export interface MakeObservableOptions {
+export interface MakeObservableOptions<T extends object = object> {
   name?: string
+  annotations?: AnnotationsMap<T>
+  /**
+   * When true, all descriptors (including inherited ones) are installed directly
+   * on the target instance rather than on the prototype. Default: false.
+   */
+  ownPropertiesOnly?: boolean
 }
 
 /**
  * Options for observable
  */
-export interface ObservableOptions {
+export interface ObservableOptions<T extends object = object> {
   name?: string
   defaultAnnotation?: AnnotationString
+  annotations?: Partial<AnnotationsMap<T>>
+  /**
+   * When true and the target is a plain object, the source object is mutated
+   * in place instead of creating a new reference. Has no effect on class
+   * instances (they are always mutated in place). Default: false.
+   */
+  inPlace?: boolean
+  /**
+   * When true, all descriptors (including inherited ones) are installed directly
+   * on the target instance rather than on the prototype. Default: false.
+   */
+  ownPropertiesOnly?: boolean
 }
 
 /**
@@ -161,7 +185,7 @@ function convertToObservable(
     return set(value)
   }
   if (isPlainObject(value)) {
-    return object(value)
+    return observable(value)
   }
   if (
     typeof value === "object" && value !== null && !Object.isExtensible(value)
@@ -516,9 +540,9 @@ function processProperty(
 
 export function makeObservable<T extends object>(
   target: T,
-  annotations: AnnotationsMap<T>,
-  options?: MakeObservableOptions,
+  options?: MakeObservableOptions<T>,
 ): T {
+  const annotations = options?.annotations ?? {} as AnnotationsMap<T>
   // Type validation
   if (
     target == null ||
@@ -562,7 +586,9 @@ export function makeObservable<T extends object>(
           )
         }
 
-        const installTarget = found.prototype ?? target
+        const installTarget = options?.ownPropertiesOnly
+          ? target
+          : (found.prototype ?? target)
         processProperty(
           admin,
           key,
@@ -585,7 +611,7 @@ export function makeObservable<T extends object>(
         const desc = Object.getOwnPropertyDescriptor(target, key)
         if (desc) Object.defineProperty(newTarget, key, desc)
       }
-      return makeObservable(newTarget, annotations, options)
+      return makeObservable(newTarget, options)
     }
     console.warn(
       "[@fobx/core] Attempted to make a non-extensible object observable, which is not possible.",
@@ -626,7 +652,9 @@ export function makeObservable<T extends object>(
         )
       }
 
-      const installTarget = found.prototype ?? target
+      const installTarget = options?.ownPropertiesOnly
+        ? target
+        : (found.prototype ?? target)
       processProperty(
         admin,
         key,
@@ -642,39 +670,35 @@ export function makeObservable<T extends object>(
   return target
 }
 
-// ─── object / observable ─────────────────────────────────────────────────────
+// ─── observable ──────────────────────────────────────────────────────────────
 
-export function object<T = Any>(
+export function observable<T = Any>(
   target: T[],
   options?: ArrayOptions,
 ): ObservableArray<T>
-export function object<K = Any, V = Any>(
+export function observable<K = Any, V = Any>(
   target: Map<K, V>,
   options?: MapOptions,
 ): ObservableMap<K, V>
-export function object<T = Any>(
+export function observable<T = Any>(
   target: Set<T>,
   options?: SetOptions,
 ): ObservableSet<T>
-export function object<T extends object>(
+export function observable<T extends object>(
   target: T,
-  annotations?: Partial<AnnotationsMap<T>>,
-  options?: ObservableOptions,
+  options?: ObservableOptions<T>,
 ): T
-export function object<T extends object>(
+export function observable<T extends object>(
   target: T,
-  annotationsOrOptions?: Partial<AnnotationsMap<T>> | ObservableOptions,
-  maybeOptions?: ObservableOptions,
+  options?: ObservableOptions<T> | ArrayOptions | MapOptions | SetOptions,
 ): Any {
   // Fast path: already observable
   if (isObservable(target) || isObservableObject(target)) {
     if (isObservableObject(target)) {
       const admin = (target as Any)[$fobx] as ObservableObjectAdmin
-      const annotations = annotationsOrOptions as
-        | Partial<AnnotationsMap<T>>
-        | undefined
-      const opts = maybeOptions as ObservableOptions | undefined
-      const defaultAnnotation = opts?.defaultAnnotation || "observable"
+      const objOptions = options as ObservableOptions<T> | undefined
+      const annotations = objOptions?.annotations
+      const defaultAnnotation = objOptions?.defaultAnnotation || "observable"
 
       startBatch()
       try {
@@ -739,13 +763,13 @@ export function object<T extends object>(
 
   // Handle collections
   if (Array.isArray(target)) {
-    return array(target, annotationsOrOptions as ArrayOptions)
+    return array(target, options as ArrayOptions)
   }
   if (target instanceof Map) {
-    return map(target, annotationsOrOptions as MapOptions)
+    return map(target, options as MapOptions)
   }
   if (target instanceof Set) {
-    return set(target, annotationsOrOptions as SetOptions)
+    return set(target, options as SetOptions)
   }
 
   // Type validation
@@ -756,23 +780,30 @@ export function object<T extends object>(
     )
   }
 
-  const annotations = annotationsOrOptions as
-    | Partial<AnnotationsMap<T>>
-    | undefined
-  const options = maybeOptions as ObservableOptions | undefined
+  const objOptions = options as ObservableOptions<T> | undefined
+  const annotations = objOptions?.annotations
 
   const isPlain = isPlainObject(target)
+  const inPlace = !!(objOptions as ObservableOptions<T> | undefined)?.inPlace
+  const ownPropertiesOnly = !!(objOptions as ObservableOptions<T> | undefined)
+    ?.ownPropertiesOnly
 
   if (!isPlain && !Object.isExtensible(target)) {
     throw new Error("[@fobx/core] Cannot make non-extensible object observable")
   }
 
-  const observableTarget = isPlain ? ({} as T) : target
+  if (isPlain && inPlace && !Object.isExtensible(target)) {
+    throw new Error(
+      "[@fobx/core] Cannot use inPlace on a non-extensible (frozen/sealed) object",
+    )
+  }
+
+  const observableTarget = isPlain && !inPlace ? ({} as T) : target
 
   const id = getNextId()
   const admin: ObservableObjectAdmin = {
     id,
-    name: options?.name ||
+    name: objOptions?.name ||
       (isPlain ? `ObservableObject@${id}` : getConstructorName(target)),
     target: observableTarget,
     values: new Map(),
@@ -839,7 +870,7 @@ export function object<T extends object>(
       }
 
       let installTarget: object
-      if (isPlain) {
+      if (isPlain || ownPropertiesOnly) {
         installTarget = observableTarget
       } else {
         installTarget = prototype ?? observableTarget
@@ -901,7 +932,7 @@ export function object<T extends object>(
             installTarget,
           )
         } else if (!descriptor.get) {
-          const type = options?.defaultAnnotation || "observable"
+          const type = objOptions?.defaultAnnotation || "observable"
           meta = processProperty(admin, key, descriptor, type, installTarget)
         }
 
@@ -934,103 +965,4 @@ export function object<T extends object>(
   return observableTarget
 }
 
-/**
- * Alias for object() to match MobX naming
- */
-export function observable<T = Any>(
-  target: T[],
-  options?: ArrayOptions,
-): ObservableArray<T>
-export function observable<K = Any, V = Any>(
-  target: Map<K, V>,
-  options?: MapOptions,
-): ObservableMap<K, V>
-export function observable<T = Any>(
-  target: Set<T>,
-  options?: SetOptions,
-): ObservableSet<T>
-export function observable<T extends object>(
-  target: T,
-  annotations?: Partial<AnnotationsMap<T>>,
-  options?: ObservableOptions,
-): T
-export function observable(
-  target: Any,
-  annotationsOrOptions?: Any,
-  maybeOptions?: ObservableOptions,
-): Any {
-  return object(target, annotationsOrOptions, maybeOptions)
-}
 
-// ─── extendObservable ────────────────────────────────────────────────────────
-
-export function extendObservable<T extends object, E extends object>(
-  target: T,
-  extension: E,
-  annotations?: Partial<AnnotationsMap<E>>,
-): T & E {
-  if (!isPlainObject(extension)) {
-    throw new Error(
-      "[@fobx/core] 2nd argument to extendObservable must be a plain js object.",
-    )
-  }
-
-  let admin = (target as Any)[$fobx] as ObservableObjectAdmin | undefined
-
-  if (!admin) {
-    const id = getNextId()
-    admin = {
-      id,
-      name: `ObservableObject@${id}`,
-      target,
-      values: new Map(),
-    }
-
-    Object.defineProperty(target, $fobx, {
-      value: admin,
-      writable: false,
-      enumerable: false,
-      configurable: false,
-    })
-  }
-
-  const descriptors = Object.getOwnPropertyDescriptors(extension)
-
-  startBatch()
-  try {
-    for (const key of Object.keys(descriptors)) {
-      if (key === "constructor") continue
-
-      const descriptor = descriptors[key]
-      const explicitAnnotation = annotations?.[key as keyof E]
-
-      if (explicitAnnotation === false) continue
-
-      let annotation: AnnotationValue
-      if (explicitAnnotation !== undefined) {
-        annotation = explicitAnnotation
-      } else if (descriptor.get) {
-        annotation = "computed"
-      } else if (typeof descriptor.value === "function") {
-        annotation = "transaction"
-      } else {
-        annotation = "observable"
-      }
-
-      processProperty(admin, key, descriptor, annotation, target)
-
-      // Skip value assignment for transaction/flow — processProperty already installs them
-      if (
-        descriptor.value !== undefined && !descriptor.get &&
-        annotation !== "transaction" && annotation !== "transaction.bound" &&
-        annotation !== "flow"
-      ) {
-        ;(target as Any)[key] = descriptor.value
-      }
-    }
-  } finally {
-    endBatch()
-  }
-
-  return target as T & E
-}

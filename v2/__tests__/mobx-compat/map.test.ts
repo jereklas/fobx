@@ -1171,7 +1171,7 @@ test("2346 - subscribe to not yet existing map keys", async () => {
     }
 
     constructor() {
-      fobx.observable(this, { get: "none" })
+      fobx.observable(this, { annotations: { get: "none" } })
     }
 
     get(k: any) {

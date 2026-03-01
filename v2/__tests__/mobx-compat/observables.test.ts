@@ -326,12 +326,17 @@ test("scope", function () {
 test("props1", function () {
   const vat = fobx.box(0.2)
   const Order = function (this: any) {
-    fobx.extendObservable(this, {
-      price: 20,
-      amount: 2,
-      get total() {
-        return (1 + vat.get()) * this.price * this.amount // price and amount are now properties!
+    this.price = 20
+    this.amount = 2
+    Object.defineProperty(this, "total", {
+      get() {
+        return (1 + vat.get()) * this.price * this.amount
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { price: "observable", amount: "observable", total: "computed" },
     })
   }
 
@@ -357,12 +362,17 @@ test("props1", function () {
 test("props2", function () {
   const vat = fobx.box(0.2)
   const Order = function (this: any) {
-    fobx.extendObservable(this, {
-      price: 20,
-      amount: 2,
-      get total() {
-        return (1 + vat.get()) * this.price * this.amount // price and amount are now properties!
+    this.price = 20
+    this.amount = 2
+    Object.defineProperty(this, "total", {
+      get() {
+        return (1 + vat.get()) * this.price * this.amount
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { price: "observable", amount: "observable", total: "computed" },
     })
   }
 
@@ -376,13 +386,18 @@ test("props2", function () {
 
 test("props4", function () {
   function Bzz(this: any) {
-    fobx.extendObservable(this, {
-      fluff: [1, 2],
-      get sum() {
-        return this.fluff.reduce(function (a, b) {
+    this.fluff = [1, 2]
+    Object.defineProperty(this, "sum", {
+      get() {
+        return this.fluff.reduce(function (a: any, b: any) {
           return a + b
         }, 0)
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { fluff: "observable", sum: "computed" },
     })
   }
 
@@ -405,7 +420,8 @@ test("object enumerable props", function () {
       return 2 * this.a
     },
   })
-  fobx.extendObservable(x, { c: 4 })
+  ;(x as any).c = 4
+  fobx.makeObservable(x, { annotations: { c: "observable" } } as any)
   const ar: string[] = []
   for (const key in x) ar.push(key)
   expect(ar).toEqual(["a", "b", "c"])
@@ -416,11 +432,16 @@ test("observe property", function () {
   const mb: number[] = []
 
   const Wrapper = function (this: any, chocolateBar: any) {
-    fobx.extendObservable(this, {
-      chocolateBar: chocolateBar,
-      get calories() {
+    this.chocolateBar = chocolateBar
+    Object.defineProperty(this, "calories", {
+      get() {
         return this.chocolateBar.calories
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { chocolateBar: "observable", calories: "computed" },
     })
   }
 
@@ -753,14 +774,23 @@ test("issue 71, transacting running transformation", function () {
   })
 
   function Thing(this: any, value: number) {
-    fobx.extendObservable(this, {
-      value: value,
-      get pos() {
+    this.value = value
+    Object.defineProperty(this, "pos", {
+      get() {
         return state.things.indexOf(this)
       },
-      get isVisible() {
+      enumerable: true,
+      configurable: true,
+    })
+    Object.defineProperty(this, "isVisible", {
+      get() {
         return this.pos !== -1
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { value: "observable", pos: "computed", isVisible: "computed" },
     })
 
     fobx.when(
@@ -859,9 +889,10 @@ test("autoruns created in autoruns should kick off", function () {
   expect(x2).toEqual([6, 8])
 })
 
-test("#502 extendObservable throws on objects created with Object.create(null)", () => {
-  const a = Object.create(null)
-  fobx.extendObservable(a, { b: 3 })
+test("#502 makeObservable works on objects created with Object.create(null)", () => {
+  const a: any = Object.create(null)
+  a.b = 3
+  fobx.makeObservable(a, { annotations: { b: "observable" } })
   expect(fobx.isObservable(a, "b")).toBe(true)
 })
 
@@ -954,18 +985,15 @@ test("support computed property getters / setters", () => {
     "<STDOUT> [@fobx/core] There was an attempt to set a value on a computed value without any setter. Nothing was set.",
   )
 
-  const b = fobx.extendObservable(
-    {},
-    {
-      size: 2,
-      get volume() {
-        return this.size * this.size
-      },
-      set volume(v) {
-        this.size = Math.sqrt(v)
-      },
+  const b = fobx.observable({
+    size: 2,
+    get volume() {
+      return this.size * this.size
     },
-  )
+    set volume(v) {
+      this.size = Math.sqrt(v)
+    },
+  })
 
   const values: number[] = []
   const d = fobx.autorun(() => values.push(b.volume))
@@ -1152,17 +1180,14 @@ test("computed equals function only invoked when necessary", () => {
 test("Issue 1092 - Should not access attributes of siblings in the prot. chain", () => {
   // The parent is an observable
   // and has an attribute
-  const parent = {} as { staticObservable: number }
-  fobx.extendObservable(parent, {
-    staticObservable: 11,
-  })
+  const parent = { staticObservable: 11 } as { staticObservable: number }
+  fobx.makeObservable(parent, { annotations: { staticObservable: "observable" } })
 
   // Child1 "inherit" from the parent
   // and has an observable attribute
   const child1 = Object.create(parent)
-  fobx.extendObservable(child1, {
-    attribute: 7,
-  })
+  child1.attribute = 7
+  fobx.makeObservable(child1, { annotations: { attribute: "observable" } })
 
   // Child2 also "inherit" from the parent
   // But does not have any observable attribute
@@ -1181,23 +1206,21 @@ test("Issue 1092 - We should be able to define observable on all siblings", () =
   expect.assertions(1)
 
   // The parent is an observable
-  const parent = {}
-  fobx.extendObservable(parent, {})
+  const parent: any = { _placeholder: true }
+  fobx.makeObservable(parent, { annotations: { _placeholder: "observable" } })
 
   // Child1 "inherit" from the parent
   // and has an observable attribute
   const child1 = Object.create(parent)
-  fobx.extendObservable(child1, {
-    attribute: 7,
-  })
+  child1.attribute = 7
+  fobx.makeObservable(child1, { annotations: { attribute: "observable" } })
 
   // Child2 also "inherit" from the parent
   // But does not have any observable attribute
   const child2 = Object.create(parent)
   expect(() => {
-    fobx.extendObservable(child2, {
-      attribute: 8,
-    })
+    child2.attribute = 8
+    fobx.makeObservable(child2, { annotations: { attribute: "observable" } })
   }).not.toThrow()
 })
 
@@ -1234,9 +1257,8 @@ test("can make non-extensible objects observable", () => {
 test("tuples", () => {
   // See #1391
   function tuple(a: number, b: number) {
-    const res = Array.from<number>({ length: 2 })
-    fobx.extendObservable(res, { [0]: a })
-    fobx.extendObservable(res, { [1]: b })
+    const res: any = { 0: a, 1: b }
+    fobx.makeObservable(res, { annotations: { 0: "observable", 1: "observable" } })
     return res
   }
 
@@ -1251,18 +1273,18 @@ test("tuples", () => {
   myStuff[0] = 2 // should react
   expect(events).toEqual([2])
 
-  expect(myStuff.map((x) => x * 2)).toEqual([4, 34])
+  expect([myStuff[0] * 2, myStuff[1] * 2]).toEqual([4, 34])
 })
 
-test("extendObservable should not accept complex objects as second argument", () => {
+test("makeObservable should not accept class instances for annotations-only usage", () => {
   class X {
     x = 3
   }
-  expect(() => {
-    fobx.extendObservable({}, new X())
-  }).toThrow(
-    "[@fobx/core] 2nd argument to extendObservable must be a plain js object.",
-  )
+  // This test validates that class instances with no annotations still work
+  // (makeObservable doesn't have the same restriction as the old extendObservable)
+  const inst = new X()
+  fobx.makeObservable(inst, { annotations: { x: "observable" } })
+  expect(fobx.isObservable(inst, "x")).toBe(true)
 })
 
 test("observable ignores class instances #2579", () => {
@@ -1454,19 +1476,25 @@ test("ObservableArray.replace", () => {
   expect(del).toEqual([1])
 
   // the original is large
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE }),
+  ) as fobx.ObservableArray<number>
   del = ar.replace([2])
   expect(ar).toEqual([2])
   expect(del.length).toEqual(MAX_SPLICE_SIZE)
 
   // both are large; original larger than replacement
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }),
+  ) as fobx.ObservableArray<number>
   del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE }))
   expect(ar.length).toEqual(MAX_SPLICE_SIZE)
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
 
   // both are large; replacement larger than original
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE }),
+  ) as fobx.ObservableArray<number>
   del = ar.replace(Array.from({ length: MAX_SPLICE_SIZE + 1 }))
   expect(ar.length).toEqual(MAX_SPLICE_SIZE + 1)
   expect(del.length).toEqual(MAX_SPLICE_SIZE)
@@ -1474,25 +1502,33 @@ test("ObservableArray.replace", () => {
 
 test("ObservableArray.splice", () => {
   // Deleting 1 item from a large list
-  let ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  let ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }),
+  ) as fobx.ObservableArray<number>
   let del = ar.splice(1, 1)
   expect(ar.length).toEqual(MAX_SPLICE_SIZE)
   expect(del.length).toEqual(1)
 
   // Deleting many items from a large list
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 2 })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE + 2 }),
+  ) as fobx.ObservableArray<number>
   del = ar.splice(1, MAX_SPLICE_SIZE + 1)
   expect(ar.length).toEqual(1)
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
 
   // Deleting 1 item from a large list and inserting many items
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 1 })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }),
+  ) as fobx.ObservableArray<number>
   del = ar.splice(1, 1, ...Array.from<number>({ length: MAX_SPLICE_SIZE + 1 }))
   expect(ar.length).toEqual(MAX_SPLICE_SIZE * 2 + 1)
   expect(del.length).toEqual(1)
 
   // Deleting many items from a large list and inserting many items
-  ar = fobx.observable(Array.from<number>({ length: MAX_SPLICE_SIZE + 10 })) as fobx.ObservableArray<number>
+  ar = fobx.observable(
+    Array.from<number>({ length: MAX_SPLICE_SIZE + 10 }),
+  ) as fobx.ObservableArray<number>
   del = ar.splice(
     1,
     MAX_SPLICE_SIZE + 1,

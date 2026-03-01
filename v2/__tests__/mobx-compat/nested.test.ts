@@ -7,16 +7,21 @@ beforeAll(() => {
 
 //cspell:ignore computeds
 test("nested computeds should not run unnecessary", () => {
-  function Item(this: object, name: string) {
-    fobx.extendObservable(this, {
-      name: name,
-      get index() {
+  function Item(this: any, name: string) {
+    this.name = name
+    Object.defineProperty(this, "index", {
+      get() {
         const i = store.items.indexOf(this)
         if (i === -1) {
           throw "not found"
         }
         return i
       },
+      enumerable: true,
+      configurable: true,
+    })
+    fobx.makeObservable(this, {
+      annotations: { name: "observable", index: "computed" },
     })
   }
 

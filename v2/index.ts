@@ -2,30 +2,27 @@
 export { configure } from "./instance.ts"
 
 // Primitives
-export { box, getBoxValue, setBoxValue } from "./box.ts"
+export { box } from "./box.ts"
 export { computed } from "./computed.ts"
 export { autorun } from "./autorun.ts"
-export { reaction, UNDEFINED } from "./reaction.ts"
+export { reaction } from "./reaction.ts"
 export { when } from "./when.ts"
 export { map } from "./map.ts"
 export { array } from "./array.ts"
 export { set } from "./set.ts"
 export {
-  extendObservable,
   makeObservable,
-  object,
   observable,
 } from "./object.ts"
 
 // Batching
-export { runInTransaction, transaction, transactionBound } from "./batch.ts"
+export { runInTransaction, transaction } from "./batch.ts"
 
 // Tracking utilities
 export { withoutTracking } from "./tracking.ts"
 
 // Utilities
 export {
-  hasFobxAdmin,
   isComputed,
   isObservable,
   isObservableArray,
@@ -60,7 +57,6 @@ export type {
 } from "./object.ts"
 export type { ConfigureOptions } from "./instance.ts"
 export type { EqualityChecker, EqualityComparison } from "./global.ts"
-export { POSSIBLY_STALE, STALE, UP_TO_DATE } from "./global.ts"
 export type {
   ComputedAdmin,
   Dispose,

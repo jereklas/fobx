@@ -6,10 +6,12 @@ type Any = any
 test("creating an observable object with shallow=true works correctly", () => {
   const obj = { a: { b: "c" }, arr: [], set: new Set(), map: new Map() }
   const shallow = fobx.observable(obj, {
-    a: "observable.ref",
-    arr: "observable.ref",
-    set: "observable.ref",
-    map: "observable.ref",
+    annotations: {
+      a: "observable.ref",
+      arr: "observable.ref",
+      set: "observable.ref",
+      map: "observable.ref",
+    },
   })
   const deep = fobx.observable(obj)
 
@@ -110,9 +112,11 @@ test("observable with observable.shallow annotation creates observable collectio
   }
 
   const observed = fobx.observable(obj, {
-    array: "observable.shallow",
-    map: "observable.shallow",
-    set: "observable.shallow",
+    annotations: {
+      array: "observable.shallow",
+      map: "observable.shallow",
+      set: "observable.shallow",
+    },
   })
 
   expect(fobx.isObservable(observed, "array")).toBe(true)
@@ -135,10 +139,14 @@ test("observable with observable.shallow annotation creates observable collectio
 
 test("observable.shallow tracks collection operations, unlike shallow: true", () => {
   const withShallowOption = fobx.observable({ array: [1, 2, 3] }, {
-    array: "observable.ref",
+    annotations: {
+      array: "observable.ref",
+    },
   })
   const withShallowAnnotation = fobx.observable({ array: [1, 2, 3] }, {
-    array: "observable.shallow",
+    annotations: {
+      array: "observable.shallow",
+    },
   })
 
   expect(fobx.isObservableArray(withShallowOption.array)).toBe(false)
@@ -183,10 +191,12 @@ test("observable with observable.ref annotation works correctly", () => {
     map,
     set,
   }, {
-    nested: "observable.ref",
-    array: "observable.ref",
-    map: "observable.ref",
-    set: "observable.ref",
+    annotations: {
+      nested: "observable.ref",
+      array: "observable.ref",
+      map: "observable.ref",
+      set: "observable.ref",
+    },
   })
 
   expect(fobx.isObservable(observed, "nested")).toBe(true)
@@ -233,7 +243,7 @@ test("observable with tuple annotation supports custom equality functions", () =
 
   const observed = fobx.observable(
     { value: 1.0 },
-    { value: ["observable", approximateEquality] },
+    { annotations: { value: ["observable", approximateEquality] } },
   )
 
   const reactions: number[] = []
@@ -254,7 +264,7 @@ test("observable with tuple annotation supports structural comparison", () => {
 
   const observed = fobx.observable(
     { person: { name: "Alice", age: 30 } },
-    { person: ["observable", "structural"] },
+    { annotations: { person: ["observable", "structural"] } },
   )
 
   const reactions: Array<{ name: string; age: number }> = []
@@ -288,7 +298,9 @@ test("observable.shallow with tuple annotation supports custom equality function
       },
     },
     {
-      config: ["observable.shallow", compareImportantProps],
+      annotations: {
+        config: ["observable.shallow", compareImportantProps],
+      },
     },
   )
 
@@ -322,7 +334,9 @@ test("observable.ref with tuple annotation supports custom equality functions", 
       searchQuery: "t-shirt",
     },
     {
-      searchQuery: ["observable.ref", caseInsensitiveEquality],
+      annotations: {
+        searchQuery: ["observable.ref", caseInsensitiveEquality],
+      },
     },
   )
 
@@ -335,4 +349,86 @@ test("observable.ref with tuple annotation supports custom equality functions", 
   observed.searchQuery = "pants"
   expect(reactions.length).toBe(1)
   expect(reactions[0]).toBe("pants")
+})
+
+test("observable with inPlace=true mutates plain object in place", () => {
+  const source = { value: 1 }
+  const observed = fobx.observable(source, { inPlace: true })
+
+  expect(observed).toBe(source)
+  expect(fobx.isObservableObject(source)).toBe(true)
+  expect(fobx.isObservable(source, "value")).toBe(true)
+})
+
+test("observable with inPlace=true throws for frozen plain objects", () => {
+  const source = Object.freeze({ value: 1 })
+
+  expect(() => {
+    fobx.observable(source, { inPlace: true })
+  }).toThrow(
+    "[@fobx/core] Cannot use inPlace on a non-extensible (frozen/sealed) object",
+  )
+})
+
+test("observable with inPlace=false returns a new plain object reference", () => {
+  const source = { value: 1 }
+  const observed = fobx.observable(source)
+
+  expect(observed).not.toBe(source)
+  expect(fobx.isObservableObject(observed)).toBe(true)
+  expect(fobx.isObservableObject(source)).toBe(false)
+})
+
+test("observable ownPropertiesOnly=true installs inherited members on instance", () => {
+  class Counter {
+    value = 1
+
+    get doubled() {
+      return this.value * 2
+    }
+
+    inc() {
+      this.value++
+    }
+  }
+
+  const counter = new Counter()
+  const observed = fobx.observable(counter, {
+    ownPropertiesOnly: true,
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+      inc: "transaction",
+    },
+  })
+
+  expect(observed).toBe(counter)
+  expect(Object.hasOwn(observed, "doubled")).toBe(true)
+  expect(Object.hasOwn(observed, "inc")).toBe(true)
+  expect(fobx.isComputed(observed, "doubled")).toBe(true)
+  expect(fobx.isTransaction(observed.inc)).toBe(true)
+})
+
+test("observable inPlace + ownPropertiesOnly combination behaves correctly", () => {
+  class Counter {
+    value = 1
+
+    get doubled() {
+      return this.value * 2
+    }
+  }
+
+  const counter = new Counter()
+  const observed = fobx.observable(counter, {
+    inPlace: true,
+    ownPropertiesOnly: true,
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+    },
+  })
+
+  expect(observed).toBe(counter)
+  expect(Object.hasOwn(observed, "doubled")).toBe(true)
+  expect(fobx.isComputed(observed, "doubled")).toBe(true)
 })

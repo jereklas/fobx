@@ -13,8 +13,10 @@ describe("makeObservable", () => {
   describe("basic functionality", () => {
     test("makes properties observable", () => {
       const obj = fobx.makeObservable({ x: 1, y: 2 }, {
-        x: "observable",
-        y: "observable",
+        annotations: {
+          x: "observable",
+          y: "observable",
+        },
       })
 
       expect(fobx.isObservableObject(obj)).toBe(true)
@@ -24,7 +26,9 @@ describe("makeObservable", () => {
 
     test("only makes explicitly annotated properties observable", () => {
       const obj = fobx.makeObservable({ x: 1, y: 2, z: 3 }, {
-        x: "observable",
+        annotations: {
+          x: "observable",
+        },
       })
 
       expect(fobx.isObservable(obj, "x")).toBe(true)
@@ -33,8 +37,12 @@ describe("makeObservable", () => {
     })
 
     test("returns the same object when called with an already observable object", () => {
-      const obj = fobx.makeObservable({ x: 1 }, { x: "observable" })
-      const obj2 = fobx.makeObservable(obj, { x: "observable" })
+      const obj = fobx.makeObservable({ x: 1 }, {
+        annotations: { x: "observable" },
+      })
+      const obj2 = fobx.makeObservable(obj, {
+        annotations: { x: "observable" },
+      })
       expect(obj2).toBe(obj)
     })
   })
@@ -55,9 +63,11 @@ describe("makeObservable", () => {
         return `${this.name}, ${this.age} years old`
       },
     }, {
-      name: "observable",
-      age: "observable",
-      fullName: "computed",
+      annotations: {
+        name: "observable",
+        age: "observable",
+        fullName: "computed",
+      },
     })
 
     const nameReactionFn = fn()
@@ -101,9 +111,10 @@ describe("makeObservable", () => {
     // deno-lint-ignore no-explicit-any
     errorsTC.forEach(({ arg, expected }: { arg: any; expected: string }) => {
       test(`throws error if supplied type of '${expected}'`, () => {
-        expect(() => fobx.makeObservable(arg, {} as never)).toThrow(
-          `[@fobx/core] Cannot make an observable object out of type "${expected}"`,
-        )
+        expect(() => fobx.makeObservable(arg, { annotations: {} } as never))
+          .toThrow(
+            `[@fobx/core] Cannot make an observable object out of type "${expected}"`,
+          )
       })
     })
   })
@@ -114,7 +125,9 @@ describe("makeObservable", () => {
 
       const observedDeep = fobx.observable(nested)
       const explicitDeep = fobx.makeObservable(nested, {
-        a: "observable",
+        annotations: {
+          a: "observable",
+        },
       })
 
       expect(fobx.isObservable(observedDeep, "a")).toBe(true)
@@ -131,7 +144,9 @@ describe("makeObservable", () => {
 
       const observedDeep = fobx.observable(nested)
       const explicitShallow = fobx.makeObservable(nested, {
-        a: "observable.shallow",
+        annotations: {
+          a: "observable.shallow",
+        },
       })
 
       expect(fobx.isObservable(observedDeep, "a")).toBe(true)
@@ -147,7 +162,9 @@ describe("makeObservable", () => {
     test("makes nested objects deeply observable", () => {
       const nestedObj = { foo: { bar: { baz: 1 } } }
       const obj = fobx.makeObservable(nestedObj, {
-        foo: "observable",
+        annotations: {
+          foo: "observable",
+        },
       })
 
       expect(fobx.isObservable(obj, "foo")).toBe(true)
@@ -159,7 +176,9 @@ describe("makeObservable", () => {
 
     test("makes arrays and their contents observable", () => {
       const obj = fobx.makeObservable({ arr: [1, 2, { x: 1 }] }, {
-        arr: "observable",
+        annotations: {
+          arr: "observable",
+        },
       })
 
       expect(fobx.isObservableArray(obj.arr)).toBe(true)
@@ -170,7 +189,9 @@ describe("makeObservable", () => {
     test("makes Maps and their values observable", () => {
       const map = new Map([["key", { value: 1 }]])
       const obj = fobx.makeObservable({ map }, {
-        map: "observable",
+        annotations: {
+          map: "observable",
+        },
       })
 
       expect(fobx.isObservableMap(obj.map)).toBe(true)
@@ -183,7 +204,9 @@ describe("makeObservable", () => {
       const objInSet = { value: 1 }
       const set = new Set([objInSet])
       const obj = fobx.makeObservable({ set }, {
-        set: "observable",
+        annotations: {
+          set: "observable",
+        },
       })
 
       expect(fobx.isObservableSet(obj.set)).toBe(true)
@@ -197,7 +220,9 @@ describe("makeObservable", () => {
     test("makes only direct properties observable", () => {
       const nestedObj = { foo: { bar: { baz: 1 } } }
       const obj = fobx.makeObservable(nestedObj, {
-        foo: "observable.shallow",
+        annotations: {
+          foo: "observable.shallow",
+        },
       })
 
       expect(fobx.isObservable(obj, "foo")).toBe(true)
@@ -206,7 +231,9 @@ describe("makeObservable", () => {
 
     test("makes arrays observable but keeps contents non-observable", () => {
       const obj = fobx.makeObservable({ arr: [1, 2, { x: 1 }] }, {
-        arr: "observable.shallow",
+        annotations: {
+          arr: "observable.shallow",
+        },
       })
 
       expect(fobx.isObservableArray(obj.arr)).toBe(true)
@@ -216,7 +243,9 @@ describe("makeObservable", () => {
     test("makes Maps observable but keeps values non-observable", () => {
       const map = new Map([["key", { value: 1 }]])
       const obj = fobx.makeObservable({ map }, {
-        map: "observable.shallow",
+        annotations: {
+          map: "observable.shallow",
+        },
       })
 
       expect(fobx.isObservableMap(obj.map)).toBe(true)
@@ -228,7 +257,9 @@ describe("makeObservable", () => {
       const objInSet = { value: 1 }
       const set = new Set([objInSet])
       const obj = fobx.makeObservable({ set }, {
-        set: "observable.shallow",
+        annotations: {
+          set: "observable.shallow",
+        },
       })
 
       expect(fobx.isObservableSet(obj.set)).toBe(true)
@@ -242,7 +273,9 @@ describe("makeObservable", () => {
       const customEqualityFn = (a: number, b: number) => Math.abs(a - b) < 0.1
 
       const obj = fobx.makeObservable({ value: 1.0 }, {
-        value: ["observable", customEqualityFn],
+        annotations: {
+          value: ["observable", customEqualityFn],
+        },
       })
 
       const reactions: number[] = []
@@ -257,7 +290,9 @@ describe("makeObservable", () => {
 
     test("supports structural equality", () => {
       const obj = fobx.makeObservable({ person: { name: "Alice" } }, {
-        person: ["observable", "structural"],
+        annotations: {
+          person: ["observable", "structural"],
+        },
       })
 
       const reactions: Array<{ name: string }> = []
@@ -281,8 +316,10 @@ describe("makeObservable", () => {
           return this.x * 2
         },
       }, {
-        x: "observable",
-        y: "computed",
+        annotations: {
+          x: "observable",
+          y: "computed",
+        },
       })
 
       expect(fobx.isComputed(obj, "y")).toBe(true)
@@ -319,8 +356,10 @@ describe("makeObservable", () => {
           return this.x + 0.5
         },
       }, {
-        x: "observable",
-        y: ["computed", roundingEqualityFn],
+        annotations: {
+          x: "observable",
+          y: ["computed", roundingEqualityFn],
+        },
       })
 
       const reactions: number[] = []
@@ -344,8 +383,10 @@ describe("makeObservable", () => {
           this.x++
         },
       }, {
-        x: "observable",
-        increment: "transaction",
+        annotations: {
+          x: "observable",
+          increment: "transaction",
+        },
       })
 
       expect(fobx.isTransaction(obj.increment)).toBe(true)
@@ -361,8 +402,10 @@ describe("makeObservable", () => {
           this.x++
         },
       }, {
-        x: "observable",
-        increment: "transaction.bound",
+        annotations: {
+          x: "observable",
+          increment: "transaction.bound",
+        },
       })
 
       const { increment } = obj
@@ -381,8 +424,10 @@ describe("makeObservable", () => {
           this.x++
         },
       }, {
-        x: "observable",
-        process: "flow",
+        annotations: {
+          x: "observable",
+          process: "flow",
+        },
       })
 
       expect(fobx.isTransaction(obj.process)).toBe(true)
@@ -396,8 +441,10 @@ describe("makeObservable", () => {
             this.x++
           },
         }, {
-          x: "observable",
-          process: "flow",
+          annotations: {
+            x: "observable",
+            process: "flow",
+          },
         })
       }).toThrow(
         '[@fobx/core] "process" was marked as a flow but is not a generator function.',
@@ -408,8 +455,10 @@ describe("makeObservable", () => {
   describe("reactive behavior", () => {
     test("changes to observed properties trigger reactions", () => {
       const obj = fobx.makeObservable({ x: 1, y: 2 }, {
-        x: "observable",
-        y: "observable",
+        annotations: {
+          x: "observable",
+          y: "observable",
+        },
       })
 
       const xReactions: number[] = []
@@ -431,7 +480,9 @@ describe("makeObservable", () => {
       const obj = fobx.makeObservable({
         nested: { value: 1 },
       }, {
-        nested: "observable",
+        annotations: {
+          nested: "observable",
+        },
       })
 
       const reactions: number[] = []
@@ -475,10 +526,12 @@ describe("makeObservable", () => {
 
       const p = new Person("Alice", 30)
       fobx.makeObservable(p, {
-        name: "observable",
-        age: "observable",
-        description: "computed",
-        incrementAge: "transaction",
+        annotations: {
+          name: "observable",
+          age: "observable",
+          description: "computed",
+          incrementAge: "transaction",
+        },
       })
 
       expect(fobx.isObservable(p, "name")).toBe(true)
@@ -503,8 +556,10 @@ describe("makeObservable", () => {
 
         constructor() {
           fobx.makeObservable(this, {
-            baseValue: "observable",
-            baseComputed: "computed",
+            annotations: {
+              baseValue: "observable",
+              baseComputed: "computed",
+            },
           })
         }
         get baseComputed() {
@@ -518,8 +573,10 @@ describe("makeObservable", () => {
         constructor() {
           super()
           fobx.makeObservable(this, {
-            derivedValue: "observable",
-            derivedComputed: "computed",
+            annotations: {
+              derivedValue: "observable",
+              derivedComputed: "computed",
+            },
           })
         }
 
@@ -548,14 +605,99 @@ describe("makeObservable", () => {
       expect(computedValues).toEqual([25, 30])
     })
 
+    test("makeObservable installs inherited members on prototype by default", () => {
+      class Counter {
+        value = 1
+
+        get doubled() {
+          return this.value * 2
+        }
+
+        inc() {
+          this.value++
+        }
+      }
+
+      const counter = new Counter()
+      fobx.makeObservable(counter, {
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      expect(Object.hasOwn(counter, "doubled")).toBe(false)
+      expect(Object.hasOwn(counter, "inc")).toBe(false)
+      expect(fobx.isComputed(counter, "doubled")).toBe(true)
+      expect(fobx.isTransaction(counter.inc)).toBe(true)
+    })
+
+    test("makeObservable ownPropertiesOnly=true installs inherited members on instance", () => {
+      class Counter {
+        value = 1
+
+        get doubled() {
+          return this.value * 2
+        }
+
+        inc() {
+          this.value++
+        }
+      }
+
+      const counter = new Counter()
+      fobx.makeObservable(counter, {
+        ownPropertiesOnly: true,
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      expect(Object.hasOwn(counter, "doubled")).toBe(true)
+      expect(Object.hasOwn(counter, "inc")).toBe(true)
+      expect(fobx.isComputed(counter, "doubled")).toBe(true)
+      expect(fobx.isTransaction(counter.inc)).toBe(true)
+    })
+
+    test("makeObservable ownPropertiesOnly=true works on re-entrant calls", () => {
+      class Counter {
+        value = 1
+
+        inc() {
+          this.value++
+        }
+      }
+
+      const counter = new Counter()
+
+      fobx.makeObservable(counter, {
+        annotations: {
+          value: "observable",
+        },
+      })
+
+      fobx.makeObservable(counter, {
+        ownPropertiesOnly: true,
+        annotations: {
+          inc: "transaction",
+        },
+      })
+
+      expect(Object.hasOwn(counter, "inc")).toBe(true)
+      expect(fobx.isTransaction(counter.inc)).toBe(true)
+    })
   })
 
   describe("dynamically added properties", () => {
     test("doesn't make dynamically added properties observable", () => {
       const obj = fobx.makeObservable({ x: 1 }, {
-        x: "observable",
-      })
-       // deno-lint-ignore no-explicit-any
+        annotations: {
+          x: "observable",
+        },
+      }) // deno-lint-ignore no-explicit-any
       ;(obj as any).y = 2
 
       expect(fobx.isObservable(obj, "x")).toBe(true)
@@ -569,7 +711,7 @@ describe("makeObservable", () => {
       y() {
         return this.x + 1
       },
-    }, { x: "observable", y: "observable" })
+    }, { annotations: { x: "observable", y: "observable" } })
 
     expect(fobx.isObservable(obj, "y")).toBe(true)
     expect(fobx.isTransaction(obj.y)).toBe(false)
@@ -584,7 +726,9 @@ describe("makeObservable", () => {
             return 1
           },
         }, {
-          x: "observable",
+          annotations: {
+            x: "observable",
+          },
         })
       }).toThrow(
         '[@fobx/core] "observable" cannot be used on getter/setter properties',
@@ -596,7 +740,9 @@ describe("makeObservable", () => {
         fobx.makeObservable({
           x: 1,
         }, {
-          x: "computed",
+          annotations: {
+            x: "computed",
+          },
         })
       }).toThrow(
         'x must be a getter to use "computed" annotation',
@@ -608,7 +754,9 @@ describe("makeObservable", () => {
         fobx.makeObservable({
           x: 1,
         }, {
-          x: "transaction",
+          annotations: {
+            x: "transaction",
+          },
         })
       }).toThrow(
         'x must be a function to use "transaction" annotation',
@@ -620,15 +768,19 @@ describe("makeObservable", () => {
         fobx.makeObservable({
           x: 1,
         }, {
-          // deno-lint-ignore no-explicit-any
-          x: "invalid" as any,
+          annotations: {
+            // deno-lint-ignore no-explicit-any
+            x: "invalid" as any,
+          },
         })
-      }).toThrow('Unknown annotation: invalid')
+      }).toThrow("Unknown annotation: invalid")
     })
 
     test("warns when attempting to make non-extensible object observable", () => {
       const nonExtensibleObj = Object.preventExtensions({ x: 1 })
-      const result = fobx.makeObservable(nonExtensibleObj, { x: "observable" })
+      const result = fobx.makeObservable(nonExtensibleObj, {
+        annotations: { x: "observable" },
+      })
       expect(fobx.isObservableObject(result)).toBe(true)
       expect(fobx.isObservable(result, "x")).toBe(true)
     })
@@ -638,7 +790,9 @@ describe("makeObservable", () => {
     test("keeps original references for property values", () => {
       const obj = { a: { b: 1 } }
       const observed = fobx.makeObservable(obj, {
-        a: "observable.ref",
+        annotations: {
+          a: "observable.ref",
+        },
       })
 
       expect(fobx.isObservable(observed, "a")).toBe(true)
@@ -652,15 +806,19 @@ describe("makeObservable", () => {
       const set = new Set([{ value: 5 }])
 
       const objWithRef = fobx.makeObservable({ array, map, set }, {
-        array: "observable.ref",
-        map: "observable.ref",
-        set: "observable.ref",
+        annotations: {
+          array: "observable.ref",
+          map: "observable.ref",
+          set: "observable.ref",
+        },
       })
 
       const objWithShallow = fobx.observable({ array, map, set }, {
-        array: "observable.ref",
-        map: "observable.ref",
-        set: "observable.ref",
+        annotations: {
+          array: "observable.ref",
+          map: "observable.ref",
+          set: "observable.ref",
+        },
       })
 
       expect(objWithRef.array).toBe(array)
@@ -696,7 +854,9 @@ describe("makeObservable", () => {
             return 1
           },
         }, {
-          x: "observable.ref",
+          annotations: {
+            x: "observable.ref",
+          },
         })
       }).toThrow(
         '[@fobx/core] "observable.ref" cannot be used on getter/setter properties',
@@ -711,8 +871,10 @@ describe("makeObservable", () => {
         x: 1,
         y: 2,
       }, {
-        x: ["observable.ref", alwaysEqual],
-        y: ["observable.ref", neverEqual],
+        annotations: {
+          x: ["observable.ref", alwaysEqual],
+          y: ["observable.ref", neverEqual],
+        },
       })
 
       const xValues = []

@@ -6,8 +6,9 @@ beforeAll(() => {
 })
 
 test("cascading active state (form 1)", function () {
-  const Store = function (this: object) {
-    fobx.extendObservable(this, { _activeItem: null })
+  const Store = function (this: any) {
+    this._activeItem = null
+    fobx.makeObservable(this, { annotations: { _activeItem: "observable" } })
   }
   Store.prototype.activeItem = function (item: unknown) {
     // deno-lint-ignore no-this-alias
@@ -23,8 +24,9 @@ test("cascading active state (form 1)", function () {
     })
   }
 
-  const Item = function (this: object) {
-    fobx.extendObservable(this, { isActive: false })
+  const Item = function (this: any) {
+    this.isActive = false
+    fobx.makeObservable(this, { annotations: { isActive: "observable" } })
   }
 
   //@ts-expect-error - testing
@@ -54,11 +56,11 @@ test("cascading active state (form 1)", function () {
 })
 
 test("cascading active state (form 2)", function () {
-  // deno-lint-ignore no-explicit-any
   const Store = function (this: any) {
     // deno-lint-ignore no-this-alias
     const _this = this
-    fobx.extendObservable(this, { activeItem: null })
+    this.activeItem = null
+    fobx.makeObservable(this, { annotations: { activeItem: "observable" } })
 
     fobx.autorun(function () {
       if (_this._activeItem === _this.activeItem) return
@@ -68,8 +70,9 @@ test("cascading active state (form 2)", function () {
     })
   }
 
-  const Item = function (this: object) {
-    fobx.extendObservable(this, { isActive: false })
+  const Item = function (this: any) {
+    this.isActive = false
+    fobx.makeObservable(this, { annotations: { isActive: "observable" } })
   }
 
   //@ts-expect-error - testing
@@ -99,20 +102,22 @@ test("cascading active state (form 2)", function () {
 })
 
 test("efficient selection", function () {
-  function Item(this: object, value: number) {
-    fobx.extendObservable(this, {
-      selected: false,
-      value: value,
+  function Item(this: any, value: number) {
+    this.selected = false
+    this.value = value
+    fobx.makeObservable(this, {
+      annotations: { selected: "observable", value: "observable" },
     })
   }
 
   // deno-lint-ignore no-explicit-any
   function Store(this: any) {
     this.prevSelection = null
-    fobx.extendObservable(this, {
-      selection: null,
-      //@ts-expect-error - testing
-      items: [new Item(1), new Item(2), new Item(3)],
+    this.selection = null
+    //@ts-expect-error - testing
+    this.items = [new Item(1), new Item(2), new Item(3)]
+    fobx.makeObservable(this, {
+      annotations: { selection: "observable", items: "observable" },
     })
     fobx.autorun(() => {
       if (this.previousSelection === this.selection) return true // converging condition

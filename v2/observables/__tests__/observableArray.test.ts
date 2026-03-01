@@ -33,7 +33,9 @@ test("observable array respects structural option", () => {
 
 test("observable array made through object observable respects structural option", () => {
   const o = fobx.observable({ a: [{ a: 1 }] }, {
-    a: ["observable", "structural"],
+    annotations: {
+      a: ["observable", "structural"],
+    },
   })
   let runs = -1
 

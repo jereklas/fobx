@@ -1,5 +1,6 @@
 import { deepEqual } from "fast-equals"
 import * as fobx from "../../index.ts"
+import { UNDEFINED } from "../../reaction.ts"
 import { beforeAll, expect, suppressConsole, test } from "@fobx/testing"
 
 beforeAll(() => {
@@ -172,8 +173,8 @@ test("can dispose reaction on first run", () => {
   a.set(2)
   a.set(3)
 
-  expect(valuesExpr1st).toEqual([[1, fobx.UNDEFINED]])
-  expect(valuesEffect1st).toEqual([[1, fobx.UNDEFINED]])
+  expect(valuesExpr1st).toEqual([[1, UNDEFINED]])
+  expect(valuesEffect1st).toEqual([[1, UNDEFINED]])
   expect(valuesExpr).toEqual([[2, 1]])
   expect(valuesEffect).toEqual([])
 })

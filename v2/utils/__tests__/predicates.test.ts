@@ -1,5 +1,6 @@
 import { $fobx } from "../../global.ts"
 import * as fobx from "../../index.ts"
+import { hasFobxAdmin } from "../../utils.ts"
 import { describe, expect, test } from "@fobx/testing"
 
 describe("isPlainObject", () => {
@@ -14,11 +15,11 @@ describe("isPlainObject", () => {
 
 describe("hasFobxAdmin", () => {
   test("returns false when non-object is passed", () => {
-    expect(fobx.hasFobxAdmin("str")).toBe(false)
+    expect(hasFobxAdmin("str")).toBe(false)
   })
 
   test("returns true for observable values", () => {
-    expect(fobx.hasFobxAdmin(fobx.box(1))).toBe(true)
+    expect(hasFobxAdmin(fobx.box(1))).toBe(true)
   })
 })
 

@@ -220,12 +220,11 @@ test("transaction should not be converted to computed when using (extend)observa
   a.b()
   expect(a.a).toBe(2)
 
-  fobx.extendObservable(a, {
-    // deno-lint-ignore no-explicit-any
-    c: transaction(function (this: any) {
-      this.a *= 3
-    }),
+  // deno-lint-ignore no-explicit-any
+  ;(a as any).c = transaction(function (this: any) {
+    this.a *= 3
   })
+  fobx.makeObservable(a, { annotations: { c: "transaction" } } as any)
 
   // here to remove typescript type errors when accessing "c" below
   if (!("c" in a)) throw Error("failed to extend")
@@ -373,9 +372,11 @@ test("observable respects action annotations", () => {
       },
     },
     {
-      a1: "transaction",
-      a2: "transaction.bound",
-      a3: "none",
+      annotations: {
+        a1: "transaction",
+        a2: "transaction.bound",
+        a3: "none",
+      },
     },
   )
 
@@ -399,7 +400,7 @@ test("observable respects action annotations", () => {
 test("expect error for invalid annotation", () => {
   expect(() => {
     // @ts-expect-error - purposefully passing something not supported by the type definition
-    observable({ x: 1 }, { x: "bad" })
+    observable({ x: 1 }, { annotations: { x: "bad" } })
   }).toThrow(/Unknown annotation/)
 })
 
@@ -418,7 +419,9 @@ test("bound actions bind", () => {
   }
 
   const x = observable(src, {
-    z: "transaction.bound",
+    annotations: {
+      z: "transaction.bound",
+    },
   })
 
   const d = autorun(() => {
@@ -494,14 +497,11 @@ test("given function declaration, the transaction name should be as the function
   expect(a1.name).toBe("testAction")
 })
 
-test("make sure extendObservable correctly annotates transaction if source isn't an observable object", () => {
-  const x = fobx.extendObservable(
-    {},
-    {
-      method() {},
-    },
-    { method: "transaction" },
-  )
+test("make sure makeObservable correctly annotates transaction if source isn't an observable object", () => {
+  const x: any = { method() {} }
+  fobx.makeObservable(x, {
+    annotations: { method: "transaction" },
+  })
   x.method()
   expect(isTransaction(x.method)).toBe(true)
 })

@@ -36,7 +36,9 @@ test("observable map respects structural option", () => {
 test("observable map made through object observable respects structural option", () => {
   fobx.observable({ a: 1 })
   const o = fobx.observable({ m: new Map([["a", { a: 1 }]]) }, {
-    m: ["observable", "structural"],
+    annotations: {
+      m: ["observable", "structural"],
+    },
   })
   let runs = -1
 

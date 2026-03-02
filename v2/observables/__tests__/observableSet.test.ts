@@ -38,13 +38,13 @@ describe("ObservableSet", () => {
     test(`${name}() does not cause reaction unless the iterable next() is called`, () => {
       const m = fobx.observable(new Set()) as unknown as ObservableSetWithAdmin
       fobx.reaction(() => (m as any)[name](), fn())
-      expect(m[$fobx].observers.length).toBe(0)
+      expect(m[$fobx].observers.size).toBe(0)
 
       const reactionFn = fn()
       fobx.reaction(() => {
         return (m as any)[name]().next().value
       }, reactionFn)
-      expect(m[$fobx].observers.length).toBe(1)
+      expect(m[$fobx].observers.size).toBe(1)
       m.add("a")
       expect(reactionFn).toHaveBeenCalledTimes(1)
       expect(reactionFn).toHaveBeenCalledWith(

@@ -5,19 +5,30 @@
 import {
   $fobx,
   _batchDepth,
+  _tracking,
   type Any,
+  defaultComparer,
   type Dispose,
+  type EqualityChecker,
   type EqualityComparison,
   getNextId,
   KIND_COLLECTION,
   KIND_REACTION,
   pushPending,
   type ReactionAdmin,
+  setTracking,
   STALE,
   UP_TO_DATE,
 } from "./global.ts"
 import { resolveComparer } from "./instance.ts"
-import { removeFromAllDeps, withoutTracking, withTracking } from "./tracking.ts"
+import {
+  cleanupGraph,
+  getOldDeps,
+  getPrevTracking,
+  removeFromAllDeps,
+  startTracking,
+  stopTracking,
+} from "./tracking.ts"
 import { safeRunReaction } from "./batch.ts"
 import { hasFobxAdmin } from "./utils.ts"
 
@@ -29,6 +40,84 @@ export interface ReactionOptions<T> {
   comparer?: EqualityComparison
 }
 
+interface ReactionRunAdmin extends ReactionAdmin {
+  _expression: (dispose: Dispose) => Any
+  _effect: (value: Any, previousValue: Any, dispose: Dispose) => void
+  _comparer: EqualityChecker
+  _isDisposed: boolean
+  _isFirst: boolean
+  _previousValue: Any
+  _previousChanges: number | undefined
+  _dispose: Dispose
+  _fireImmediately: boolean
+}
+
+/** Shared run function — no per-instance closure. Uses this-based dispatch. */
+function _runReaction(this: ReactionRunAdmin): void {
+  if (this._isDisposed) return
+  this.state = UP_TO_DATE
+
+  // Phase 1: Track dependencies (inlined withTracking — avoids closure)
+  startTracking(this)
+  const oldDeps = getOldDeps()
+  const prevTracking = getPrevTracking()
+  let newValue: Any
+  try {
+    newValue = this._expression(this._dispose)
+  } finally {
+    stopTracking(prevTracking)
+    cleanupGraph(this, oldDeps)
+  }
+
+  // Check if result is an observable collection (array, map, or set)
+  let currentChanges: number | undefined = undefined
+  const collectionAdmin = hasFobxAdmin(newValue)
+    ? (newValue as Any)[$fobx]
+    : undefined
+  const isObservableCollection = collectionAdmin?.kind === KIND_COLLECTION
+
+  // If result is an observable collection, register as observer and snapshot changes
+  if (isObservableCollection) {
+    const deps = this.deps
+    if (deps.indexOf(collectionAdmin) === -1) {
+      deps.push(collectionAdmin)
+    }
+    collectionAdmin.observers.add(this)
+    currentChanges = collectionAdmin.changes
+  }
+
+  // Check if value changed
+  let valueChanged: boolean
+  if (this._previousValue === UNDEFINED) {
+    valueChanged = true
+  } else if (
+    currentChanges !== undefined && this._previousChanges !== undefined
+  ) {
+    valueChanged = currentChanges !== this._previousChanges
+  } else {
+    valueChanged = !this._comparer(this._previousValue, newValue)
+  }
+
+  const shouldRun = this._isFirst
+    ? this._fireImmediately
+    : valueChanged
+
+  if (shouldRun) {
+    // Inlined withoutTracking — avoids closure allocation
+    const prevTrack = _tracking
+    setTracking(null)
+    try {
+      this._effect(newValue, this._previousValue, this._dispose)
+    } finally {
+      setTracking(prevTrack)
+    }
+  }
+
+  this._previousValue = newValue
+  this._previousChanges = currentChanges
+  this._isFirst = false
+}
+
 export function reaction<T>(
   expression: (dispose: Dispose) => T,
   effect: (
@@ -36,81 +125,39 @@ export function reaction<T>(
     previousValue: T | typeof UNDEFINED,
     dispose: Dispose,
   ) => void,
-  options: ReactionOptions<T> = {},
+  options?: ReactionOptions<T>,
 ): Dispose {
-  let isDisposed = false
-  let isFirst = true
-  let previousValue: T | typeof UNDEFINED = UNDEFINED
-  let previousChanges: number | undefined = undefined
+  const comparer = options?.comparer
+    ? resolveComparer(options.comparer)
+    : defaultComparer
 
-  const comparer = resolveComparer(options.comparer)
+  const id = getNextId()
+  // Use let + forward reference so dispose closure captures admin
+  // deno-lint-ignore prefer-const
+  let admin: ReactionRunAdmin
 
   const dispose: Dispose = () => {
-    if (isDisposed) return
-    isDisposed = true
+    if (admin._isDisposed) return
+    admin._isDisposed = true
     removeFromAllDeps(admin)
   }
 
-  const id = getNextId()
-  const admin: ReactionAdmin = {
+  admin = {
     kind: KIND_REACTION,
     id,
-    name: options.name || `Reaction@${id}`,
+    name: options?.name || `Reaction@${id}`,
     state: STALE,
     deps: [],
-    run: () => {
-      if (isDisposed) return
-      admin.state = UP_TO_DATE
-
-      // Phase 1: Track dependencies
-      const newValue = withTracking(admin, () => expression(dispose))
-
-      // Check if result is an observable collection (array, map, or set)
-      let currentChanges: number | undefined = undefined
-      const collectionAdmin = hasFobxAdmin(newValue)
-        ? (newValue as Any)[$fobx]
-        : undefined
-      const isObservableCollection = collectionAdmin?.kind === KIND_COLLECTION
-
-      // If result is an observable collection, register as observer and snapshot changes
-      if (isObservableCollection) {
-        const deps = admin.deps
-        if (deps.indexOf(collectionAdmin) === -1) {
-          deps.push(collectionAdmin)
-        }
-        const observers = collectionAdmin.observers
-        if (observers.indexOf(admin) === -1) {
-          observers.push(admin)
-        }
-        currentChanges = collectionAdmin.changes
-      }
-
-      // Check if value changed
-      let valueChanged: boolean
-      if (previousValue === UNDEFINED) {
-        valueChanged = true
-      } else if (
-        currentChanges !== undefined && previousChanges !== undefined
-      ) {
-        valueChanged = currentChanges !== previousChanges
-      } else {
-        valueChanged = !comparer(previousValue as T, newValue)
-      }
-
-      const shouldRun = isFirst
-        ? (options.fireImmediately === true)
-        : valueChanged
-
-      if (shouldRun) {
-        withoutTracking(() => {
-          effect(newValue, previousValue, dispose)
-        })
-      }
-
-      previousValue = newValue
-      previousChanges = currentChanges
-      isFirst = false
-    },
+    _expression: expression as (dispose: Dispose) => Any,
+    _effect: effect as (value: Any, previousValue: Any, dispose: Dispose) => void,
+    _comparer: comparer,
+    _isDisposed: false,
+    _isFirst: true,
+    _previousValue: UNDEFINED,
+    _previousChanges: undefined,
+    _dispose: dispose,
+    _fireImmediately: options?.fireImmediately === true,
+    run: _runReaction,
   }
 
   if (_batchDepth > 0) {

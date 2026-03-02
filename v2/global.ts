@@ -25,11 +25,10 @@ export const NOTIFY_INDETERMINATE = 1
 
 // ─── IDs ─────────────────────────────────────────────────────────────────────
 
-const OVERFLOW = 10_000_000
 let _nextId = 0
 
 export function getNextId(): number {
-  return (++_nextId) % OVERFLOW
+  return ++_nextId
 }
 
 // ─── Equality ────────────────────────────────────────────────────────────────
@@ -59,12 +58,12 @@ export interface ObservableAdmin<T = unknown> {
   id: number
   name: string
   value: T
-  observers: ReactionAdmin[]
+  observers: Set<ReactionAdmin>
   comparer: EqualityChecker
   /** Epoch-based tracking: last epoch this admin was added as a dep */
   _epoch: number
   /** Optional: called when losing an observer (enables computed suspension) */
-  onLoseObserver?: () => void
+  onLoseObserver?: (admin: ObservableAdmin) => void
   /** Collection mutation counter (used by array/map/set admins) */
   changes?: number
 }
@@ -81,6 +80,10 @@ export interface ReactionAdmin {
 export interface ComputedAdmin<T = unknown>
   extends ReactionAdmin, ObservableAdmin<T> {
   isInsideSetter?: boolean
+  /** The computation function — stored here so `run` can be a shared function. */
+  _fn: () => T
+  /** Optional bind context for the computation function. */
+  _bind?: unknown
 }
 
 export type Dispose = () => void

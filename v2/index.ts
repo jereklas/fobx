@@ -20,6 +20,8 @@ export { runInTransaction, transaction } from "./batch.ts"
 
 // Tracking utilities
 export { withoutTracking } from "./tracking.ts"
+export { createTracker } from "./tracker.ts"
+export type { Tracker } from "./tracker.ts"
 
 // Utilities
 export {

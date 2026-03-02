@@ -7,8 +7,10 @@ import {
   _tracking,
   type Any,
   defaultComparer,
+  type EqualityChecker,
   type EqualityComparison,
   getNextId,
+  KIND_BOX,
   KIND_COLLECTION,
   NOTIFY_CHANGED,
   type ObservableAdmin,
@@ -16,7 +18,7 @@ import {
 import { resolveComparer } from "./instance.ts"
 import { endBatch, startBatch } from "./batch.ts"
 import { notifyChanged, notifyObservers } from "./notifications.ts"
-import { box, getBoxValue, type ObservableBox, setBoxValue } from "./box.ts"
+import { box, type ObservableBox, setBoxValue } from "./box.ts"
 import { trackAccess } from "./tracking.ts"
 
 // Forward declaration — set after object.ts is loaded
@@ -38,17 +40,13 @@ export interface MapOptions {
   shallow?: boolean
 }
 
-function processMapValue<V>(value: V, options: MapOptions): V {
-  const shallow = options.shallow ?? false
-  return _processValue(value, shallow)
-}
-
 class ObservableMap<K = Any, V = Any> implements Map<K, V> {
-  private data: Map<K, ObservableBox<V>>
+  private data: Map<K, ObservableAdmin<V>>
   private hasMap: Map<K, ObservableBox<boolean>>
   private keysAdmin: KeysAdmin
   private collectionAdmin: KeysAdmin
-  private options: MapOptions;
+  private _comparer: EqualityChecker
+  private _shallow: boolean;
   [$fobx]: KeysAdmin
 
   constructor(
@@ -64,17 +62,18 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
     const id = getNextId()
     const name = options.name || `Map@${id}`
-    const _comparer = resolveComparer(options.comparer)
 
     this.data = new Map()
     this.hasMap = new Map()
+    this._comparer = resolveComparer(options.comparer)
+    this._shallow = options.shallow ?? false
     this.keysAdmin = {
       kind: KIND_COLLECTION,
       id,
       name: `${name}.keys`,
       value: undefined,
       changes: 0,
-      observers: [],
+      observers: new Set(),
       comparer: defaultComparer,
       _epoch: 0,
     }
@@ -84,39 +83,77 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       name,
       value: undefined,
       changes: 0,
-      observers: [],
+      observers: new Set(),
       comparer: defaultComparer,
       _epoch: 0,
     }
-    this.options = { ...options, comparer: _comparer as EqualityComparison }
     this[$fobx] = this.collectionAdmin
 
-    this.constructor = Map
-
     if (entries != null) {
-      this.merge(entries as Any)
+      this._init(entries)
     }
   }
 
-  private has_(key: K): boolean {
-    return this.data.has(key)
+  /** Fast init — no batching, no notifications, no existence checks. */
+  private _init(
+    entries: Iterable<readonly [K, V]> | Record<string, V>,
+  ): void {
+    if (entries instanceof Map) {
+      for (const [key, value] of entries) {
+        this.data.set(
+          key,
+          this._newAdmin(key, _processValue(value, this._shallow)),
+        )
+      }
+    } else if (Symbol.iterator in (entries as Any)) {
+      for (const [key, value] of entries as Iterable<readonly [K, V]>) {
+        this.data.set(
+          key,
+          this._newAdmin(key, _processValue(value, this._shallow)),
+        )
+      }
+    } else {
+      for (const key of Object.keys(entries as object)) {
+        const value = (entries as Record<string, Any>)[key]
+        this.data.set(
+          key as unknown as K,
+          this._newAdmin(
+            key as unknown as K,
+            _processValue(value, this._shallow),
+          ),
+        )
+      }
+    }
+  }
+
+  /** Create an ObservableAdmin for a value entry (avoids box() wrapper overhead). */
+  private _newAdmin(key: K, value: V): ObservableAdmin<V> {
+    const id = getNextId()
+    return {
+      kind: KIND_BOX,
+      id,
+      name: `${this.keysAdmin.name}[${String(key)}]`,
+      value,
+      observers: new Set(),
+      comparer: this._comparer,
+      _epoch: 0,
+    }
   }
 
   has(key: K): boolean {
-    if (_tracking === null) return this.has_(key)
+    if (_tracking === null) return this.data.has(key)
 
     let hasBox = this.hasMap.get(key)
     if (!hasBox) {
-      hasBox = box(this.has_(key), {
+      hasBox = box(this.data.has(key), {
         name: `${this.keysAdmin.name}.has(${String(key)})`,
       })
       this.hasMap.set(key, hasBox)
 
-      // Use onLoseObserver instead of monkey-patching (preserves V8 hidden class)
       const hmRef = this.hasMap
       const keyRef = key
       hasBox[$fobx].onLoseObserver = () => {
-        if (hasBox![$fobx].observers.length === 0) {
+        if (hasBox![$fobx].observers.size === 0) {
           hmRef.delete(keyRef)
         }
       }
@@ -126,29 +163,31 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
+    if (_tracking === null) {
+      const admin = this.data.get(key)
+      return admin !== undefined ? admin.value : undefined
+    }
     if (this.has(key)) {
-      return getBoxValue(this.data.get(key)![$fobx])
+      const admin = this.data.get(key)!
+      trackAccess(admin)
+      return admin.value
     }
     return undefined
   }
 
   set(key: K, value: V): this {
-    const hadKey = this.has_(key)
-    const processedValue = processMapValue(value, this.options)
+    const hadKey = this.data.has(key)
+    const processedValue = _processValue(value, this._shallow)
 
     if (hadKey) {
-      const valueBox = this.data.get(key)!
-      const changed = setBoxValue(valueBox[$fobx], processedValue)
+      const admin = this.data.get(key)!
+      const changed = setBoxValue(admin, processedValue)
       if (changed) {
         this.collectionAdmin.changes++
         notifyChanged(this.collectionAdmin)
       }
     } else {
-      const valueBox = box(processedValue, {
-        name: `${this.keysAdmin.name}[${String(key)}]`,
-        comparer: this.options.comparer,
-      })
-      this.data.set(key, valueBox)
+      this.data.set(key, this._newAdmin(key, processedValue))
 
       const hasBox = this.hasMap.get(key)
       if (hasBox) setBoxValue(hasBox[$fobx], true)
@@ -163,11 +202,11 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   }
 
   delete(key: K): boolean {
-    if (!this.has_(key)) return false
+    if (!this.data.has(key)) return false
 
-    const valueBox = this.data.get(key)!
-    if (valueBox[$fobx].observers.length > 0) {
-      notifyObservers(valueBox[$fobx], NOTIFY_CHANGED)
+    const admin = this.data.get(key)!
+    if (admin.observers.size > 0) {
+      notifyObservers(admin, NOTIFY_CHANGED)
     }
 
     this.data.delete(key)
@@ -188,9 +227,9 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
     startBatch()
     try {
-      this.data.forEach((valueBox) => {
-        if (valueBox[$fobx].observers.length > 0) {
-          notifyObservers(valueBox[$fobx], NOTIFY_CHANGED)
+      this.data.forEach((admin) => {
+        if (admin.observers.size > 0) {
+          notifyObservers(admin, NOTIFY_CHANGED)
         }
       })
 
@@ -225,8 +264,9 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     const size = this.data.size
     const values: V[] = new Array(size)
     let i = 0
-    for (const valueBox of this.data.values()) {
-      values[i++] = getBoxValue(valueBox[$fobx])
+    for (const admin of this.data.values()) {
+      trackAccess(admin)
+      values[i++] = admin.value
     }
     return values.values() as MapIterator<V>
   }
@@ -236,8 +276,9 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     const size = this.data.size
     const entries: [K, V][] = new Array(size)
     let i = 0
-    for (const [key, valueBox] of this.data.entries()) {
-      entries[i++] = [key, getBoxValue(valueBox[$fobx])]
+    for (const [key, admin] of this.data.entries()) {
+      trackAccess(admin)
+      entries[i++] = [key, admin.value]
     }
     return entries.values() as MapIterator<[K, V]>
   }
@@ -251,8 +292,9 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     thisArg?: Any,
   ): void {
     trackAccess(this.keysAdmin)
-    this.data.forEach((valueBox, key) => {
-      callback.call(thisArg, getBoxValue(valueBox[$fobx]), key, this as Any)
+    this.data.forEach((admin, key) => {
+      trackAccess(admin)
+      callback.call(thisArg, admin.value, key, this as Any)
     })
   }
 
@@ -310,29 +352,25 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       const oldData = new Map(this.data)
 
       toDelete.forEach((key) => {
-        const valueBox = this.data.get(key)!
+        const admin = this.data.get(key)!
         this.data.delete(key)
-        if (valueBox[$fobx].observers.length > 0) {
-          notifyObservers(valueBox[$fobx], NOTIFY_CHANGED)
+        if (admin.observers.size > 0) {
+          notifyObservers(admin, NOTIFY_CHANGED)
         }
         const hasBox = this.hasMap.get(key)
         if (hasBox) setBoxValue(hasBox[$fobx], false)
       })
 
       entriesArray.forEach(([key, value]) => {
-        const processedValue = processMapValue(value, this.options)
-        const existingBox = oldData.get(key)
+        const processedValue = _processValue(value, this._shallow)
+        const existingAdmin = oldData.get(key)
 
-        if (existingBox) {
+        if (existingAdmin) {
           this.data.delete(key)
-          setBoxValue(existingBox[$fobx], processedValue)
-          this.data.set(key, existingBox)
+          setBoxValue(existingAdmin, processedValue)
+          this.data.set(key, existingAdmin)
         } else {
-          const valueBox = box(processedValue, {
-            name: `${this.keysAdmin.name}[${String(key)}]`,
-            comparer: this.options.comparer,
-          })
-          this.data.set(key, valueBox)
+          this.data.set(key, this._newAdmin(key, processedValue))
 
           const hasBox = this.hasMap.get(key)
           if (hasBox) setBoxValue(hasBox[$fobx], true)
@@ -365,17 +403,13 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       let hasStructuralChanges = false
 
       entriesArray.forEach(([key, value]) => {
-        const processedValue = processMapValue(value, this.options)
-        const existingBox = this.data.get(key)
+        const processedValue = _processValue(value, this._shallow)
+        const existingAdmin = this.data.get(key)
 
-        if (existingBox) {
-          setBoxValue(existingBox[$fobx], processedValue)
+        if (existingAdmin) {
+          setBoxValue(existingAdmin, processedValue)
         } else {
-          const valueBox = box(processedValue, {
-            name: `${this.keysAdmin.name}[${String(key)}]`,
-            comparer: this.options.comparer,
-          })
-          this.data.set(key, valueBox)
+          this.data.set(key, this._newAdmin(key, processedValue))
 
           const hasBox = this.hasMap.get(key)
           if (hasBox) setBoxValue(hasBox[$fobx], true)
@@ -398,8 +432,11 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   toJSON(): [K, V][] {
     trackAccess(this.keysAdmin)
     return Array.from(this.data.entries()).map((
-      [k, valueBox],
-    ) => [k, getBoxValue(valueBox[$fobx])])
+      [k, admin],
+    ) => {
+      trackAccess(admin)
+      return [k, admin.value]
+    })
   }
 
   toString(): string {
@@ -409,7 +446,9 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   get [Symbol.toStringTag](): string {
     return "Map"
   }
-}
+}// Prototype-level assignment (one-time, preserves V8 hidden class)
+
+;(ObservableMap.prototype as Any).constructor = Map
 
 export function map<K = Any, V = Any>(
   entries?: Iterable<readonly [K, V]> | Record<string, V> | null,

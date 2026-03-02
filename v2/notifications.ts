@@ -44,11 +44,8 @@ export function notifyObservers(
   notificationType: number,
 ): void {
   const observers = observable.observers
-  const length = observers.length
 
-  for (let i = 0; i < length; i++) {
-    const reaction = observers[i]
-
+  for (const reaction of observers) {
     // Handle the currently-tracking reaction specially
     if (reaction === _tracking) {
       // Pure observables (box, collection) can re-queue the tracker
@@ -85,7 +82,7 @@ export function notifyObservers(
     // Only queue reactions that have observers (don't queue suspended computeds)
     const isComp = reaction.kind === KIND_COMPUTED
     const hasObservers = isComp
-      ? (reaction as unknown as ComputedAdmin).observers.length > 0
+      ? (reaction as unknown as ComputedAdmin).observers.size > 0
       : true
 
     if (hasObservers) {
@@ -107,7 +104,7 @@ export function notifyObservers(
  * Centralizes the notify + runPending pattern to avoid per-call-site duplication.
  */
 export function notifyChanged(admin: ObservableAdmin): void {
-  if (admin.observers.length > 0) {
+  if (admin.observers.size > 0) {
     notifyObservers(admin, NOTIFY_CHANGED)
   }
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).

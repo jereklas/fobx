@@ -27,9 +27,9 @@ describe("Reaction", () => {
       return [val1.get(), val2.get(), val3.get()]
     }, sideEffectFn)
 
-    expect(val1Admin.observers.length).toBe(1)
-    expect(val2Admin.observers.length).toBe(1)
-    expect(val3Admin.observers.length).toBe(1)
+    expect(val1Admin.observers.size).toBe(1)
+    expect(val2Admin.observers.size).toBe(1)
+    expect(val3Admin.observers.size).toBe(1)
     dispose()
   })
 })
@@ -91,14 +91,14 @@ describe("reaction", () => {
     }, sideEffectFn)
     // value change caused sideEffectFn to run
     val.set(10)
-    expect(valAdmin.observers.length).toBe(1)
+    expect(valAdmin.observers.size).toBe(1)
     expect(sideEffectFn).toHaveBeenCalledTimes(1)
     expect(sideEffectFn).toHaveBeenCalledWith(10, 0, expect.anything())
 
     // dispose removes tracking
     sideEffectFn.mockClear()
     dispose()
-    expect(valAdmin.observers.length).toBe(0)
+    expect(valAdmin.observers.size).toBe(0)
     // value change doesn't cause sideEffectFn to run
     val.set(5)
     expect(sideEffectFn).not.toHaveBeenCalled()

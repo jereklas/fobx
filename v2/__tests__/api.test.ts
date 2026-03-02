@@ -9,6 +9,7 @@ test("library has expected exports", () => {
     "box",
     "computed",
     "configure",
+    "createTracker",
     "isComputed",
     "isObservable",
     "isObservableArray",

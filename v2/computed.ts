@@ -6,11 +6,13 @@ import {
   $fobx,
   _batchDepth,
   type ComputedAdmin,
+  defaultComparer,
   type EqualityComparison,
   getNextId,
   KIND_COMPUTED,
   NOT_CACHED,
   NOTIFY_CHANGED,
+  type ObservableAdmin,
   POSSIBLY_STALE,
   STALE,
   UP_TO_DATE,
@@ -44,31 +46,35 @@ export interface ComputedOptions<T> {
 
 export function computed<T>(
   fn: () => T,
-  options: ComputedOptions<T> = {},
+  options?: ComputedOptions<T>,
 ): Computed<T> {
-  const comparer = resolveComparer(options.comparer)
-  const bindContext = options.bind
-  const userSetter = options.set
+  const comparer = options?.comparer
+    ? resolveComparer(options.comparer)
+    : defaultComparer
+  const bindContext = options?.bind
+  const userSetter = options?.set
   const id = getNextId()
 
   const admin: ComputedAdmin<T> = {
     kind: KIND_COMPUTED,
     id,
-    name: options.name || `Computed@${id}`,
+    name: options?.name || `Computed@${id}`,
     value: NOT_CACHED as T,
-    observers: [],
+    observers: new Set(),
     comparer,
     _epoch: 0,
     state: POSSIBLY_STALE,
     deps: [],
-    run: () => runComputed(admin, fn, bindContext),
-    onLoseObserver: () => suspendIfNeeded(admin),
+    _fn: fn,
+    _bind: bindContext,
+    run: _runComputed,
+    onLoseObserver: _suspendIfNeeded,
   }
 
   return {
     [$fobx]: admin,
     get(): T {
-      return getComputedValue(admin, fn, bindContext)
+      return getComputedValue(admin)
     },
     set(value: T): void {
       setComputedValue(admin, value, userSetter, bindContext)
@@ -79,23 +85,22 @@ export function computed<T>(
   }
 }
 
-function suspendIfNeeded(admin: ComputedAdmin<unknown>): void {
-  if (admin.observers.length > 0) return
+/** Shared onLoseObserver — receives admin from removeObserver. No per-instance closure. */
+function _suspendIfNeeded(admin: ObservableAdmin): void {
+  if (admin.observers.size > 0) return
   admin.value = NOT_CACHED
-  admin.state = STALE
-  removeFromAllDeps(admin)
+  ;(admin as ComputedAdmin).state = STALE
+  removeFromAllDeps(admin as ComputedAdmin)
 }
 
 function getComputedValue<T>(
   admin: ComputedAdmin<T>,
-  fn: () => T,
-  bindContext?: unknown,
 ): T {
-  const shouldCache = _batchDepth > 0 || admin.observers.length > 0
+  const shouldCache = _batchDepth > 0 || admin.observers.size > 0
 
   // SUSPENDED: Pure function mode — compute without tracking
   if (!shouldCache) {
-    return bindContext ? fn.call(bindContext) : fn()
+    return admin._bind ? admin._fn.call(admin._bind) : admin._fn()
   }
 
   // CACHED MODE: recompute if stale
@@ -134,18 +139,19 @@ function setComputedValue<T>(
   }
 }
 
-function runComputed<T>(
-  admin: ComputedAdmin<T>,
-  fn: () => T,
-  bindContext?: unknown,
-): void {
+/** Shared run function — stored on admin.run, no per-instance closure. */
+function _runComputed(this: ComputedAdmin): void {
+  // deno-lint-ignore no-this-alias
+  const admin = this
   const oldValue = admin.value
 
   startTracking(admin)
   const oldDeps = getOldDeps()
   const prevTracking = getPrevTracking()
   try {
-    admin.value = bindContext ? fn.call(bindContext) : fn()
+    admin.value = admin._bind
+      ? admin._fn.call(admin._bind)
+      : admin._fn()
     admin.state = UP_TO_DATE
   } catch (error) {
     admin.state = UP_TO_DATE

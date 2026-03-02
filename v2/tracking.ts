@@ -33,7 +33,7 @@ export function trackAccess(admin: ObservableAdmin): void {
 
   // Add bidirectional links
   t.deps.push(admin)
-  admin.observers.push(t)
+  admin.observers.add(t)
 }
 
 /**
@@ -77,34 +77,49 @@ export function stopTracking(prevTracking: ReactionAdmin | null): void {
 }
 
 /**
- * Remove a reaction from a single dep's observers list.
- * Uses swap-and-pop for O(1) removal.
+ * Remove a reaction from a single dep's observers set.  O(1).
  */
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
-  const observers = dep.observers
-  const idx = observers.indexOf(reaction)
-  if (idx >= 0) {
-    const last = observers.length - 1
-    if (idx !== last) observers[idx] = observers[last]
-    observers.pop()
-    dep.onLoseObserver?.()
+  if (dep.observers.delete(reaction)) {
+    dep.onLoseObserver?.(dep)
   }
 }
 
 /**
  * Clean up old dependency graph edges after tracking.
  *
- * Always removes the old observer link for every previous dep.
- * - For stale deps (not re-tracked): removes the only link → fully disconnected.
- * - For re-tracked deps: trackAccess already added a fresh link, so removing
- *   the old one leaves exactly one. This prevents O(N) observer list growth.
+ * With Set-based observers, trackAccess uses .add() which is idempotent —
+ * re-tracked deps keep their single Set entry.  We only need to remove
+ * observer links for deps that were NOT re-tracked (stale deps).
+ *
+ * Uses the epoch stamp: deps re-tracked this pass have `_epoch === currentEpoch`.
+ * Stale deps have an older epoch.
  */
 export function cleanupGraph(
   reaction: ReactionAdmin,
   oldDeps: ObservableAdmin[],
 ): void {
-  for (let i = 0; i < oldDeps.length; i++) {
-    removeObserver(oldDeps[i], reaction)
+  const newDeps = reaction.deps
+  const oldLen = oldDeps.length
+  // Fast path: empty old deps (first run) — nothing to clean
+  if (oldLen === 0) return
+
+  // Fast path: deps unchanged (most common case on re-runs)
+  const newLen = newDeps.length
+  if (oldLen === newLen) {
+    let same = true
+    for (let i = 0; i < oldLen; i++) {
+      if (oldDeps[i] !== newDeps[i]) { same = false; break }
+    }
+    if (same) return
+  }
+
+  // Slow path: find and remove stale deps (linear scan — faster than Set for typical 1-10 deps)
+  for (let i = 0; i < oldLen; i++) {
+    const dep = oldDeps[i]
+    if (newDeps.indexOf(dep) === -1) {
+      removeObserver(dep, reaction)
+    }
   }
 }
 

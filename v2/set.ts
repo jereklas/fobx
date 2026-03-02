@@ -52,7 +52,7 @@ class ObservableSet<T = unknown> implements Set<T> {
       id,
       name: options.name || `Set@${id}`,
       value: undefined,
-      observers: [],
+      observers: new Set(),
       comparer: defaultComparer,
       _epoch: 0,
       changes: 0,
@@ -81,7 +81,7 @@ class ObservableSet<T = unknown> implements Set<T> {
       const hmRef = this.hasMap
       const valRef = value
       hasBox[$fobx].onLoseObserver = () => {
-        if (hasBox![$fobx].observers.length === 0) {
+        if (hasBox![$fobx].observers.size === 0) {
           hmRef.delete(valRef)
         }
       }

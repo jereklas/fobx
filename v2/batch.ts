@@ -25,6 +25,7 @@ import {
 } from "./global.ts"
 import { isNotProduction, setRunPendingReactions } from "./notifications.ts"
 import { $instance } from "./instance.ts"
+import { _tracking, setTracking } from "./global.ts"
 import { withoutTracking } from "./tracking.ts"
 
 // ─── Batch API ───────────────────────────────────────────────────────────────
@@ -162,12 +163,16 @@ export function transaction<T extends (...args: Any[]) => Any>(
 
   const wrapper = function (this: unknown, ...args: Any[]) {
     incBatch()
+    // Inline withoutTracking to avoid per-call closure allocation
+    const prev = _tracking
+    setTracking(null)
     try {
-      return withoutTracking(() => fn.apply(this, args))
+      return fn.apply(this, args)
     } catch (e) {
       setActionThrew(true)
       throw e
     } finally {
+      setTracking(prev)
       decBatch()
       if (_batchDepth === 0) runPendingReactions()
       setActionThrew(false)
@@ -188,7 +193,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
 export function runInTransaction<T>(fn: () => T): T {
   incBatch()
   try {
-    return withoutTracking(() => fn())
+    return withoutTracking(fn)
   } catch (e) {
     setActionThrew(true)
     throw e

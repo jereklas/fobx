@@ -4,6 +4,7 @@
 
 import {
   $fobx,
+  defaultComparer,
   type EqualityComparison,
   getNextId,
   KIND_BOX,
@@ -26,17 +27,19 @@ export interface BoxOptions {
 
 export function box<T>(
   initialValue: T,
-  options: BoxOptions = {},
+  options?: BoxOptions,
 ): ObservableBox<T> {
-  const comparer = resolveComparer(options.comparer)
+  const comparer = options?.comparer
+    ? resolveComparer(options.comparer)
+    : defaultComparer
   const id = getNextId()
 
   const admin: ObservableAdmin<T> = {
     kind: KIND_BOX,
     id,
-    name: options.name || `Box@${id}`,
+    name: options?.name || `Box@${id}`,
     value: initialValue,
-    observers: [],
+    observers: new Set(),
     comparer,
     _epoch: 0,
   }

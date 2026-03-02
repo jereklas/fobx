@@ -75,7 +75,7 @@ export function array<T>(
     id,
     name: options.name || `Array@${id}`,
     value: arr,
-    observers: [],
+    observers: new Set(),
     comparer: resolveComparer(options.comparer),
     _epoch: 0,
     shallow,
@@ -341,11 +341,11 @@ export function array<T>(
     get(_target: Any, prop: string | symbol): Any {
       // Numeric indices first (hottest path)
       if (typeof prop === "string" && isNumericIndex(prop)) {
-        trackAccess(admin)
+        if (_tracking !== null) trackAccess(admin)
         return arr[prop as Any]
       }
       if (prop === "length") {
-        trackAccess(admin)
+        if (_tracking !== null) trackAccess(admin)
         return arr.length
       }
       if (prop === $fobx) return admin

@@ -136,11 +136,11 @@ describe("computed", () => {
 
     // adding computed to a reaction causes the computed to run
     expect(cAdmin.deps.length).toBe(0) // computed is lazy so until it's accessed it has no observables
-    expect(cAdmin.observers.length).toBe(0)
+    expect(cAdmin.observers.size).toBe(0)
     const reactionFn = fn()
     const d = fobx.reaction(() => c.get(), reactionFn)
     expect(cAdmin.deps.length).toBe(1)
-    expect(cAdmin.observers.length).toBe(1)
+    expect(cAdmin.observers.size).toBe(1)
     expect(computedFn).toHaveBeenCalledTimes(1)
 
     // accessing the computed value directly now uses cached value
@@ -160,7 +160,7 @@ describe("computed", () => {
     computedFn.mockClear()
     expect(computedFn).not.toHaveBeenCalled()
     d()
-    expect(cAdmin.observers.length).toBe(0)
+    expect(cAdmin.observers.size).toBe(0)
     expect(cAdmin.deps.length).toBe(0)
     obs.set(4)
     expect(computedFn).not.toHaveBeenCalled()
@@ -207,14 +207,14 @@ describe("computed", () => {
     b.set(false)
     expect(cAdmin.deps.length).toBe(1)
     expect(cAdmin.deps.includes(aAdmin as never)).toBe(false)
-    expect(aAdmin.observers.length).toBe(0)
+    expect(aAdmin.observers.size).toBe(0)
     expect(cAdmin.deps.includes(bAdmin as never)).toBe(true)
 
     // returning b to true adds a back to the list of observables
     b.set(true)
     expect(cAdmin.deps.length).toBe(2)
     expect(cAdmin.deps.includes(aAdmin as never)).toBe(true)
-    expect(aAdmin.observers.length).toBe(1)
+    expect(aAdmin.observers.size).toBe(1)
     expect(cAdmin.deps.includes(bAdmin as never)).toBe(true)
     dispose()
   })
@@ -233,9 +233,9 @@ test("computed value removes references to dependencies", () => {
   const reactionFn = fn()
   fobx.reaction(() => c.get(), reactionFn)
   expect(cAdmin.deps.length).toBe(1)
-  expect(aAdmin.observers.length).toBe(1)
+  expect(aAdmin.observers.size).toBe(1)
 
   c.dispose()
   expect(cAdmin.deps.length).toBe(0)
-  expect(aAdmin.observers.length).toBe(0)
+  expect(aAdmin.observers.size).toBe(0)
 })

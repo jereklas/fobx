@@ -98,7 +98,7 @@ noReactionTC.forEach(({ name, expected }) => {
   test(`${name} does not cause reaction unless the iterable.next() is called`, () => {
     const m = fobx.observable(new Map()) as unknown as ObservableMapWithAdmin
     fobx.reaction(() => (m as any)[name](), fn())
-    expect(m[$fobx].observers.length).toBe(0)
+    expect(m[$fobx].observers.size).toBe(0)
 
     const reactionFn = fn()
     fobx.reaction(() => {

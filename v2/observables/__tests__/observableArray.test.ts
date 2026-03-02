@@ -226,7 +226,7 @@ describe("ObservableArray", () => {
     test(`${name} does not cause reaction unless the iterable.next() is called`, () => {
       const a = fobx.observable<number>([]) as ObservableArrayWithAdmin
       fobx.reaction(() => (a as any)[name](), fn())
-      expect(a[$fobx].observers.length).toBe(0)
+      expect(a[$fobx].observers.size).toBe(0)
 
       const reactionFn = fn()
       fobx.reaction(() => {

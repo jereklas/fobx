@@ -39,7 +39,7 @@ export function box<T>(
     id,
     name: options?.name || `Box@${id}`,
     value: initialValue,
-    observers: new Set(),
+    observers: null,
     comparer,
     _epoch: 0,
   }

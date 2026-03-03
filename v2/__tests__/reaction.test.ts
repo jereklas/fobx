@@ -1,5 +1,6 @@
 import { $fobx } from "../global.ts"
 import type { ObservableAdmin } from "../global.ts"
+import { observerCount } from "../global.ts"
 import * as fobx from "../index.ts"
 import {
   beforeEach,
@@ -27,9 +28,9 @@ describe("Reaction", () => {
       return [val1.get(), val2.get(), val3.get()]
     }, sideEffectFn)
 
-    expect(val1Admin.observers.size).toBe(1)
-    expect(val2Admin.observers.size).toBe(1)
-    expect(val3Admin.observers.size).toBe(1)
+    expect(observerCount(val1Admin)).toBe(1)
+    expect(observerCount(val2Admin)).toBe(1)
+    expect(observerCount(val3Admin)).toBe(1)
     dispose()
   })
 })
@@ -91,14 +92,14 @@ describe("reaction", () => {
     }, sideEffectFn)
     // value change caused sideEffectFn to run
     val.set(10)
-    expect(valAdmin.observers.size).toBe(1)
+    expect(observerCount(valAdmin)).toBe(1)
     expect(sideEffectFn).toHaveBeenCalledTimes(1)
     expect(sideEffectFn).toHaveBeenCalledWith(10, 0, expect.anything())
 
     // dispose removes tracking
     sideEffectFn.mockClear()
     dispose()
-    expect(valAdmin.observers.size).toBe(0)
+    expect(observerCount(valAdmin)).toBe(0)
     // value change doesn't cause sideEffectFn to run
     val.set(5)
     expect(sideEffectFn).not.toHaveBeenCalled()

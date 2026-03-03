@@ -6,7 +6,7 @@
 
 import {
   $fobx,
-  _tracking,
+  $scheduler,
   type Any,
   type EqualityComparison,
   getNextId,
@@ -75,7 +75,7 @@ export function array<T>(
     id,
     name: options.name || `Array@${id}`,
     value: arr,
-    observers: new Set(),
+    observers: null,
     comparer: resolveComparer(options.comparer),
     _epoch: 0,
     shallow,
@@ -186,7 +186,7 @@ export function array<T>(
         }
       case "reverse":
         return function () {
-          if (_tracking !== null) {
+          if ($scheduler.tracking !== null) {
             throw new Error(
               `[${admin.name}] reverse() mutates in-place and cannot be called in a reaction. Use toReversed() instead.`,
             )
@@ -198,7 +198,7 @@ export function array<T>(
         }
       case "sort":
         return function (compareFn?: (a: Any, b: Any) => number) {
-          if (_tracking !== null) {
+          if ($scheduler.tracking !== null) {
             throw new Error(
               `[${admin.name}] sort() mutates in-place and cannot be called in a reaction. Use toSorted() instead.`,
             )
@@ -341,11 +341,11 @@ export function array<T>(
     get(_target: Any, prop: string | symbol): Any {
       // Numeric indices first (hottest path)
       if (typeof prop === "string" && isNumericIndex(prop)) {
-        if (_tracking !== null) trackAccess(admin)
+        if ($scheduler.tracking !== null) trackAccess(admin)
         return arr[prop as Any]
       }
       if (prop === "length") {
-        if (_tracking !== null) trackAccess(admin)
+        if ($scheduler.tracking !== null) trackAccess(admin)
         return arr.length
       }
       if (prop === $fobx) return admin

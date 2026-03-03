@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { deepEqual } from "fast-equals"
 import * as fobx from "../../index.ts"
-import { $fobx, _batchDepth, _pending } from "../../global.ts"
+import { $fobx, $scheduler } from "../../global.ts"
 import {
   beforeAll,
   beforeEach,
@@ -42,7 +42,7 @@ test("basic", function () {
   x.set(5)
   expect(x.get()).toBe(5)
   expect(b).toEqual([5])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("basic2", function () {
@@ -62,7 +62,7 @@ test("basic2", function () {
   expect(z.get()).toBe(10)
   expect(y.get()).toBe(15)
 
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("computed with asStructure modifier", function () {
@@ -94,7 +94,7 @@ test("computed with asStructure modifier", function () {
   })
 
   expect(b).toEqual([{ sum: 8 }, { sum: 9 }])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("dynamic", function () {
@@ -112,7 +112,7 @@ test("dynamic", function () {
   expect(5).toBe(y.get())
 
   expect(b).toEqual([3, 5])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("dynamic2", function () {
@@ -133,7 +133,7 @@ test("dynamic2", function () {
 
   //no intermediate value 15!
   expect(b).toEqual([25])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("box uses equals", function () {
@@ -155,7 +155,7 @@ test("box uses equals", function () {
   x.set("C")
 
   expect(b).toEqual(["b", "C"])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("box uses equals2", function () {
@@ -181,7 +181,7 @@ test("box uses equals2", function () {
   x.set("03")
 
   expect(b).toEqual([2, 3])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("readme1", function () {
@@ -208,7 +208,7 @@ test("readme1", function () {
   expect(b).toEqual([24])
   order.price.set(10)
   expect(b).toEqual([24, 12])
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("batch", function () {
@@ -320,7 +320,7 @@ test("scope", function () {
   order.price.set(10)
   order.amount.set(3)
   expect(36).toBe(order.total.get())
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("props1", function () {
@@ -356,7 +356,7 @@ test("props1", function () {
   order.amount = 5
   expect(totals).toEqual([36, 48])
 
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("props2", function () {
@@ -501,7 +501,7 @@ test("observables removed", function () {
   expect(c.get()).toBe(9)
   expect(calcs).toBe(3)
 
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("lazy evaluation", function () {
@@ -578,7 +578,7 @@ test("lazy evaluation", function () {
 
   expect(observerChanges).toBe(1)
 
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("multiple view dependencies", function () {
@@ -1094,8 +1094,8 @@ test("603 - transaction should not kill reactions", () => {
     // empty
   }
 
-  expect(_batchDepth).toEqual(0)
-  expect(_pending.length).toEqual(0)
+  expect($scheduler.batchDepth).toEqual(0)
+  expect($scheduler.pending.length).toEqual(0)
 
   expect(b).toBe(2)
   a.set(3)
@@ -1341,7 +1341,7 @@ test("change count optimization", function () {
   expect(bCalcs).toBe(2)
   expect(cCalcs).toBe(1)
 
-  expect(_batchDepth).toBe(0)
+  expect($scheduler.batchDepth).toBe(0)
 })
 
 test("nested observable2", function () {

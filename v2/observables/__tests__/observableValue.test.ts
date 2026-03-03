@@ -1,5 +1,6 @@
 import type { ObservableBox } from "../../box.ts"
 import { $fobx } from "../../global.ts"
+import { observerCount, observerHas } from "../../global.ts"
 import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 
@@ -10,14 +11,14 @@ beforeEach(() => {
 describe("ObservableBox", () => {
   test("wraps supplied value in an object", () => {
     const str = fobx.box("a") as ObservableBox<string>
-    expect(str[$fobx].observers.size).toBe(0)
+    expect(observerCount(str[$fobx])).toBe(0)
     expect(str[$fobx].name).toBe("Box@1")
     expect(str.get()).toBe("a")
 
     const num = fobx.box(10) as ObservableBox<number>
     expect(num.get()).toBe(10)
     expect(num[$fobx].name).toBe("Box@2")
-    expect(num[$fobx].observers.size).toBe(0)
+    expect(observerCount(num[$fobx])).toBe(0)
   })
 
   test("are correctly associated with the reaction when dereferenced.", () => {
@@ -31,16 +32,20 @@ describe("ObservableBox", () => {
     )
     obs1.set("c")
 
-    const r = obs1[$fobx].observers.values().next().value!
+    // Get the reaction — with compact observers, extract from single ref or Set
+    const obsField = obs1[$fobx].observers
+    const r = obsField instanceof Set
+      ? obsField.values().next().value!
+      : obsField!
 
     expect(r.deps.length).toBe(2)
     expect(r.deps.indexOf(obs1[$fobx])).not.toBe(-1)
     expect(r.deps.indexOf(obs2[$fobx])).not.toBe(-1)
 
-    expect(obs1[$fobx].observers.size).toBe(1)
-    expect(obs2[$fobx].observers.size).toBe(1)
-    expect(obs1[$fobx].observers.has(r)).toBe(true)
-    expect(obs2[$fobx].observers.has(r)).toBe(true)
+    expect(observerCount(obs1[$fobx])).toBe(1)
+    expect(observerCount(obs2[$fobx])).toBe(1)
+    expect(observerHas(obs1[$fobx], r)).toBe(true)
+    expect(observerHas(obs2[$fobx], r)).toBe(true)
     dispose()
   })
 })

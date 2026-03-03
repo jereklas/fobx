@@ -1,7 +1,7 @@
 import type { ObservableObjectAdmin } from "../../object.ts"
 import type { ObservableArray } from "../../array.ts"
 import type { ReactionAdmin } from "../../global.ts"
-import { $fobx } from "../../global.ts"
+import { $fobx, observerCount } from "../../global.ts"
 import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 import { deepEqual } from "fast-equals"
@@ -420,7 +420,8 @@ describe("observableObject", () => {
     expect(o.a).toEqual([1, 2, 3])
     let r!: ReactionAdmin
     const reactionFn = fn((_o, _n) => {
-      r = (o.a as any)[$fobx].observers.values().next().value
+      const obs = (o.a as any)[$fobx].observers
+      r = obs instanceof Set ? obs.values().next().value : obs
     })
     fobx.reaction(() => {
       return o.a
@@ -443,14 +444,14 @@ describe("observableObject", () => {
 
     const firstArray = o.a as ObservableArray<number>
     expect(r.deps.length).toBeGreaterThanOrEqual(1)
-    expect((firstArray as any)[$fobx].observers.size).toBe(1)
+    expect(observerCount((firstArray as any)[$fobx])).toBe(1)
 
     o.a = []
     expect(o.a).toEqual([])
     expect(fobx.isObservableArray(o.a)).toBe(true)
     expect((o.a as any)[$fobx].name).not.toBe((firstArray as any)[$fobx].name)
-    expect((firstArray as any)[$fobx].observers.size).toBe(0)
-    expect((o.a as any)[$fobx].observers.size).toBe(1)
+    expect(observerCount((firstArray as any)[$fobx])).toBe(0)
+    expect(observerCount((o.a as any)[$fobx])).toBe(1)
     expect(reactionFn).toHaveBeenCalledTimes(3)
     expect(reactionFn).toHaveBeenCalledWith(
       [],
@@ -486,20 +487,26 @@ describe("observableObject", () => {
         .values.get(
           "a",
         )
-    expect((originalA as any)[$fobx].observers.size).toBe(1)
-    const [reactionRef] = (originalA as any)[$fobx].observers
+    expect(observerCount((originalA as any)[$fobx])).toBe(1)
+    const obsField1 = (originalA as any)[$fobx].observers
+    const reactionRef = obsField1 instanceof Set
+      ? obsField1.values().next().value
+      : obsField1
 
     o.b.c = { a: 1 }
     expect(fobx.isObservable(o.b, "c")).toBe(true)
     expect(reactionFn).not.toHaveBeenCalled()
-    expect((originalA as any)[$fobx].observers.size).toBe(0)
+    expect(observerCount((originalA as any)[$fobx])).toBe(0)
     const secondA =
       (o.b.c as unknown as { [$fobx]: ObservableObjectAdmin })[$fobx]
         .values.get(
           "a",
         )
-    expect((secondA as any)[$fobx].observers.size).toBe(1)
-    const [n] = (secondA as any)[$fobx].observers
+    expect(observerCount((secondA as any)[$fobx])).toBe(1)
+    const obsField2 = (secondA as any)[$fobx].observers
+    const n = obsField2 instanceof Set
+      ? obsField2.values().next().value
+      : obsField2
     expect(n).toBe(reactionRef)
 
     o.b.c.a = 2
@@ -510,14 +517,17 @@ describe("observableObject", () => {
     expect(fobx.isObservable(o.b, "c")).toBe(true)
     expect(reactionFn).toHaveBeenCalledTimes(2)
     expect(reactionFn).toHaveBeenCalledWith(3, 2, expect.anything())
-    expect((secondA as any)[$fobx].observers.size).toBe(0)
+    expect(observerCount((secondA as any)[$fobx])).toBe(0)
     const thirdA =
       (o.b.c as unknown as { [$fobx]: ObservableObjectAdmin })[$fobx].values
         .get(
           "a",
         )
-    expect((thirdA as any)[$fobx].observers.size).toBe(1)
-    const [name] = (thirdA as any)[$fobx].observers
+    expect(observerCount((thirdA as any)[$fobx])).toBe(1)
+    const obsField3 = (thirdA as any)[$fobx].observers
+    const name = obsField3 instanceof Set
+      ? obsField3.values().next().value
+      : obsField3
     expect(name).toBe(reactionRef)
 
     o.b.c.a = 4

@@ -7,9 +7,7 @@
 
 import {
   $fobx,
-  _actionThrew,
-  _batchDepth,
-  _pending,
+  $scheduler,
   type Any,
   clearPending,
   decBatch,
@@ -22,10 +20,10 @@ import {
   STALE,
   swapPending,
   UP_TO_DATE,
+  setTracking,
 } from "./global.ts"
 import { isNotProduction, setRunPendingReactions } from "./notifications.ts"
 import { $instance } from "./instance.ts"
-import { _tracking, setTracking } from "./global.ts"
 import { withoutTracking } from "./tracking.ts"
 
 // ─── Batch API ───────────────────────────────────────────────────────────────
@@ -36,7 +34,7 @@ export function startBatch(): void {
 
 export function endBatch(): void {
   decBatch()
-  if (_batchDepth === 0) {
+  if ($scheduler.batchDepth === 0) {
     runPendingReactions()
   }
 }
@@ -52,7 +50,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
   try {
     reaction.run()
   } catch (error) {
-    if (_actionThrew) {
+    if ($scheduler.actionThrew) {
       if (isNotProduction) {
         console.error(
           `[@fobx/core] "${reaction.name}" exception suppressed because a transaction threw an error first. Fix the transaction's error.`,
@@ -67,7 +65,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
     }
   } finally {
     decBatch()
-    if (_batchDepth === 0) {
+    if ($scheduler.batchDepth === 0) {
       runPendingReactions()
     }
   }
@@ -79,7 +77,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
  */
 function runPendingReactions(): void {
   // Early bail when nothing is pending.
-  if (_pending.length === 0) return
+  if ($scheduler.pending.length === 0) return
 
   let currentBatch = swapPending()
   let unresolved: ReactionAdmin[] = []
@@ -164,7 +162,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
   const wrapper = function (this: unknown, ...args: Any[]) {
     incBatch()
     // Inline withoutTracking to avoid per-call closure allocation
-    const prev = _tracking
+    const prev = $scheduler.tracking
     setTracking(null)
     try {
       return fn.apply(this, args)
@@ -174,7 +172,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
     } finally {
       setTracking(prev)
       decBatch()
-      if (_batchDepth === 0) runPendingReactions()
+      if ($scheduler.batchDepth === 0) runPendingReactions()
       setActionThrew(false)
     }
   }
@@ -199,7 +197,7 @@ export function runInTransaction<T>(fn: () => T): T {
     throw e
   } finally {
     decBatch()
-    if (_batchDepth === 0) runPendingReactions()
+    if ($scheduler.batchDepth === 0) runPendingReactions()
     setActionThrew(false)
   }
 }

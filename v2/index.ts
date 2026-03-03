@@ -4,16 +4,14 @@ export { configure } from "./instance.ts"
 // Primitives
 export { box } from "./box.ts"
 export { computed } from "./computed.ts"
-export { autorun } from "./autorun.ts"
+export { autorun, effect, subscribe } from "./autorun.ts"
 export { reaction } from "./reaction.ts"
 export { when } from "./when.ts"
+export { createSelector } from "./selector.ts"
 export { map } from "./map.ts"
 export { array } from "./array.ts"
 export { set } from "./set.ts"
-export {
-  makeObservable,
-  observable,
-} from "./object.ts"
+export { makeObservable, observable } from "./object.ts"
 
 // Batching
 export { runInTransaction, transaction } from "./batch.ts"
@@ -38,7 +36,7 @@ export {
 } from "./utils.ts"
 
 // Global utilities
-export { $fobx } from "./global.ts"
+export { $fobx, $scheduler, observerCount, observerHas } from "./global.ts"
 
 // Types
 export type { BoxOptions, ObservableBox } from "./box.ts"

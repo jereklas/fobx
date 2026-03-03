@@ -6,8 +6,9 @@
  */
 
 import {
-  _epoch,
-  _tracking,
+  $scheduler,
+  addObserver,
+  deleteObserver,
   nextEpoch,
   type ObservableAdmin,
   type ReactionAdmin,
@@ -24,16 +25,16 @@ let _oldDeps: ObservableAdmin[] = []
  * Called when an observable is read.
  */
 export function trackAccess(admin: ObservableAdmin): void {
-  const t = _tracking
+  const t = $scheduler.tracking
   if (t === null) return
 
   // O(1) duplicate check: if this admin was already tracked this epoch, skip
-  if (admin._epoch === _epoch) return
-  admin._epoch = _epoch
+  if (admin._epoch === $scheduler.epoch) return
+  admin._epoch = $scheduler.epoch
 
   // Add bidirectional links
   t.deps.push(admin)
-  admin.observers.add(t)
+  addObserver(admin, t)
 }
 
 /**
@@ -49,7 +50,7 @@ export function startTracking(reaction: ReactionAdmin): void {
   reaction.deps = []
 
   // Stash previous tracking context
-  _prevTracking = _tracking
+  _prevTracking = $scheduler.tracking
   setTracking(reaction)
 }
 
@@ -80,7 +81,7 @@ export function stopTracking(prevTracking: ReactionAdmin | null): void {
  * Remove a reaction from a single dep's observers set.  O(1).
  */
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
-  if (dep.observers.delete(reaction)) {
+  if (deleteObserver(dep, reaction)) {
     dep.onLoseObserver?.(dep)
   }
 }
@@ -109,7 +110,10 @@ export function cleanupGraph(
   if (oldLen === newLen) {
     let same = true
     for (let i = 0; i < oldLen; i++) {
-      if (oldDeps[i] !== newDeps[i]) { same = false; break }
+      if (oldDeps[i] !== newDeps[i]) {
+        same = false
+        break
+      }
     }
     if (same) return
   }
@@ -155,7 +159,7 @@ export function withTracking<T>(reaction: ReactionAdmin, fn: () => T): T {
  * Execute fn with dependency tracking disabled.
  */
 export function withoutTracking<T>(fn: () => T): T {
-  const prev = _tracking
+  const prev = $scheduler.tracking
   setTracking(null)
   try {
     return fn()

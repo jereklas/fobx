@@ -4,11 +4,12 @@
 
 import {
   $fobx,
-  _batchDepth,
+  $scheduler,
   type ComputedAdmin,
   defaultComparer,
   type EqualityComparison,
   getNextId,
+  hasObservers,
   KIND_COMPUTED,
   NOT_CACHED,
   NOTIFY_CHANGED,
@@ -60,7 +61,7 @@ export function computed<T>(
     id,
     name: options?.name || `Computed@${id}`,
     value: NOT_CACHED as T,
-    observers: new Set(),
+    observers: null,
     comparer,
     _epoch: 0,
     state: POSSIBLY_STALE,
@@ -87,7 +88,7 @@ export function computed<T>(
 
 /** Shared onLoseObserver — receives admin from removeObserver. No per-instance closure. */
 function _suspendIfNeeded(admin: ObservableAdmin): void {
-  if (admin.observers.size > 0) return
+  if (hasObservers(admin)) return
   admin.value = NOT_CACHED
   ;(admin as ComputedAdmin).state = STALE
   removeFromAllDeps(admin as ComputedAdmin)
@@ -96,7 +97,7 @@ function _suspendIfNeeded(admin: ObservableAdmin): void {
 function getComputedValue<T>(
   admin: ComputedAdmin<T>,
 ): T {
-  const shouldCache = _batchDepth > 0 || admin.observers.size > 0
+  const shouldCache = $scheduler.batchDepth > 0 || hasObservers(admin)
 
   // SUSPENDED: Pure function mode — compute without tracking
   if (!shouldCache) {
@@ -149,9 +150,7 @@ function _runComputed(this: ComputedAdmin): void {
   const oldDeps = getOldDeps()
   const prevTracking = getPrevTracking()
   try {
-    admin.value = admin._bind
-      ? admin._fn.call(admin._bind)
-      : admin._fn()
+    admin.value = admin._bind ? admin._fn.call(admin._bind) : admin._fn()
     admin.state = UP_TO_DATE
   } catch (error) {
     admin.state = UP_TO_DATE

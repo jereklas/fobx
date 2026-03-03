@@ -4,8 +4,8 @@
 
 import {
   $fobx,
-  _batchDepth,
-  _tracking,
+  $scheduler,
+  addObserver,
   type Any,
   defaultComparer,
   type Dispose,
@@ -82,7 +82,7 @@ function _runReaction(this: ReactionRunAdmin): void {
     if (deps.indexOf(collectionAdmin) === -1) {
       deps.push(collectionAdmin)
     }
-    collectionAdmin.observers.add(this)
+    addObserver(collectionAdmin, this)
     currentChanges = collectionAdmin.changes
   }
 
@@ -98,13 +98,11 @@ function _runReaction(this: ReactionRunAdmin): void {
     valueChanged = !this._comparer(this._previousValue, newValue)
   }
 
-  const shouldRun = this._isFirst
-    ? this._fireImmediately
-    : valueChanged
+  const shouldRun = this._isFirst ? this._fireImmediately : valueChanged
 
   if (shouldRun) {
     // Inlined withoutTracking — avoids closure allocation
-    const prevTrack = _tracking
+    const prevTrack = $scheduler.tracking
     setTracking(null)
     try {
       this._effect(newValue, this._previousValue, this._dispose)
@@ -149,7 +147,11 @@ export function reaction<T>(
     state: STALE,
     deps: [],
     _expression: expression as (dispose: Dispose) => Any,
-    _effect: effect as (value: Any, previousValue: Any, dispose: Dispose) => void,
+    _effect: effect as (
+      value: Any,
+      previousValue: Any,
+      dispose: Dispose,
+    ) => void,
     _comparer: comparer,
     _isDisposed: false,
     _isFirst: true,
@@ -160,7 +162,7 @@ export function reaction<T>(
     run: _runReaction,
   }
 
-  if (_batchDepth > 0) {
+  if ($scheduler.batchDepth > 0) {
     pushPending(admin)
   } else {
     safeRunReaction(admin)

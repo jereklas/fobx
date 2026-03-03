@@ -1,4 +1,4 @@
-import { $fobx } from "../../global.ts"
+import { $fobx, observerCount } from "../../global.ts"
 import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 import { deepEqual } from "fast-equals"
@@ -226,7 +226,7 @@ describe("ObservableArray", () => {
     test(`${name} does not cause reaction unless the iterable.next() is called`, () => {
       const a = fobx.observable<number>([]) as ObservableArrayWithAdmin
       fobx.reaction(() => (a as any)[name](), fn())
-      expect(a[$fobx].observers.size).toBe(0)
+      expect(observerCount(a[$fobx])).toBe(0)
 
       const reactionFn = fn()
       fobx.reaction(() => {

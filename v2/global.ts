@@ -25,10 +25,8 @@ export const NOTIFY_INDETERMINATE = 1
 
 // ─── IDs ─────────────────────────────────────────────────────────────────────
 
-let _nextId = 0
-
 export function getNextId(): number {
-  return ++_nextId
+  return ++$scheduler.nextId
 }
 
 // ─── Equality ────────────────────────────────────────────────────────────────
@@ -53,12 +51,21 @@ export const NOT_CACHED = Symbol("not-cached")
 
 // ─── Admin Interfaces ────────────────────────────────────────────────────────
 
+/**
+ * Observers storage — compact union to avoid Set allocation for common cases.
+ *
+ * - `null`  — no observers (initial state, avoids `new Set()`)
+ * - `ReactionAdmin` — exactly 1 observer (most common for label boxes etc.)
+ * - `Set<ReactionAdmin>` — 2+ observers (upgraded lazily)
+ */
+export type Observers = null | ReactionAdmin | Set<ReactionAdmin>
+
 export interface ObservableAdmin<T = unknown> {
   kind: number
   id: number
   name: string
   value: T
-  observers: Set<ReactionAdmin>
+  observers: Observers
   comparer: EqualityChecker
   /** Epoch-based tracking: last epoch this admin was added as a dep */
   _epoch: number
@@ -66,6 +73,73 @@ export interface ObservableAdmin<T = unknown> {
   onLoseObserver?: (admin: ObservableAdmin) => void
   /** Collection mutation counter (used by array/map/set admins) */
   changes?: number
+}
+
+// ─── Observer helpers ────────────────────────────────────────────────────────
+
+/** Add an observer to an observable's observers (idempotent for single ref). */
+export function addObserver(
+  admin: ObservableAdmin,
+  reaction: ReactionAdmin,
+): void {
+  const obs = admin.observers
+  if (obs === null) {
+    admin.observers = reaction
+  } else if (obs instanceof Set) {
+    obs.add(reaction)
+  } else {
+    // Single ref — upgrade to Set if different reaction
+    if (obs !== reaction) {
+      const s = new Set<ReactionAdmin>()
+      s.add(obs)
+      s.add(reaction)
+      admin.observers = s
+    }
+  }
+}
+
+/** Delete an observer. Returns true if it was present. */
+export function deleteObserver(
+  admin: ObservableAdmin,
+  reaction: ReactionAdmin,
+): boolean {
+  const obs = admin.observers
+  if (obs === null) return false
+  if (obs instanceof Set) {
+    const deleted = obs.delete(reaction)
+    if (obs.size === 0) admin.observers = null
+    return deleted
+  }
+  // Single ref
+  if (obs === reaction) {
+    admin.observers = null
+    return true
+  }
+  return false
+}
+
+/** Check if an observable has any observers. */
+export function hasObservers(admin: ObservableAdmin): boolean {
+  return admin.observers !== null
+}
+
+/** Get observer count (for tests). */
+export function observerCount(admin: ObservableAdmin): number {
+  const obs = admin.observers
+  if (obs === null) return 0
+  if (obs instanceof Set) return obs.size
+  return 1
+}
+
+/** Check if a specific reaction is observing this admin (for tests). */
+export function observerHas(
+  admin: ObservableAdmin,
+  reaction: ReactionAdmin,
+): boolean {
+  const obs = admin.observers
+  if (obs === null) return false
+  if (obs instanceof Set) return obs.has(reaction)
+  return obs === reaction
 }
 
 export interface ReactionAdmin {
@@ -93,50 +167,105 @@ export interface FobxAdmin {
   name: string
 }
 
-// ─── Global Mutable State ────────────────────────────────────────────────────
+// ─── DOM-Global Scheduler State ──────────────────────────────────────────────
+//
+// ⚠️  STABILITY CONTRACT — DO NOT MODIFY THIS SHAPE WITHOUT CAREFUL CONSIDERATION
+//
+// This state is stored on `globalThis` via `Symbol.for` so that multiple bundled
+// copies of fobx in the same page share a single scheduling context. This is
+// critical for correctness: all reactions must participate in one batch queue,
+// and there can only be one "currently tracking" reaction at a time.
+//
+// If the shape of SchedulerState changes, all existing deployed copies of fobx
+// become incompatible. Treat this interface as a cross-bundle protocol:
+//   - NEVER remove or rename existing fields
+//   - NEVER change the semantics of existing fields
+//   - New fields may be added with fallback behavior for older copies
+//   - Version the Symbol key if a breaking change is truly unavoidable
+//
 
-/** Currently-tracking reaction (set during reaction execution) */
-export let _tracking: ReactionAdmin | null = null
-/** Batch nesting depth. Reactions only run when this reaches 0. */
-export let _batchDepth = 0
-/** Reactions queued for execution at end of batch */
-export let _pending: ReactionAdmin[] = []
-/** Set to true when a transaction throws, cleared in finally */
-export let _actionThrew = false
-/** Monotonically increasing epoch for dependency tracking */
-export let _epoch = 0
+const $fobxScheduler = Symbol.for("fobx-scheduler-v2")
+
+interface SchedulerState {
+  /** Currently-tracking reaction (set during reaction execution) */
+  tracking: ReactionAdmin | null
+  /** Batch nesting depth. Reactions only run when this reaches 0. */
+  batchDepth: number
+  /** Reactions queued for execution at end of batch */
+  pending: ReactionAdmin[]
+  /** Set to true when a transaction throws, cleared in finally */
+  actionThrew: boolean
+  /** Monotonically increasing epoch for dependency tracking */
+  epoch: number
+  /**
+   * Active cleanup scope — when non-null, subscribe() pushes the reaction
+   * object directly here instead of creating a dispose closure.
+   * Set/cleared by the DOM layer's enterScope/exitScope.
+   */
+  activeScope: Any[] | null
+  /** Monotonically increasing ID counter */
+  nextId: number
+}
+
+function getSchedulerState(): SchedulerState {
+  const g = globalThis as Any
+  if (g[$fobxScheduler] !== undefined) {
+    return g[$fobxScheduler]
+  }
+  const state: SchedulerState = {
+    tracking: null,
+    batchDepth: 0,
+    pending: [],
+    actionThrew: false,
+    epoch: 0,
+    activeScope: null,
+    nextId: 0,
+  }
+  Object.defineProperty(g, $fobxScheduler, { value: state })
+  return state
+}
+
+/**
+ * Shared scheduler state — lives on globalThis so all copies of fobx
+ * in the page participate in the same batch queue and tracking context.
+ */
+export const $scheduler = getSchedulerState()
 
 // ─── Mutator Functions ───────────────────────────────────────────────────────
 
 export function setTracking(v: ReactionAdmin | null): void {
-  _tracking = v
+  $scheduler.tracking = v
 }
 export function incBatch(): void {
-  _batchDepth++
+  $scheduler.batchDepth++
 }
 export function decBatch(): void {
-  _batchDepth--
+  $scheduler.batchDepth--
 }
 export function pushPending(r: ReactionAdmin): void {
-  _pending.push(r)
+  $scheduler.pending.push(r)
 }
 /** Swap pending queue for a fresh one, returning the old batch. */
 export function swapPending(): ReactionAdmin[] {
-  const old = _pending
-  _pending = []
+  const old = $scheduler.pending
+  $scheduler.pending = []
   return old
 }
 export function clearPending(): void {
-  _pending.length = 0
+  $scheduler.pending.length = 0
 }
 /** Drain extra items from pending into target array, then clear pending. */
 export function drainPendingInto(target: ReactionAdmin[]): void {
-  for (let i = 0; i < _pending.length; i++) target.push(_pending[i])
-  _pending.length = 0
+  const p = $scheduler.pending
+  for (let i = 0; i < p.length; i++) target.push(p[i])
+  p.length = 0
 }
 export function setActionThrew(v: boolean): void {
-  _actionThrew = v
+  $scheduler.actionThrew = v
 }
 export function nextEpoch(): number {
-  return ++_epoch
+  return ++$scheduler.epoch
+}
+export function setActiveScope(scope: Any[] | null): void {
+  $scheduler.activeScope = scope
 }

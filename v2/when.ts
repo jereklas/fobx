@@ -3,7 +3,7 @@
  */
 
 import {
-  _batchDepth,
+  $scheduler,
   type Dispose,
   getNextId,
   KIND_WHEN,
@@ -133,7 +133,7 @@ function createWhen(
     },
   }
 
-  if (_batchDepth > 0) {
+  if ($scheduler.batchDepth > 0) {
     pushPending(admin)
   } else {
     safeRunReaction(admin)

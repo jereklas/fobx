@@ -4,10 +4,11 @@
 
 import {
   $fobx,
-  _tracking,
+  $scheduler,
   type Any,
   defaultComparer,
   getNextId,
+  hasObservers,
   KIND_COLLECTION,
   type ObservableAdmin,
 } from "./global.ts"
@@ -52,7 +53,7 @@ class ObservableSet<T = unknown> implements Set<T> {
       id,
       name: options.name || `Set@${id}`,
       value: undefined,
-      observers: new Set(),
+      observers: null,
       comparer: defaultComparer,
       _epoch: 0,
       changes: 0,
@@ -68,7 +69,7 @@ class ObservableSet<T = unknown> implements Set<T> {
   }
 
   has(value: T): boolean {
-    if (_tracking === null) return this.data.has(value)
+    if ($scheduler.tracking === null) return this.data.has(value)
 
     let hasBox = this.hasMap.get(value)
     if (!hasBox) {
@@ -81,7 +82,7 @@ class ObservableSet<T = unknown> implements Set<T> {
       const hmRef = this.hasMap
       const valRef = value
       hasBox[$fobx].onLoseObserver = () => {
-        if (hasBox![$fobx].observers.size === 0) {
+        if (!hasObservers(hasBox![$fobx])) {
           hmRef.delete(valRef)
         }
       }

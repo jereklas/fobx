@@ -4,12 +4,13 @@
 
 import {
   $fobx,
-  _tracking,
+  $scheduler,
   type Any,
   defaultComparer,
   type EqualityChecker,
   type EqualityComparison,
   getNextId,
+  hasObservers,
   KIND_BOX,
   KIND_COLLECTION,
   NOTIFY_CHANGED,
@@ -73,7 +74,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       name: `${name}.keys`,
       value: undefined,
       changes: 0,
-      observers: new Set(),
+      observers: null,
       comparer: defaultComparer,
       _epoch: 0,
     }
@@ -83,7 +84,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       name,
       value: undefined,
       changes: 0,
-      observers: new Set(),
+      observers: null,
       comparer: defaultComparer,
       _epoch: 0,
     }
@@ -134,14 +135,14 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       id,
       name: `${this.keysAdmin.name}[${String(key)}]`,
       value,
-      observers: new Set(),
+      observers: null,
       comparer: this._comparer,
       _epoch: 0,
     }
   }
 
   has(key: K): boolean {
-    if (_tracking === null) return this.data.has(key)
+    if ($scheduler.tracking === null) return this.data.has(key)
 
     let hasBox = this.hasMap.get(key)
     if (!hasBox) {
@@ -153,7 +154,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       const hmRef = this.hasMap
       const keyRef = key
       hasBox[$fobx].onLoseObserver = () => {
-        if (hasBox![$fobx].observers.size === 0) {
+        if (!hasObservers(hasBox![$fobx])) {
           hmRef.delete(keyRef)
         }
       }
@@ -163,7 +164,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    if (_tracking === null) {
+    if ($scheduler.tracking === null) {
       const admin = this.data.get(key)
       return admin !== undefined ? admin.value : undefined
     }
@@ -205,7 +206,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     if (!this.data.has(key)) return false
 
     const admin = this.data.get(key)!
-    if (admin.observers.size > 0) {
+    if (hasObservers(admin)) {
       notifyObservers(admin, NOTIFY_CHANGED)
     }
 
@@ -228,7 +229,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     startBatch()
     try {
       this.data.forEach((admin) => {
-        if (admin.observers.size > 0) {
+        if (hasObservers(admin)) {
           notifyObservers(admin, NOTIFY_CHANGED)
         }
       })
@@ -354,7 +355,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       toDelete.forEach((key) => {
         const admin = this.data.get(key)!
         this.data.delete(key)
-        if (admin.observers.size > 0) {
+        if (hasObservers(admin)) {
           notifyObservers(admin, NOTIFY_CHANGED)
         }
         const hasBox = this.hasMap.get(key)
@@ -446,7 +447,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   get [Symbol.toStringTag](): string {
     return "Map"
   }
-}// Prototype-level assignment (one-time, preserves V8 hidden class)
+} // Prototype-level assignment (one-time, preserves V8 hidden class)
 
 ;(ObservableMap.prototype as Any).constructor = Map
 

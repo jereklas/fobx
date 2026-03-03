@@ -924,11 +924,24 @@ export function observable<T extends object>(
             originalSetter: descriptor.set,
           }
         } else if (typeof descriptor.value === "function") {
+          // When `defaultAnnotation` opts for reference storage (observable*) or
+          // to skip the property ("none"), respect that intent for functions too.
+          // Without this, `observable({cb: fn}, {defaultAnnotation:"observable.ref"})`
+          // would wrap the callback in a transaction instead of storing it by reference.
+          const explicitDefault = objOptions?.defaultAnnotation
+          const isObservableDefault = explicitDefault &&
+            (explicitDefault === "observable" ||
+              explicitDefault === "observable.ref" ||
+              explicitDefault === "observable.shallow" ||
+              explicitDefault === "none")
+          const effectiveAnnotation = isObservableDefault
+            ? explicitDefault
+            : "transaction"
           meta = processProperty(
             admin,
             key,
             descriptor,
-            "transaction",
+            effectiveAnnotation,
             installTarget,
           )
         } else if (!descriptor.get) {
@@ -964,5 +977,3 @@ export function observable<T extends object>(
 
   return observableTarget
 }
-
-

@@ -6,10 +6,9 @@
  */
 
 import {
-  _batchDepth,
-  _pending,
-  _tracking,
+  $scheduler,
   type ComputedAdmin,
+  hasObservers as _hasObservers,
   KIND_BOX,
   KIND_COLLECTION,
   KIND_COMPUTED,
@@ -18,6 +17,7 @@ import {
   type ObservableAdmin,
   POSSIBLY_STALE,
   pushPending,
+  type ReactionAdmin,
   STALE,
   UP_TO_DATE,
 } from "./global.ts"
@@ -36,6 +36,65 @@ const isNotProduction =
   (typeof process !== "undefined" && process.env?.NODE_ENV !== "production")
 
 /**
+ * Process a single observer notification — extracted to avoid duplication
+ * between the single-observer and Set iteration paths.
+ */
+function _notifyOneObserver(
+  reaction: ReactionAdmin,
+  observable: ObservableAdmin,
+  notificationType: number,
+): void {
+  // Handle the currently-tracking reaction specially
+  if (reaction === $scheduler.tracking) {
+    // Pure observables (box, collection) can re-queue the tracker
+    // Computed lazy recomputation during tracking should NOT re-queue
+    const kind = observable.kind
+    if (
+      (kind === KIND_BOX || kind === KIND_COLLECTION) &&
+      notificationType === NOTIFY_CHANGED &&
+      reaction.state === UP_TO_DATE
+    ) {
+      reaction.state = STALE
+      pushPending(reaction)
+    }
+    return
+  }
+
+  const state = reaction.state
+
+  if (
+    state === STALE || state === POSSIBLY_STALE
+  ) {
+    // Upgrade to STALE if receiving CHANGED notification
+    if (notificationType === NOTIFY_CHANGED) {
+      reaction.state = STALE
+    }
+    return // Already queued
+  }
+
+  // state === UP_TO_DATE
+  reaction.state = notificationType === NOTIFY_CHANGED ? STALE : POSSIBLY_STALE
+
+  // Only queue reactions that have observers (don't queue suspended computeds)
+  const isComp = reaction.kind === KIND_COMPUTED
+  const hasObs = isComp
+    ? _hasObservers(reaction as unknown as ComputedAdmin)
+    : true
+
+  if (hasObs) {
+    pushPending(reaction)
+  }
+
+  // Propagate through computed chain
+  if (isComp && hasObs) {
+    notifyObservers(
+      reaction as unknown as ObservableAdmin,
+      NOTIFY_INDETERMINATE,
+    )
+  }
+}
+
+/**
  * Notify all observers of an observable that it changed.
  * This is the core propagation function — runs on every observable write with observers.
  */
@@ -43,59 +102,16 @@ export function notifyObservers(
   observable: ObservableAdmin,
   notificationType: number,
 ): void {
-  const observers = observable.observers
+  const obs = observable.observers
+  if (obs === null) return
 
-  for (const reaction of observers) {
-    // Handle the currently-tracking reaction specially
-    if (reaction === _tracking) {
-      // Pure observables (box, collection) can re-queue the tracker
-      // Computed lazy recomputation during tracking should NOT re-queue
-      const kind = observable.kind
-      if (
-        (kind === KIND_BOX || kind === KIND_COLLECTION) &&
-        notificationType === NOTIFY_CHANGED &&
-        reaction.state === UP_TO_DATE
-      ) {
-        reaction.state = STALE
-        pushPending(reaction)
-      }
-      continue
+  if (obs instanceof Set) {
+    for (const reaction of obs) {
+      _notifyOneObserver(reaction, observable, notificationType)
     }
-
-    const state = reaction.state
-
-    if (
-      state === STALE || state === POSSIBLY_STALE
-    ) {
-      // Upgrade to STALE if receiving CHANGED notification
-      if (notificationType === NOTIFY_CHANGED) {
-        reaction.state = STALE
-      }
-      continue // Already queued
-    }
-
-    // state === UP_TO_DATE
-    reaction.state = notificationType === NOTIFY_CHANGED
-      ? STALE
-      : POSSIBLY_STALE
-
-    // Only queue reactions that have observers (don't queue suspended computeds)
-    const isComp = reaction.kind === KIND_COMPUTED
-    const hasObservers = isComp
-      ? (reaction as unknown as ComputedAdmin).observers.size > 0
-      : true
-
-    if (hasObservers) {
-      pushPending(reaction)
-    }
-
-    // Propagate through computed chain
-    if (isComp && hasObservers) {
-      notifyObservers(
-        reaction as unknown as ObservableAdmin,
-        NOTIFY_INDETERMINATE,
-      )
-    }
+  } else {
+    // Single observer — fast path (no Set iteration overhead)
+    _notifyOneObserver(obs, observable, notificationType)
   }
 }
 
@@ -104,11 +120,11 @@ export function notifyObservers(
  * Centralizes the notify + runPending pattern to avoid per-call-site duplication.
  */
 export function notifyChanged(admin: ObservableAdmin): void {
-  if (admin.observers.size > 0) {
+  if (admin.observers !== null) {
     notifyObservers(admin, NOTIFY_CHANGED)
   }
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).
-  if (_batchDepth === 0 && _pending.length > 0) {
+  if ($scheduler.batchDepth === 0 && $scheduler.pending.length > 0) {
     _runPendingReactions()
   }
 }

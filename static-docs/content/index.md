@@ -19,3 +19,7 @@ behaves like a lightweight single-page app.
 ## Next steps
 
 Continue with the [installation guide](/getting-started/installation/).
+
+## Core docs
+
+Read the complete core implementation docs at [Fobx Core Documentation](/core/).

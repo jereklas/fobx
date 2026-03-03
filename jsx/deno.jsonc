@@ -1,0 +1,13 @@
+{
+  "name": "@fobx/jsx",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./index.ts",
+    "./jsx-runtime": "./jsx-runtime.ts",
+    "./jsx-dev-runtime": "./jsx-runtime.ts"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "@fobx/jsx"
+  }
+}

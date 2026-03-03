@@ -1,0 +1,19 @@
+{
+  "name": "@fobx/react-v2",
+  "version": "0.1.0",
+  "description": "React bindings for @fobx/v2 — observer HOC and useViewModel hook.",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "@types/react": "npm:@types/react@^18.0.0",
+    "react": "npm:react@^18.0.0",
+    "react-dom": "npm:react-dom@^18.0.0",
+    "react-dom/client": "npm:react-dom@^18.0.0/client"
+  },
+  "tasks": {
+    "lint": "deno lint",
+    "check": "deno check index.ts",
+    "test": "deno test --allow-env --no-check __tests__/"
+  }
+}

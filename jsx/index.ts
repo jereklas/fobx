@@ -27,6 +27,10 @@ export { Component } from "./component.ts"
 export { render, unmount } from "./render.ts"
 export type { FC, JsxProps } from "./types.ts"
 
+// Reactive list rendering
+export { For } from "./for.ts"
+export type { ForProps } from "./for.ts"
+
 // Re-export useful dom utilities
 export { dispose, onDispose } from "../dom/reactive.ts"
 export { mapArray, mountList } from "../dom/map-array.ts"

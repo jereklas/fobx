@@ -92,8 +92,12 @@ describe("useViewModel - instance lifecycle", () => {
     expect(constructorSpy).toHaveBeenCalledTimes(1)
 
     // Trigger re-renders via observable change
-    await reactAct(() => { counter.set(1) })
-    await reactAct(() => { counter.set(2) })
+    await reactAct(() => {
+      counter.set(1)
+    })
+    await reactAct(() => {
+      counter.set(2)
+    })
 
     // Constructor should still only have been called once
     expect(constructorSpy).toHaveBeenCalledTimes(1)
@@ -184,7 +188,9 @@ describe("useViewModel - update() sync", () => {
     await reactAct(() => root.render(React.createElement(Comp)))
     renderCount.v = 0 // reset after initial render
 
-    await reactAct(() => { setValueExternal(5) })
+    await reactAct(() => {
+      setValueExternal(5)
+    })
 
     // Should re-render at most a small number of times — not infinitely loop
     // due to vm.update() writing to observables causing re-entry
@@ -196,7 +202,7 @@ describe("useViewModel - update() sync", () => {
     // All prop changes in update() fire as one batch, not one reaction per prop.
     // We test this directly by calling update() on a VM and counting reactions.
     let reactionFireCount = 0
-      
+
     let setPropsExternal!: (p: { a: number; b: number }) => void
 
     class MultiPropVM extends ViewModel<{ a: number; b: number }> {}
@@ -209,7 +215,9 @@ describe("useViewModel - update() sync", () => {
     }
 
     await reactAct(() => root.render(React.createElement(Parent)))
-    await reactAct(() => { setPropsExternal({ a: 1, b: 2 }) })
+    await reactAct(() => {
+      setPropsExternal({ a: 1, b: 2 })
+    })
     expect(container.querySelector("span")?.textContent).toBe("1:2")
 
     // Direct test of update() atomicity: set up a reaction, call update(), count fires
@@ -281,16 +289,16 @@ describe("useViewModel - lifecycle", () => {
     const onDisconnect = fn()
 
     class LifecycleVM extends ViewModel {
-      override onConnect() { onConnect() }
-      override onDisconnect() { onDisconnect() }
+      override onConnect() {
+        onConnect()
+      }
+      override onDisconnect() {
+        onDisconnect()
+      }
     }
 
     const Comp = () => {
-       
-     
       useViewModel(LifecycleVM)
-       
-     
       return null
     }
 
@@ -328,7 +336,9 @@ describe("useViewModel - ViewModel base class", () => {
     await reactAct(() => root.render(React.createElement(Parent)))
     expect(renderCount).toBe(1)
 
-    await reactAct(() => { setExternal(42) })
+    await reactAct(() => {
+      setExternal(42)
+    })
 
     expect(container.querySelector("span")?.textContent).toBe("42")
     // Child re-rendered because vm.props.value changed (it's observable)
@@ -348,7 +358,8 @@ describe("useViewModel - ViewModel base class", () => {
   })
 
   test("props uses observable.ref (no deep observable conversion)", () => {
-    class VM extends ViewModel<{ callback: () => void; nested: { x: number } }> {}
+    class VM
+      extends ViewModel<{ callback: () => void; nested: { x: number } }> {}
 
     const callback = () => {}
     const nested = { x: 1 }
@@ -361,7 +372,6 @@ describe("useViewModel - ViewModel base class", () => {
   })
 })
 
-     
 describe("useViewModel - nested VMs (v2 vs v1 regression)", () => {
   test("nested VMs dont interfere with each other (no global state pollution)", async () => {
     // This tests the critical v2 improvement over v1.
@@ -381,7 +391,11 @@ describe("useViewModel - nested VMs (v2 vs v1 regression)", () => {
 
     const ChildComp = observer(({ vm }: { vm: ChildVM }) => {
       childRenders()
-      return React.createElement("span", { className: "child" }, String(vm.props.childValue))
+      return React.createElement(
+        "span",
+        { className: "child" },
+        String(vm.props.childValue),
+      )
     })
 
     const ParentComp = observer(() => {
@@ -394,14 +408,15 @@ describe("useViewModel - nested VMs (v2 vs v1 regression)", () => {
       const childVm = useViewModel(ChildVM, { childValue: cp })
 
       parentRenders()
-        "span",
-       
-       ,
-      
+
       return React.createElement(
         "div",
         null,
-        React.createElement("span", { className: "parent" }, String(parentVm.props.parentValue)),
+        React.createElement(
+          "span",
+          { className: "parent" },
+          String(parentVm.props.parentValue),
+        ),
         React.createElement(ChildComp, { vm: childVm }),
       )
     })
@@ -414,10 +429,6 @@ describe("useViewModel - nested VMs (v2 vs v1 regression)", () => {
     await reactAct(() => {
       setChildProp(5)
     })
-          "span",
-         
-         ,
-        
 
     expect(container.querySelector(".child")?.textContent).toBe("5")
     // Child should have re-rendered (its React state changed)
@@ -428,5 +439,275 @@ describe("useViewModel - nested VMs (v2 vs v1 regression)", () => {
       setParentProp(10)
     })
     expect(container.querySelector(".parent")?.textContent).toBe("10")
+  })
+})
+
+// ─── StrictMode ───────────────────────────────────────────────────────────────
+//
+// React 18 StrictMode in development:
+//  1. Double-invokes the render body (refs persist between the two calls).
+//  2. Double-invokes effects: effect → cleanup → effect.
+//
+// For useViewModel this means:
+//  A. CONSTRUCTOR:  React 18 double-invokes `useState` initializers to detect
+//     side effects. The ViewModel constructor runs TWICE. The second instance is
+//     discarded; the component uses a stable vm from that point on.
+//
+//  B. update() ON FIRST RENDER:  isFirstRender is a useRef that persists across
+//     StrictMode's double-render. The first render body call sets
+//     isFirstRender.current = false. The second (StrictMode) render body call
+//     therefore calls vm.update() with the same initial props — call [1].
+//     Then the useSyncExternalStore subscribe-cleanup-resubscribe cycle disposes
+//     the tracker. The subscribe-recovery render (needed to re-track deps on the
+//     recreated tracker) calls update() a second time with the same props — call [2].
+//     Total: 2 update() calls on initial mount, both with identical initial props.
+//     Custom update() MUST be idempotent for StrictMode compatibility.
+//
+//     Note: the subscribe-recovery render is ARCHITECTURALLY NECESSARY — not an
+//     accidental leak. The recreated tracker starts with zero deps and can only
+//     re-subscribe by running tracker.track(render) during a render pass.
+//     Removing useSyncExternalStore in favour of useReducer+useEffect would
+//     eliminate this extra render, but at the cost of tearing safety in
+//     React’s concurrent/Suspense mode. The current design is the correct trade.
+//
+//  C. LIFECYCLE:  useEffect double-invoke means:
+//       mount  → onConnect() (1st)
+//       cleanup → onDisconnect() (1st)
+//       remount → onConnect() (2nd)
+//     After mount: onConnect=2, onDisconnect=1.
+//     After actual unmount: onConnect=2, onDisconnect=2.
+
+describe("useViewModel - StrictMode", () => {
+  test("VM instance: useState factory double-invoked by React 18 StrictMode (constructor runs twice)", async () => {
+    // React 18 StrictMode double-invokes `useState` initializers to detect side effects.
+    // Both factory calls create a CounterVM, but React uses different instances for its
+    // two render passes (first is "shadow" / discarded, second is real). After mount,
+    // the vm is fully stable: no further constructor calls happen on re-renders.
+    const constructorSpy = fn()
+    let vmFromLastRender: InstanceType<typeof CounterVM> | null = null
+
+    class CounterVM extends ViewModel<{ initial: number }> {
+      count: number
+      constructor(props: { initial: number }) {
+        super(props)
+        constructorSpy()
+        this.count = props.initial
+        fobx.observable(this)
+      }
+    }
+
+    const Comp = observer(() => {
+      const vm = useViewModel(CounterVM, { initial: 0 })
+      vmFromLastRender = vm
+      return React.createElement("span", null, String(vm.count))
+    })
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+
+    // StrictMode double-invokes the useState factory → 2 constructor calls
+    expect(constructorSpy).toHaveBeenCalledTimes(2)
+    expect(container.querySelector("span")?.textContent).toBe("0")
+
+    // After mount stabilizes, vm is stable — no additional constructor calls on re-renders
+    const mountedVm = vmFromLastRender!
+    constructorSpy.mockClear()
+
+    // Trigger re-renders by changing a fobx observable unrelated to the vm itself
+    const trigger = fobx.box(0)
+    const TriggerComp = observer(() => {
+      const vm = useViewModel(CounterVM, { initial: 0 })
+      vmFromLastRender = vm
+      // Read trigger to subscribe
+      return React.createElement(
+        "span",
+        null,
+        String(vm.count) + String(trigger.get()),
+      )
+    })
+    // Use a separate root to avoid remounting the original Comp
+    const div2 = (globalThis as any).document.createElement("div")
+    ;(globalThis as any).document.body.appendChild(div2)
+    const root2 = ReactDOM.createRoot(div2)
+    constructorSpy.mockClear()
+
+    await reactAct(() =>
+      root2.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(TriggerComp),
+        ),
+      )
+    )
+    const vmAfterMount = vmFromLastRender!
+    constructorSpy.mockClear() // clear StrictMode double-invoke from mount
+
+    await reactAct(() => {
+      trigger.set(1)
+    })
+    // Re-render from observable change — constructor should NOT be called again
+    expect(constructorSpy).not.toHaveBeenCalled()
+    expect(vmFromLastRender).toBe(vmAfterMount) // same stable vm instance
+
+    await reactAct(() => root2.unmount())
+    ;(globalThis as any).document.body.removeChild(div2)
+    void mountedVm // suppress unused var warning
+  })
+
+  test("update() called twice during StrictMode mount: StrictMode double-render + subscribe-recovery render", async () => {
+    // In StrictMode, three render body invocations happen during initial mount:
+    //   1. First render body: isFirstRender.current=true → set to false, skip update()
+    //   2. Second render body (StrictMode double-invoke): isFirstRender.current=false
+    //      → update() CALLED [1] (same initial props, idempotent)
+    //   3. Subscribe-recovery render: useSyncExternalStore’s subscribe-cleanup-resubscribe
+    //      disposes the tracker. The subscribe-recovery render re-establishes deps on the
+    //      new tracker. isFirstRender is still false → update() CALLED [2] (same props again).
+    //
+    // This is CORRECT behaviour, not a bug. The subscribe-recovery render is architecturally
+    // necessary: the recreated tracker has zero deps and must re-track via a render pass.
+    // Custom update() MUST therefore be idempotent.
+    const updateSpy = fn()
+
+    class VM extends ViewModel<{ value: number }> {
+      override update(props: { value: number }) {
+        updateSpy(props)
+        super.update(props)
+      }
+    }
+
+    const Comp = observer(() => {
+      const vm = useViewModel(VM, { value: 42 })
+      return React.createElement("span", null, String(vm.props.value))
+    })
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+
+    expect(container.querySelector("span")?.textContent).toBe("42")
+    // 2 calls: StrictMode second render + subscribe-recovery render (both with initial props)
+    expect(updateSpy).toHaveBeenCalledTimes(2)
+    expect(updateSpy).toHaveBeenCalledWith({ value: 42 })
+  })
+
+  test("reactive updates work after StrictMode effect replay", async () => {
+    let setExternal!: (v: number) => void
+
+    class VM extends ViewModel<{ value: number }> {}
+
+    function Parent() {
+      const [value, setValue] = React.useState(0)
+      setExternal = setValue
+      const vm = useViewModel(VM, { value })
+      return React.createElement("span", null, String(vm.props.value))
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Parent),
+        ),
+      )
+    })
+    expect(container.querySelector("span")?.textContent).toBe("0")
+
+    await reactAct(() => {
+      setExternal(10)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("10")
+
+    await reactAct(() => {
+      setExternal(20)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("20")
+  })
+
+  test("onConnect fires twice and onDisconnect fires once after StrictMode mount", async () => {
+    // React StrictMode double-invokes effects (mount → cleanup → mount).
+    // This is intentional — React is verifying that effects can be safely
+    // re-run (resilience testing). The net result: onConnect fires 2x,
+    // onDisconnect fires 1x (the simulated unmount) after the component mounts.
+    const onConnect = fn()
+    const onDisconnect = fn()
+
+    class LifecycleVM extends ViewModel {
+      override onConnect() {
+        onConnect()
+      }
+      override onDisconnect() {
+        onDisconnect()
+      }
+    }
+
+    const Comp = () => {
+      useViewModel(LifecycleVM)
+      return null
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+
+    // StrictMode: mount (1) → cleanup (1) → remount (2) = onConnect:2, onDisconnect:1
+    expect(onConnect).toHaveBeenCalledTimes(2)
+    expect(onDisconnect).toHaveBeenCalledTimes(1)
+
+    // Actual unmount fires cleanup again
+    await reactAct(() => root.unmount())
+    expect(onConnect).toHaveBeenCalledTimes(2)
+    expect(onDisconnect).toHaveBeenCalledTimes(2)
+  })
+
+  test("VM stays reactive after StrictMode lifecycle replay", async () => {
+    let renderCount = 0
+    let setExternal!: (v: number) => void
+
+    class VM extends ViewModel<{ value: number }> {}
+
+    function Parent() {
+      const [value, setValue] = React.useState(0)
+      setExternal = setValue
+      const vm = useViewModel(VM, { value })
+      return React.createElement(ObservedChild, { vm })
+    }
+
+    function ObservedChild({ vm }: { vm: InstanceType<typeof VM> }) {
+      return useObserver(() => {
+        renderCount++
+        return React.createElement("span", null, String(vm.props.value))
+      })
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Parent),
+        ),
+      )
+    })
+    expect(container.querySelector("span")?.textContent).toBe("0")
+
+    // Reset counter after StrictMode stabilizes
+    renderCount = 0
+
+    // In StrictMode, each reactive update causes the render body to be double-invoked.
+    // Parent state change + observable prop update → ObservedChild renders, doubled by StrictMode.
+    await reactAct(() => {
+      setExternal(7)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("7")
+    expect(renderCount).toBe(2) // StrictMode double-invoke of the 1 actual render
   })
 })

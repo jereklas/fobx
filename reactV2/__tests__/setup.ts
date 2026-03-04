@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 /**
  * DOM test environment setup using happy-dom.
  * Call `setupDom()` at the top of each test file to initialize the DOM.
@@ -70,12 +71,18 @@ export function setupDom(): { cleanup: () => void } {
         // Some globals may not be overridable — ignore
       }
     }
-  }
+  }// Tell React this IS a test environment that supports act().
+  // Without this, React logs "The current testing environment is not configured
+  // to support act(...)" every time act() is called from a test.
+  // deno-lint-ignore no-explicit-any
+
+  ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 
   return {
     cleanup: () => {
       // deno-lint-ignore no-explicit-any
       const g = globalThis as any
+      delete g.IS_REACT_ACT_ENVIRONMENT
       for (const key of DOM_GLOBALS_NEEDED) {
         if (KEEP_ON_CLEANUP.has(key)) continue // keep; Deno cleanup needs these
         try {

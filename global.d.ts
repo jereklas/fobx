@@ -1,3 +1,2 @@
-declare const process: {
-  env: Record<string, string | undefined>
-}
+// deno-lint-ignore no-var
+declare var process: any

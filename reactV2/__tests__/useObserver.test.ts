@@ -149,13 +149,13 @@ describe("useObserver", () => {
     const renderSpy = fn()
 
     function Component() {
-      return useObserver(() 
+      return useObserver(() => {
+        renderSpy()
+        return React.createElement(
           "span",
           null,
-         ,
-        
-        renderSpy()
-        return React.createElement("span", null, toggle.get() ? left.get() : right.get())
+          toggle.get() ? left.get() : right.get(),
+        )
       })
     }
 
@@ -164,18 +164,24 @@ describe("useObserver", () => {
     expect(container.querySelector("span")?.textContent).toBe("left")
 
     // Toggle to right branch — now tracking `right` instead of `left`
-    await reactAct(() => { toggle.set(false) })
+    await reactAct(() => {
+      toggle.set(false)
+    })
     expect(container.querySelector("span")?.textContent).toBe("right")
 
     // Clear spy so we can detect if any new renders happen
     renderSpy.mockClear()
 
     // Changing `left` should NOT re-render (component no longer tracks it)
-    await reactAct(() => { left.set("LEFT_CHANGED") })
+    await reactAct(() => {
+      left.set("LEFT_CHANGED")
+    })
     expect(renderSpy).not.toHaveBeenCalled() // no new render
 
     // Changing `right` SHOULD re-render
-    await reactAct(() => { right.set("RIGHT_CHANGED") })
+    await reactAct(() => {
+      right.set("RIGHT_CHANGED")
+    })
     expect(container.querySelector("span")?.textContent).toBe("RIGHT_CHANGED")
     expect(renderSpy).toHaveBeenCalledTimes(1) // re-rendered once
   })
@@ -199,7 +205,9 @@ describe("useObserver", () => {
     renderSpy.mockClear()
 
     // Observable change after unmount should NOT trigger any new renders
-    fobx.runInTransaction(() => { counter.set(99) })
+    fobx.runInTransaction(() => {
+      counter.set(99)
+    })
     await new Promise((r) => setTimeout(r, 20))
 
     expect(renderSpy).not.toHaveBeenCalled()
@@ -219,12 +227,12 @@ describe("useObserver", () => {
       { children: React.ReactNode },
       { error: string | null }
     > {
-      state = { error: null }
+      override state = { error: null }
       // deno-lint-ignore no-explicit-any
       static getDerivedStateFromError(err: any) {
         return { error: err.message }
       }
-      render() {
+      override render() {
         if (this.state.error) {
           return React.createElement("span", null, `caught:${this.state.error}`)
         }
@@ -242,7 +250,9 @@ describe("useObserver", () => {
     await reactAct(() => {
       shouldThrow.set(true)
     })
-    expect(container.querySelector("span")?.textContent).toContain("caught:test-error")
+    expect(container.querySelector("span")?.textContent).toContain(
+      "caught:test-error",
+    )
   })
 
   test("suppresses self-induced re-renders (per-tracker isTracking suppression)", async () => {
@@ -250,8 +260,6 @@ describe("useObserver", () => {
     // v2's per-tracker isTracking flag handles this (vs v1's global updatingReaction).
     const sideEffect = fobx.box(0)
     let rendered = false
-      ,
-    
     let renderPassCount = 0
 
     function Component() {
@@ -305,8 +313,12 @@ describe("observer HOC", () => {
 
     const wrapped = observer(MyComponent)
     // React.memo wraps it, but the inner component should preserve the name
-    const innerType = (wrapped as unknown as { type: { displayName?: string; type?: { displayName?: string } } }).type
-    const displayName = innerType?.displayName ?? innerType?.type?.displayName ?? "unknown"
+    const innerType =
+      (wrapped as unknown as {
+        type: { displayName?: string; type?: { displayName?: string } }
+      }).type
+    const displayName = innerType?.displayName ??
+      innerType?.type?.displayName ?? "unknown"
     expect(typeof displayName).toBe("string")
   })
 
@@ -314,11 +326,7 @@ describe("observer HOC", () => {
     const Comp = React.memo(() => null)
     expect(() => observer(Comp)).toThrow()
   })
-     
-       
-     
 
-     
   test("parent re-render does not re-render memoized observer child with same props", async () => {
     // Use React state (not fobx observable) to trigger a parent re-render,
     // so parent re-render is driven by React — not by observable tracking.
@@ -348,7 +356,9 @@ describe("observer HOC", () => {
     expect(childRenderSpy).toHaveBeenCalledTimes(1)
 
     // Trigger parent re-render via React state — child props are unchanged ("static")
-    await reactAct(() => { setParentState(1) })
+    await reactAct(() => {
+      setParentState(1)
+    })
 
     expect(parentRenderSpy).toHaveBeenCalledTimes(2)
     // Child is wrapped in React.memo by observer — same props means no re-render
@@ -357,16 +367,196 @@ describe("observer HOC", () => {
 
   test("supports forwardRef", async () => {
     const ForwardedComponent = observer(
-      React.forwardRef((_props: Record<string, never>, _ref: React.Ref<HTMLDivElement>) => {
-        return React.createElement("div", null, "forwarded")
-      }),
+      React.forwardRef(
+        (_props: Record<string, never>, _ref: React.Ref<HTMLDivElement>) => {
+          return React.createElement("div", null, "forwarded")
+        },
+      ),
     )
 
     await reactAct(() => {
       root.render(React.createElement(ForwardedComponent))
     })
-    expect(container.qu
-        erySelector("div")?.textContent).toBe("forwarded")
-  })  
-})  },
-      
+    expect(container.querySelector("div")?.textContent).toBe("forwarded")
+  })
+})
+
+// ─── StrictMode ───────────────────────────────────────────────────────────────
+//
+// React 18 StrictMode in development:
+//  1. Double-invokes the render body (both calls share the same refs).
+//  2. Double-invokes effects: subscribe → cleanup → subscribe again.
+//
+// For useObserver this means:
+//  - The tracker is created on the first render body call (ref persists).
+//  - Subscribe is called, then the StrictMode cleanup disposes the tracker.
+//  - Subscribe is called a second time — tracker is null, so it is recreated
+//    and `stateVersion` is bumped to a new Symbol.
+//  - React detects the snapshot changed (getSnapshot returns new Symbol) and
+//    schedules one extra re-render.
+//
+// Net result: initial mount causes MORE renders than non-StrictMode.
+// AFTER mount stabilizes, observable changes trigger exactly 1 re-render.
+
+describe("useObserver - StrictMode", () => {
+  test("component shows correct DOM after StrictMode mount", async () => {
+    const value = fobx.box("hello")
+
+    function Greeting() {
+      return useObserver(() => React.createElement("span", null, value.get()))
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Greeting),
+        ),
+      )
+    })
+
+    expect(container.querySelector("span")?.textContent).toBe("hello")
+  })
+
+  test("reactive updates work correctly after StrictMode effect replay", async () => {
+    const counter = fobx.box(0)
+
+    const Counter = observer(() =>
+      React.createElement("span", null, String(counter.get()))
+    )
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Counter),
+        ),
+      )
+    })
+    expect(container.querySelector("span")?.textContent).toBe("0")
+
+    // After StrictMode stabilizes, each observable change causes exactly 1 re-render
+    await reactAct(() => {
+      counter.set(1)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("1")
+
+    await reactAct(() => {
+      counter.set(2)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("2")
+  })
+
+  test("each observable change causes exactly 2 render invocations in StrictMode (double-invoke)", async () => {
+    // In React 18 StrictMode dev, the render body is ALWAYS double-invoked —
+    // for both initial mount AND subsequent updates. This means each observable
+    // change causes 2 calls to the render function, not 1.
+    const value = fobx.box("a")
+    const renderSpy = fn()
+
+    const Comp = observer(() => {
+      renderSpy()
+      return React.createElement("span", null, value.get())
+    })
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+
+    // Reset after StrictMode initial mount stabilizes
+    renderSpy.mockClear()
+
+    await reactAct(() => {
+      value.set("b")
+    })
+    expect(container.querySelector("span")?.textContent).toBe("b")
+    // StrictMode: every render double-invokes the body → 2 spy calls per update
+    expect(renderSpy).toHaveBeenCalledTimes(2)
+
+    await reactAct(() => {
+      value.set("c")
+    })
+    expect(container.querySelector("span")?.textContent).toBe("c")
+    expect(renderSpy).toHaveBeenCalledTimes(4)
+  })
+
+  test("tracker is disposed and no stale updates after StrictMode unmount", async () => {
+    const signal = fobx.box(0)
+    const renderSpy = fn()
+
+    function Comp() {
+      return useObserver(() => {
+        renderSpy()
+        return React.createElement("span", null, String(signal.get()))
+      })
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+
+    // Unmount — tracker should be disposed
+    await reactAct(() => root.unmount())
+    renderSpy.mockClear()
+
+    // Changes after unmount should NOT trigger any re-renders
+    fobx.runInTransaction(() => {
+      signal.set(99)
+    })
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(renderSpy).not.toHaveBeenCalled()
+  })
+
+  test("dynamic deps re-tracked correctly after StrictMode effect replay", async () => {
+    const toggle = fobx.box(true)
+    const left = fobx.box("L")
+    const right = fobx.box("R")
+
+    function Comp() {
+      return useObserver(() =>
+        React.createElement(
+          "span",
+          null,
+          toggle.get() ? left.get() : right.get(),
+        )
+      )
+    }
+
+    await reactAct(() => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Comp)),
+      )
+    })
+    expect(container.querySelector("span")?.textContent).toBe("L")
+
+    // Switch branch — now tracking `right`, not `left`
+    await reactAct(() => {
+      toggle.set(false)
+    })
+    expect(container.querySelector("span")?.textContent).toBe("R")
+
+    // `left` should not trigger re-render (no longer a dep)
+    const spy = fn()
+    const prevRight = right.get()
+    fobx.autorun(() => {
+      spy(right.get())
+    }) // just to verify right is still reactive
+    await reactAct(() => {
+      left.set("NEW_L")
+    })
+    expect(container.querySelector("span")?.textContent).toBe(prevRight)
+
+    // `right` should trigger re-render
+    await reactAct(() => {
+      right.set("NEW_R")
+    })
+    expect(container.querySelector("span")?.textContent).toBe("NEW_R")
+  })
+})

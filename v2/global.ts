@@ -205,6 +205,16 @@ interface SchedulerState {
   activeScope: Any[] | null
   /** Monotonically increasing ID counter */
   nextId: number
+  /**
+   * Monotonically increasing write epoch — incremented on every observable
+   * value change (any call to notifyChanged). Used by the React adapter to
+   * distinguish a true "something changed while suspended" case from a
+   * StrictMode cleanup/resubscribe cycle where nothing was actually written.
+   * Fallback: older copies of fobx that don't bump this field leave it at 0;
+   * the reactV2 integration then conservatively treats epoch=0 as "may have
+   * changed" and falls back to always bumping stateVersion.
+   */
+  writeEpoch: number
 }
 
 function getSchedulerState(): SchedulerState {
@@ -220,6 +230,7 @@ function getSchedulerState(): SchedulerState {
     epoch: 0,
     activeScope: null,
     nextId: 0,
+    writeEpoch: 0,
   }
   Object.defineProperty(g, $fobxScheduler, { value: state })
   return state

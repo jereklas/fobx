@@ -2,12 +2,17 @@
   "workspace": [
     "./core",
     "./react",
+    "./reactV2",
     "./preact",
     "./utils",
     "./testing",
     "./doc-site",
-    "./v2"
-    // "./playground"
+    "./static-docs",
+    "./v2",
+    "./dom",
+    "./jsx",
+    "./benchmark",
+    "./playground"
   ],
   "fmt": {
     "semiColons": false

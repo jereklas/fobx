@@ -1,0 +1,21 @@
+{
+  "name": "@fobx/playground",
+  "version": "0.1.0",
+  "exports": "./src/react-tab.tsx",
+  "imports": {
+    "@types/react": "npm:@types/react@^18.0.0",
+    "@types/react-dom": "npm:@types/react-dom@^18.0.0",
+    "react": "npm:react@^18.0.0",
+    "react-dom": "npm:react-dom@^18.0.0",
+    "react-dom/client": "npm:react-dom@^18.0.0/client"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+  },
+  "tasks": {
+    "build": "deno run -A build.ts",
+    "serve": "deno run -A serve.ts"
+  }
+}

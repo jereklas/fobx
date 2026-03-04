@@ -8,6 +8,21 @@
  * The tracker's `isTracking` suppression (built into createTracker) prevents
  * self-induced re-renders when observables are written during the same render
  * pass (e.g., useViewModel calling vm.update(props)).
+ *
+ * ─── StrictMode extra render ──────────────────────────────────────────────────
+ * In React 18 StrictMode dev mode, useSyncExternalStore's subscribe is invoked,
+ * then the cleanup is called, then subscribe is invoked again (simulating an
+ * unmount/remount cycle). The current implementation disposes the tracker in the
+ * cleanup, so the re-subscribe must recreate it. A new tracker starts with zero
+ * deps; the ONLY way to re-populate its deps is to run tracker.track(render)
+ * during a render pass. Therefore, bumping stateVersion to trigger a
+ * subscribe-recovery render is ARCHITECTURALLY NECESSARY — not a bug.
+ *
+ * Why not useReducer+useEffect instead? useSyncExternalStore provides tearing
+ * prevention in React concurrent/Suspense mode: getSnapshot is called both
+ * during render and after subscribe, ensuring the component doesn't commit a
+ * stale value. useReducer+useEffect loses this guarantee. The one extra
+ * subscribe-recovery render in StrictMode is the correct trade-off.
  */
 
 // @ts-ignore - to suppress tsc false error
@@ -55,7 +70,10 @@ export function useObserver<T>(
           // Tracker was disposed before mount. This occurs when:
           // 1. Finalization registry disposed it before component mounted.
           // 2. React re-mounted same component without calling render in between (StrictMode).
-          // Recreate tracker and force a snapshot change to guarantee re-render.
+          // Recreate tracker and force a snapshot change to trigger a re-render.
+          // The re-render is NECESSARY — it’s the only opportunity to call
+          // tracker.track(render) and re-establish dep subscriptions on the new
+          // tracker (which starts with zero deps).
           adm.tracker = createTrackerForAdm(adm)
           adm.stateVersion = Symbol()
         }

@@ -1,6 +1,14 @@
-import { instanceState, isDifferent } from "../instance.ts"
-import * as fobx from "@fobx/core"
+import { $instance, resolveComparer } from "../instance.ts"
+import * as fobx from "../../index.ts"
 import { describe, expect, fn, test } from "@fobx/testing"
+
+const isDifferent = (
+  a: unknown,
+  b: unknown,
+  comparer: "default" | "structural",
+) => {
+  return !resolveComparer(comparer)(a, b)
+}
 
 describe("isDifferent", () => {
   test("throws error on structural compare if no structural compare has been configured", () => {
@@ -19,9 +27,9 @@ describe("isDifferent", () => {
 })
 
 test("enforceActions is true by default, but can be set to false", () => {
-  expect(instanceState.enforceActions).toBe(true)
+  expect($instance.enforceActions).toBe(true)
 
   fobx.configure({ enforceActions: false })
 
-  expect(instanceState.enforceActions).toBe(false)
+  expect($instance.enforceActions).toBe(false)
 })

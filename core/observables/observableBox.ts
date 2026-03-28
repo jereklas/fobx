@@ -1,97 +1,82 @@
-import { instanceState, isDifferent } from "../state/instance.ts"
-import type { IReactionAdmin } from "../reactions/reaction.ts"
-import { trackObservable } from "../transactions/tracking.ts"
-import { runInAction } from "../transactions/action.ts"
-import { sendChange } from "./notifications.ts"
+/**
+ * Box — the simplest reactive primitive.
+ */
+
 import {
   $fobx,
-  type Any,
-  type ComparisonType,
-  type EqualityChecker,
-  getGlobalState,
-  type IFobxAdmin,
+  defaultComparer,
+  type EqualityComparison,
+  getNextId,
+  KIND_BOX,
+  type ObservableAdmin,
 } from "../state/global.ts"
+import { resolveComparer } from "../state/instance.ts"
+import { notifyChanged } from "../state/notifications.ts"
+import { trackAccess } from "../reactions/tracking.ts"
 
-const globalState = /* @__PURE__ */ getGlobalState()
-
-export type ObservableBoxWithAdmin<T = Any> = ObservableBox<T> & {
-  [$fobx]: IObservableAdmin<T> & { options: ObservableBoxOptions<T> }
+export interface ObservableBox<T> {
+  get(): T
+  set(value: T): void
+  [$fobx]: ObservableAdmin<T>
 }
 
-export interface IObservable<T = Any> {
-  value: T
-}
-
-export interface IObservableAdmin<T = Any> extends IFobxAdmin {
-  value: T
-  observers: IReactionAdmin[]
-}
-
-export interface EqualityOptions {
-  equals?: EqualityChecker
-  comparer?: ComparisonType
-}
-
-export interface ObservableBoxOptions<T> extends EqualityOptions {
-  valueTransform?: (value: T) => Any
-}
-
-export class ObservableBox<T = Any> implements IObservable<T> {
-  constructor(val?: T, options?: ObservableBoxOptions<T>) {
-    Object.defineProperty(this, $fobx, {
-      value: {
-        name: `ObservableBox@${globalState.getNextId()}`,
-        value: val as T,
-        observers: [],
-        options: options ?? {},
-      },
-    })
-  }
-  get value(): T {
-    const admin = (this as unknown as ObservableBoxWithAdmin)[$fobx]
-    trackObservable(admin)
-    return admin.value
-  }
-  set value(newValue: T) {
-    const admin = (this as unknown as ObservableBoxWithAdmin)[$fobx]
-
-    // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV !== "production") {
-      if (instanceState.enforceActions) {
-        if (
-          globalState.batchedActionsCount === 0 && admin.observers.length > 0
-        ) {
-          console.warn(
-            `[@fobx/core] Changing tracked observable values (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
-          )
-        }
-      }
-    }
-
-    runInAction(() => {
-      const { options } = admin
-      const oldValue = admin.value
-      newValue = options.valueTransform
-        ? options.valueTransform(newValue)
-        : newValue
-      admin.value = newValue
-
-      const isDiff = isDifferent(
-        oldValue,
-        newValue,
-        options.equals ?? options.comparer,
-      )
-
-      if (isDiff) {
-        sendChange(admin)
-      }
-    })
-  }
+export interface BoxOptions {
+  name?: string
+  comparer?: EqualityComparison
 }
 
 export function observableBox<T>(
-  val?: T,
-  options?: ObservableBoxOptions<T>,
+  initialValue: T,
+  options?: BoxOptions,
 ): ObservableBox<T> {
-  return new ObservableBox(val, options)
+  const comparer = options?.comparer
+    ? resolveComparer(options.comparer)
+    : defaultComparer
+  const id = getNextId()
+
+  const admin: ObservableAdmin<T> = {
+    kind: KIND_BOX,
+    id,
+    name: options?.name || `Box@${id}`,
+    value: initialValue,
+    observers: null,
+    comparer,
+    _epoch: 0,
+  }
+
+  return {
+    [$fobx]: admin,
+    get(): T {
+      return getBoxValue(admin)
+    },
+    set(newValue: T): void {
+      setBoxValue(admin, newValue)
+    },
+  }
+}
+
+/**
+ * Get box value directly from admin (tracks access).
+ * Used by collections to avoid box wrapper overhead.
+ */
+export function getBoxValue<T>(admin: ObservableAdmin<T>): T {
+  trackAccess(admin)
+  return admin.value
+}
+
+/**
+ * Set box value directly on admin (notifies if changed).
+ * Used by collections to avoid box wrapper overhead.
+ * Returns true if value changed.
+ */
+export function setBoxValue<T>(
+  admin: ObservableAdmin<T>,
+  newValue: T,
+): boolean {
+  if (admin.comparer(admin.value, newValue)) return false
+
+  admin.value = newValue
+
+  notifyChanged(admin)
+  return true
 }

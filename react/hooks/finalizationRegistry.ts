@@ -1,44 +1,95 @@
-// @ts-ignore - to suppress tsc false error
-import type { Reaction } from "@fobx/core"
+/**
+ * Finalization registry for observer trackers.
+ *
+ * React may render a component and then abandon it (StrictMode, Suspense,
+ * concurrent features). When that happens the tracker created during render
+ * is never subscribed to, so it would otherwise leak. This registry disposes
+ * abandoned trackers after a timeout.
+ *
+ * Uses the native FinalizationRegistry when available, with a timer-based
+ * sweep as a fallback.
+ */
+
+import type { Tracker } from "@fobx/core/internals"
 
 export const REGISTRY_FINALIZE_AFTER = 10_000
 export const REGISTRY_SWEEP_INTERVAL = 10_000
 
-type RegistryValue = { reaction: Reaction | null }
-const registrations = new Map<RegistryValue, number>()
+interface RegistryEntry {
+  tracker: Tracker
+  registeredAt: number
+}
 
-let sweepTimeout: ReturnType<typeof setTimeout> | undefined
+// ─── Timer-based fallback ─────────────────────────────────────────────────────
 
-const sweep = () => {
-  clearTimeout(sweepTimeout)
-  sweepTimeout = undefined
+class TimerBasedFinalizationRegistry {
+  private registrations = new Map<object, RegistryEntry>()
+  private sweepTimeout: ReturnType<typeof setTimeout> | undefined
 
-  const now = Date.now()
-  registrations.forEach((registeredAt, adm) => {
-    if (now - registeredAt >= REGISTRY_FINALIZE_AFTER) {
-      adm.reaction?.dispose()
-      adm.reaction = null
-      registrations.delete(adm)
+  register(token: object, tracker: Tracker): void {
+    this.registrations.set(token, { tracker, registeredAt: Date.now() })
+    this.scheduleSweep()
+  }
+
+  unregister(token: object): void {
+    this.registrations.delete(token)
+  }
+
+  private sweep = () => {
+    clearTimeout(this.sweepTimeout)
+    this.sweepTimeout = undefined
+
+    const now = Date.now()
+    this.registrations.forEach((entry, token) => {
+      if (now - entry.registeredAt >= REGISTRY_FINALIZE_AFTER) {
+        entry.tracker.dispose()
+        this.registrations.delete(token)
+      }
+    })
+
+    if (this.registrations.size > 0) {
+      this.scheduleSweep()
     }
-  })
+  }
 
-  if (registrations.size > 0) {
-    scheduleSweep()
+  private scheduleSweep(): void {
+    if (this.sweepTimeout === undefined) {
+      this.sweepTimeout = setTimeout(this.sweep, REGISTRY_SWEEP_INTERVAL)
+    }
   }
 }
 
-const scheduleSweep = () => {
-  if (sweepTimeout === null) {
-    sweepTimeout = setTimeout(sweep, REGISTRY_SWEEP_INTERVAL)
+// ─── Native FinalizationRegistry adapter ─────────────────────────────────────
+
+class NativeFinalizationRegistryAdapter {
+  private registry: FinalizationRegistry<Tracker>
+  private tokens = new Map<object, object>()
+
+  constructor() {
+    this.registry = new FinalizationRegistry((tracker: Tracker) => {
+      tracker.dispose()
+    })
+  }
+
+  register(token: object, tracker: Tracker): void {
+    this.registry.register(token, tracker, token)
+    this.tokens.set(token, token)
+  }
+
+  unregister(token: object): void {
+    this.registry.unregister(token)
+    this.tokens.delete(token)
   }
 }
 
-export const observerFinalizationRegistry = {
-  register(adm: RegistryValue) {
-    registrations.set(adm, Date.now())
-    scheduleSweep()
-  },
-  unregister(adm: RegistryValue) {
-    registrations.delete(adm)
-  },
+// ─── Export the appropriate implementation ────────────────────────────────────
+
+interface TrackerRegistry {
+  register(token: object, tracker: Tracker): void
+  unregister(token: object): void
 }
+
+export const observerFinalizationRegistry: TrackerRegistry =
+  typeof FinalizationRegistry !== "undefined"
+    ? new NativeFinalizationRegistryAdapter()
+    : new TimerBasedFinalizationRegistry()

@@ -24,9 +24,8 @@
  * This avoids both the WeakMap overhead and the recursive walk.
  */
 
-import { autorun, effect } from "../v2/index.ts"
-import type { Dispose } from "../v2/global.ts"
-import { setActiveScope } from "../v2/global.ts"
+import { effect, setActiveScope } from "@fobx/core/internals"
+import type { Dispose } from "@fobx/core/internals"
 
 // ─── Disposal Scope ──────────────────────────────────────────────────────────
 

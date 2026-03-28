@@ -1,55 +1,34 @@
 import * as esbuild from "esbuild"
 import * as utils from "@fobx/utils"
 
+const ENTRY = "./index.ts"
+
 async function bundle(opts: {
   format: "esm" | "cjs"
-  file: "core" | "index" | "dev/customFormatter"
   noBundler?: boolean
 }) {
   const ext = opts.format === "esm" ? "js" : "cjs"
-  const file = opts?.noBundler ? "index" : opts.file
-  const outfile = opts?.noBundler
-    ? `dist/${file}.production.${ext}`
-    : `dist/${file}.${ext}`
-  const bundle = opts?.noBundler ? true : file === "core"
+  const suffix = opts.noBundler ? ".production" : ""
+  const outfile = `dist/index${suffix}.${ext}`
 
-  // minify strips out /* @__PURE__ */ annotations. Should only turn if a bundle needs to be
-  // produced for a consumer not using a bundler.
-  const minifyOptions = opts?.noBundler
-    ? {
-      minifySyntax: true,
-      minifyWhitespace: true,
-    }
+  const minifyOptions = opts.noBundler
+    ? { minifySyntax: true, minifyWhitespace: true }
     : { minify: false }
 
-  const options: esbuild.BuildOptions = {
+  await esbuild.build({
     target: utils.JS_TARGET,
     define: {
-      "process.env.NODE_ENV": opts?.noBundler
+      "process.env.NODE_ENV": opts.noBundler
         ? '"production"'
         : "process.env.NODE_ENV",
       "globalThis.window": "globalThis.window",
     },
-    entryPoints: [`./${file}.ts`],
-    bundle,
+    entryPoints: [ENTRY],
+    bundle: true,
     outfile,
     format: opts.format,
     ...minifyOptions,
-  }
-
-  await esbuild.build(options)
-
-  let content = await Deno.readTextFile(outfile)
-  content = content.replace("./core.ts", `./core.${ext}`),
-    content = content.replace(
-      "./dev/customFormatter.ts",
-      `./dev/customFormatter.${ext}`,
-    )
-
-  await Deno.writeTextFile(
-    outfile,
-    content.replace("./core.ts", `./core.${ext}`),
-  )
+  })
 }
 
 async function build() {
@@ -70,17 +49,13 @@ async function build() {
 
   console.log("bundling...")
   await Promise.all([
-    bundle({ format: "esm", file: "dev/customFormatter" }),
-    bundle({ format: "cjs", file: "dev/customFormatter" }),
-    bundle({ format: "esm", file: "core" }),
-    bundle({ format: "esm", file: "index" }),
-    bundle({ format: "cjs", file: "core" }),
-    bundle({ format: "cjs", file: "index" }),
-    bundle({ format: "esm", file: "index", noBundler: true }),
-    bundle({ format: "cjs", file: "index", noBundler: true }),
+    bundle({ format: "esm" }),
+    bundle({ format: "cjs" }),
+    bundle({ format: "esm", noBundler: true }),
+    bundle({ format: "cjs", noBundler: true }),
   ])
 
-  await utils.printSize("dist/core.js")
+  await utils.printSize("dist/index.js")
   await utils.copyCommonFiles("dist")
 }
 

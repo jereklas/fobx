@@ -3,10 +3,9 @@
  * Tests for @fobx/dom — the reactive DOM element library.
  */
 
-import { assertEquals, assertExists } from "@std/assert"
+import { assertEquals } from "@std/assert"
 import { cleanupDOM, setupDOM } from "./setup.ts"
-import { array, autorun, box, runInTransaction } from "../../v2/index.ts"
-import type { Dispose } from "../../v2/global.ts"
+import { observableArray, observableBox, runInTransaction } from "@fobx/core"
 import {
   a,
   button,
@@ -145,7 +144,7 @@ Deno.test("dom: ref callback is called with element", () => {
 // ─── Reactive Props ──────────────────────────────────────────────────────────
 
 Deno.test("dom: reactive class attribute", () => {
-  const active = box(false)
+  const active = observableBox(false)
   const node = div({ class: () => active.get() ? "active" : "inactive" })
   assertEquals(node.className, "inactive")
 
@@ -157,7 +156,7 @@ Deno.test("dom: reactive class attribute", () => {
 })
 
 Deno.test("dom: reactive data attribute", () => {
-  const count = box(0)
+  const count = observableBox(0)
   const node = div({ "data-count": () => String(count.get()) })
   assertEquals(node.getAttribute("data-count"), "0")
 
@@ -166,7 +165,7 @@ Deno.test("dom: reactive data attribute", () => {
 })
 
 Deno.test("dom: reactive style string", () => {
-  const color = box("red")
+  const color = observableBox("red")
   const node = div({ style: () => `color: ${color.get()}` })
   assertEquals(
     node.style.cssText.replace(/\s/g, "").includes("color:red"),
@@ -181,7 +180,7 @@ Deno.test("dom: reactive style string", () => {
 })
 
 Deno.test("dom: reactive style object", () => {
-  const size = box(16)
+  const size = observableBox(16)
   const node = div({ style: () => ({ fontSize: `${size.get()}px` }) })
   assertEquals(
     node.style.cssText.replace(/\s/g, "").includes("font-size:16px"),
@@ -198,7 +197,7 @@ Deno.test("dom: reactive style object", () => {
 // ─── Reactive Children ───────────────────────────────────────────────────────
 
 Deno.test("dom: reactive text child", () => {
-  const name = box("World")
+  const name = observableBox("World")
   const node = div(null, "Hello ", () => name.get())
   assertEquals(node.textContent, "Hello World")
 
@@ -207,7 +206,7 @@ Deno.test("dom: reactive text child", () => {
 })
 
 Deno.test("dom: reactive child returning element", () => {
-  const showBold = box(true)
+  const showBold = observableBox(true)
   const node = div(
     null,
     () =>
@@ -221,7 +220,7 @@ Deno.test("dom: reactive child returning element", () => {
 })
 
 Deno.test("dom: reactive child returning array", () => {
-  const items = box(["a", "b", "c"])
+  const items = observableBox(["a", "b", "c"])
   const node = ul(null, () => items.get().map((i) => li(null, i)))
   assertEquals(node.children.length, 3)
   assertEquals(node.children[0].textContent, "a")
@@ -234,7 +233,7 @@ Deno.test("dom: reactive child returning array", () => {
 })
 
 Deno.test("dom: reactive child returning null", () => {
-  const show = box(false)
+  const show = observableBox(false)
   const node = div(null, () => show.get() ? span(null, "Visible") : null, "End")
   assertEquals(node.textContent, "End")
 
@@ -243,8 +242,8 @@ Deno.test("dom: reactive child returning null", () => {
 })
 
 Deno.test("dom: multiple reactive children", () => {
-  const first = box("A")
-  const second = box("B")
+  const first = observableBox("A")
+  const second = observableBox("B")
   const node = div(null, () => first.get(), " - ", () => second.get())
   assertEquals(node.textContent, "A - B")
 
@@ -258,7 +257,7 @@ Deno.test("dom: multiple reactive children", () => {
 // ─── Dispose ─────────────────────────────────────────────────────────────────
 
 Deno.test("dom: dispose stops reactive updates", () => {
-  const count = box(0)
+  const count = observableBox(0)
   const node = div(null, () => String(count.get()))
   assertEquals(node.textContent, "0")
 
@@ -287,8 +286,8 @@ Deno.test("dom: onDispose registers custom cleanup", () => {
 // ─── Transaction Batching ────────────────────────────────────────────────────
 
 Deno.test("dom: batch updates with runInTransaction", () => {
-  const first = box("A")
-  const last = box("B")
+  const first = observableBox("A")
+  const last = observableBox("B")
   let renderCount = 0
 
   const node = div(null, () => {
@@ -312,7 +311,7 @@ Deno.test("dom: batch updates with runInTransaction", () => {
 // ─── mountList ───────────────────────────────────────────────────────────────
 
 Deno.test("dom: mountList renders initial items", () => {
-  const items = array(["Apple", "Banana", "Cherry"])
+  const items = observableArray(["Apple", "Banana", "Cherry"])
   const container = ul(null)
 
   mountList(
@@ -328,7 +327,7 @@ Deno.test("dom: mountList renders initial items", () => {
 })
 
 Deno.test("dom: mountList reacts to push", () => {
-  const items = array(["Apple", "Banana"])
+  const items = observableArray(["Apple", "Banana"])
   const container = ul(null)
 
   mountList(
@@ -345,7 +344,7 @@ Deno.test("dom: mountList reacts to push", () => {
 })
 
 Deno.test("dom: mountList reacts to splice/remove", () => {
-  const items = array(["A", "B", "C"])
+  const items = observableArray(["A", "B", "C"])
   const container = ul(null)
 
   mountList(
@@ -365,8 +364,8 @@ Deno.test("dom: mountList reacts to splice/remove", () => {
 // ─── Complex Scenarios ───────────────────────────────────────────────────────
 
 Deno.test("dom: nested reactive elements", () => {
-  const title = box("Hello")
-  const bodyText = box("World")
+  const title = observableBox("Hello")
+  const bodyText = observableBox("World")
 
   const node = div(
     { class: "card" },
@@ -385,7 +384,7 @@ Deno.test("dom: nested reactive elements", () => {
 })
 
 Deno.test("dom: anchor element with reactive href", () => {
-  const url = box("https://example.com")
+  const url = observableBox("https://example.com")
   const node = a({ href: () => url.get() }, "Link")
   assertEquals(node.getAttribute("href"), "https://example.com")
 
@@ -394,7 +393,7 @@ Deno.test("dom: anchor element with reactive href", () => {
 })
 
 Deno.test("dom: input with reactive value", () => {
-  const text = box("initial")
+  const text = observableBox("initial")
   const node = input({ value: () => text.get() })
 
   assertEquals((node as any).value, "initial")
@@ -404,8 +403,8 @@ Deno.test("dom: input with reactive value", () => {
 })
 
 Deno.test("dom: conditional class with multiple reactive props", () => {
-  const visible = box(true)
-  const highlighted = box(false)
+  const visible = observableBox(true)
+  const highlighted = observableBox(false)
 
   const node = div({
     class: () => {

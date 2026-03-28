@@ -7,10 +7,9 @@
  * without re-creating the entire list on every change.
  */
 
-import { autorun, effect } from "../v2/index.ts"
-import type { Dispose } from "../v2/global.ts"
-import { deleteObserver, hasObservers } from "../v2/global.ts"
-import { recycleReaction } from "../v2/autorun.ts"
+import { autorun } from "@fobx/core"
+import { deleteObserver, effect, recycleReaction } from "@fobx/core/internals"
+import type { Dispose } from "@fobx/core/internals"
 import { createScope, enterScope, exitScope, onDispose } from "./reactive.ts"
 
 // ─── Scope & Cache Entry Pools ───────────────────────────────────────────────
@@ -38,7 +37,7 @@ export interface MappedList {
  *
  * @example
  * ```ts
- * import { array } from "@fobx/v2"
+ * import { array } from "@fobx/core"
  * import { mapArray, ul, li } from "@fobx/dom"
  *
  * const items = array(["Apple", "Banana", "Cherry"])
@@ -305,7 +304,6 @@ function _disposeScope(scope: Dispose[]): void {
       entry()
     } else {
       // SubscriptionReaction — has _admin and is a ReactionAdmin
-      // deno-lint-ignore no-explicit-any
       const r = entry as any
       const admin = r._admin
       deleteObserver(admin, r)

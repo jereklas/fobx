@@ -24,13 +24,13 @@ import {
 } from "../../dom/index.ts"
 import { mountList } from "../../dom/map-array.ts"
 import {
-  array,
   autorun,
-  box,
   computed,
   createSelector,
+  observableArray,
+  observableBox,
   runInTransaction,
-} from "../../v2/index.ts"
+} from "../../core/index.ts"
 
 const container = document.getElementById("tab-dom")!
 
@@ -38,7 +38,7 @@ const container = document.getElementById("tab-dom")!
 // 1. Counter
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const count = box(0)
+const count = observableBox(0)
 const doubled = computed(() => count.get() * 2)
 const parity = computed(() => (count.get() % 2 === 0 ? "even" : "odd"))
 
@@ -62,7 +62,7 @@ const counterCard = div(
 // 2. Reactive Text Input
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const text = box("Hello fobx")
+const text = observableBox("Hello fobx")
 const textLength = computed(() => text.get().length)
 const reversed = computed(() => text.get().split("").reverse().join(""))
 
@@ -91,9 +91,9 @@ interface TodoItem {
   done: boolean
 }
 
-const todos = array<TodoItem>([])
+const todos = observableArray<TodoItem>([])
 let nextTodoId = 1
-const todoInput = box("")
+const todoInput = observableBox("")
 const remaining = computed(
   () => todos.filter((t) => !t.done).length,
 )
@@ -193,7 +193,7 @@ mountList(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const items = ["Apple", "Banana", "Cherry", "Date", "Elderberry"]
-const selectedItem = box("")
+const selectedItem = observableBox("")
 const isSelected = createSelector(() => selectedItem.get())
 
 const selectionCard = div(
@@ -229,11 +229,11 @@ const selectionCard = div(
 // 5. Batch / Transaction Demo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const batchA = box(0)
-const batchB = box(0)
+const batchA = observableBox(0)
+const batchB = observableBox(0)
 const batchSum = computed(() => batchA.get() + batchB.get())
 let batchRunCount = 0
-const batchRenderCount = box(0)
+const batchRenderCount = observableBox(0)
 
 // Track how many times the sum is observed changing
 autorun(() => {
@@ -297,9 +297,9 @@ const batchCard = div(
 // 6. Dispose Demo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ticker = box(0)
+const ticker = observableBox(0)
 let tickInterval: ReturnType<typeof setInterval> | null = null
-const tickerRunning = box(false)
+const tickerRunning = observableBox(false)
 
 function startTicker() {
   if (tickInterval) return
@@ -316,7 +316,10 @@ function stopTicker() {
 }
 
 // Capture element refs so we can manipulate them non-reactively after dispose
-const tickDisplay = p({ style: "font-size:24px;font-weight:700" }, () => `Tick: ${ticker.get()}`)
+const tickDisplay = p(
+  { style: "font-size:24px;font-weight:700" },
+  () => `Tick: ${ticker.get()}`,
+)
 const startStopBtn = button(
   {
     class: "btn-primary",
@@ -324,18 +327,20 @@ const startStopBtn = button(
   },
   () => (tickerRunning.get() ? "Stop" : "Start"),
 )
-const disposeBtn = button({ class: "btn-danger" }, "Dispose (detach reactivity)")
+const disposeBtn = button(
+  { class: "btn-danger" },
+  "Dispose (detach reactivity)",
+)
 const resetBtn = button({ onClick: () => ticker.set(0) }, "Reset Ticker")
 
 disposeBtn.addEventListener("click", () => {
   const frozenAt = ticker.get()
-  dispose(tickerDisplay)  // detaches all reactive bindings in this subtree
+  dispose(tickerDisplay) // detaches all reactive bindings in this subtree
   stopTicker()
 
   // Manually update DOM now that reactivity is gone
   tickDisplay.textContent = `Tick: ${frozenAt} — frozen`
   tickDisplay.style.color = "#999"
-
   ;[startStopBtn, disposeBtn, resetBtn].forEach((b) => {
     b.setAttribute("disabled", "true")
     b.style.opacity = "0.4"

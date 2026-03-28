@@ -6,7 +6,7 @@
  * Produces a DocumentFragment containing the children.
  */
 
-import { appendChildNode } from "../dom/reactive.ts"
+import { appendChildNode } from "@fobx/dom"
 
 export function Fragment(props: { children?: any }): DocumentFragment {
   const frag = document.createDocumentFragment()

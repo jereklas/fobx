@@ -1,67 +1,64 @@
-import type { ReactionAdmin } from "../reactions/reaction.ts"
-import type { Any, ComparisonType, EqualityChecker } from "../state/global.ts"
+/**
+ * Instance Configuration
+ *
+ * Global configuration for the fobx runtime.
+ */
 
-// structuralCompare isn't on the instanceState object for performance reasons
-let structuralCompare: EqualityChecker | null = null
+import {
+  type Any,
+  defaultComparer,
+  type EqualityChecker,
+  type EqualityComparison,
+} from "./global.ts"
 
-export const instanceState = {
+/**
+ * Global instance state
+ */
+export const $instance = {
+  structuralCompare: null as EqualityChecker | null,
   enforceActions: true,
-  actionThrew: false,
   onReactionError: undefined as
-    | undefined
-    | ((error: Any, reaction: ReactionAdmin) => void),
+    | ((error: Any, reaction: Any) => void)
+    | undefined,
 }
 
-export function configure(options: {
+export interface ConfigureOptions {
   enforceActions?: boolean
   comparer?: {
     structural?: EqualityChecker
   }
-  onReactionError?: (error: Any, reaction: ReactionAdmin) => void
-}) {
-  instanceState.onReactionError = options?.onReactionError
+  onReactionError?: (error: Any, reaction: Any) => void
+}
+
+export function configure(options: ConfigureOptions): void {
   if (options.enforceActions !== undefined) {
-    instanceState.enforceActions = options.enforceActions
+    $instance.enforceActions = options.enforceActions
   }
-  if (options.comparer && options.comparer.structural) {
-    structuralCompare = options.comparer.structural
+  if (options.comparer?.structural) {
+    $instance.structuralCompare = options.comparer.structural
+  }
+  if (options.onReactionError !== undefined) {
+    $instance.onReactionError = options.onReactionError
   }
 }
 
-function defaultCompare(a: Any, b: Any) {
-  // If the items are strictly equal, no need to do a value comparison.
-  if (a === b) {
-    return true
+/**
+ * Resolve a comparer option to an actual equality checker function.
+ * Called at creation time (not on every comparison) to avoid dispatch overhead.
+ */
+export function resolveComparer(
+  comparer?: EqualityComparison,
+): EqualityChecker {
+  if (comparer === "structural") {
+    if (!$instance.structuralCompare) {
+      throw new Error(
+        `[@fobx/core] Need to supply a structural equality comparer in order to use struct comparisons. See 'configure' api for more details.`,
+      )
+    }
+    return $instance.structuralCompare
   }
-  // If the items are not non-nullish objects, then the only possibility of them being equal but
-  // not strictly is if they are both `NaN`. Since `NaN` is uniquely not equal to itself, we can
-  // use self-comparison of both objects, which is faster than `isNaN()`.
-  if (
-    a == null || b == null || typeof a !== "object" || typeof b !== "object"
-  ) {
-    return a !== a && b !== b
+  if (typeof comparer === "function") {
+    return comparer
   }
-  return false
-}
-
-export function isDifferent(
-  a: Any,
-  b: Any,
-  fn?: ComparisonType | EqualityChecker,
-) {
-  if (typeof fn === "function") {
-    return !fn(a, b)
-  }
-  switch (fn) {
-    case "structural":
-      if (!structuralCompare) {
-        throw new Error(
-          `[@fobx/core] Need to supply a structural equality comparer in order to use struct comparisons. See 'configure' api for more details.`,
-        )
-      }
-      return !structuralCompare(a, b)
-    case "default":
-    default:
-      return !defaultCompare(a, b)
-  }
+  return defaultComparer
 }

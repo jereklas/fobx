@@ -5,7 +5,7 @@
 
 import { assertEquals } from "@std/assert"
 import { cleanupDOM, setupDOM } from "../../dom/__tests__/setup.ts"
-import { array, box, runInTransaction } from "../../v2/index.ts"
+import { observableBox, runInTransaction } from "@fobx/core"
 import { Component, dispose, Fragment, h, render, unmount } from "../index.ts"
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ Deno.test("jsx: nested functional components", () => {
 // ─── h() — Reactive Props ───────────────────────────────────────────────────
 
 Deno.test("jsx: reactive class prop via h()", () => {
-  const active = box(false)
+  const active = observableBox(false)
   const node = h("div", { class: () => active.get() ? "active" : "" })
   assertEquals(node.className, "")
 
@@ -84,7 +84,7 @@ Deno.test("jsx: reactive class prop via h()", () => {
 // ─── h() — Reactive Children ────────────────────────────────────────────────
 
 Deno.test("jsx: reactive text child via h()", () => {
-  const name = box("World")
+  const name = observableBox("World")
   const node = h("div", null, "Hello ", () => name.get())
   assertEquals(node.textContent, "Hello World")
 
@@ -93,7 +93,7 @@ Deno.test("jsx: reactive text child via h()", () => {
 })
 
 Deno.test("jsx: reactive child toggling elements", () => {
-  const showA = box(true)
+  const showA = observableBox(true)
   const node = h(
     "div",
     null,
@@ -156,7 +156,7 @@ Deno.test("jsx: class component ref receives instance", () => {
 })
 
 Deno.test("jsx: class component with reactive children", () => {
-  const count = box(0)
+  const count = observableBox(0)
 
   class Counter extends Component {
     render() {
@@ -246,18 +246,22 @@ Deno.test("jsx: jsx-runtime createNode", async () => {
 // ─── Complex Integration ─────────────────────────────────────────────────────
 
 Deno.test("jsx: full reactive app scenario", () => {
-  const todos = box<string[]>(["Buy milk", "Write code"])
-  const newTodo = box("")
+  const todos = observableBox<string[]>(["Buy milk", "Write code"])
+  const newTodo = observableBox("")
 
   const TodoApp = () => {
     return h(
       "div",
       { class: "todo-app" },
       h("h1", null, "Todos"),
-      h("ul", null, () =>
-        todos.get().map((todo, i) =>
-          h("li", { "data-index": String(i) }, todo)
-        )),
+      h(
+        "ul",
+        null,
+        () =>
+          todos.get().map((todo, i) =>
+            h("li", { "data-index": String(i) }, todo)
+          ),
+      ),
       h(
         "div",
         { class: "input-row" },
@@ -292,7 +296,7 @@ Deno.test("jsx: full reactive app scenario", () => {
 })
 
 Deno.test("jsx: dispose cleans up reactive bindings", () => {
-  const count = box(0)
+  const count = observableBox(0)
   const node = h("div", null, () => String(count.get()))
   assertEquals(node.textContent, "0")
 
@@ -305,8 +309,8 @@ Deno.test("jsx: dispose cleans up reactive bindings", () => {
 })
 
 Deno.test("jsx: transaction batches reactive UI updates", () => {
-  const a = box("A")
-  const b = box("B")
+  const a = observableBox("A")
+  const b = observableBox("B")
   let renders = 0
 
   const node = h("div", null, () => {

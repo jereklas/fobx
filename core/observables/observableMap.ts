@@ -1,468 +1,465 @@
-import { type IObservableCollectionAdmin, observable } from "./observable.ts"
-import type { ObservableSetWithAdmin } from "../observables/observableSet.ts"
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers.ts"
-import { $fobx, type Any, getGlobalState } from "../state/global.ts"
-import { isMap, isObject, isObservable } from "../utils/predicates.ts"
-import { trackObservable } from "../transactions/tracking.ts"
-import { runInAction } from "../transactions/action.ts"
-import { instanceState, isDifferent } from "../state/instance.ts"
-import { sendChange } from "./notifications.ts"
-import {
-  type EqualityOptions,
-  type IObservable,
-  type IObservableAdmin,
-  observableBox,
-  type ObservableBoxWithAdmin,
-} from "./observableBox.ts"
+/**
+ * Observable Map — reactive Map implementation.
+ */
 
-export type ObservableMapWithAdmin = ObservableMap & {
-  [$fobx]: IObservableCollectionAdmin
+import {
+  $fobx,
+  $scheduler,
+  type Any,
+  defaultComparer,
+  type EqualityChecker,
+  type EqualityComparison,
+  getNextId,
+  hasObservers,
+  KIND_BOX,
+  KIND_COLLECTION,
+  NOTIFY_CHANGED,
+  type ObservableAdmin,
+} from "../state/global.ts"
+import { resolveComparer } from "../state/instance.ts"
+import { endBatch, startBatch } from "../transactions/batch.ts"
+import { notifyChanged, notifyObservers } from "../state/notifications.ts"
+import {
+  type ObservableBox,
+  observableBox,
+  setBoxValue,
+} from "./observableBox.ts"
+import { trackAccess } from "../reactions/tracking.ts"
+
+// Forward declaration — set after object.ts is loaded
+let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
+
+export function setMapProcessValue(
+  fn: <T>(value: T, shallow: boolean) => T,
+): void {
+  _processValue = fn
 }
 
-export interface MapOptions extends EqualityOptions {
+interface KeysAdmin extends ObservableAdmin<undefined> {
+  changes: number
+}
+
+export interface MapOptions {
+  name?: string
+  comparer?: EqualityComparison
   shallow?: boolean
 }
 
-const globalState = /* @__PURE__ */ getGlobalState()
-const uniqueValue = Symbol("uniqueValue")
+class ObservableMap<K = Any, V = Any> implements Map<K, V> {
+  private data: Map<K, ObservableAdmin<V>>
+  private hasMap: Map<K, ObservableBox<boolean>>
+  private keysAdmin: KeysAdmin
+  private collectionAdmin: KeysAdmin
+  private _comparer: EqualityChecker
+  private _shallow: boolean;
+  [$fobx]: KeysAdmin
 
-export class ObservableMap<K = Any, V = Any> extends Map<K, V> {
-  #keys: ObservableSetWithAdmin<K>
-  #shallow: boolean
-  #pendingKeys: Map<K, IObservable<V>>
-  #equalityOptions: EqualityOptions
-  override toString(): string {
-    return `[object ObservableMap]`
-  }
-
-  #moveToPendingIfTracked(key: K, ov: IObservable<V>): void {
-    const ovAdmin = (ov as ObservableBoxWithAdmin<V>)[$fobx]
-    if (ovAdmin.observers.length > 0) {
-      this.#pendingKeys.set(key, ov)
-    }
-  }
-
-  constructor()
-  constructor(entries: readonly (readonly [K, V])[], options?: MapOptions)
   constructor(
-    iterable?: Iterable<readonly [K, V]> | null | undefined,
-    options?: MapOptions,
-  )
-  constructor(record?: Record<PropertyKey, V>, options?: MapOptions)
-  constructor(entries: Any = [], options?: MapOptions) {
-    if (
-      isMap(entries) && entries.constructor.name !== "Map" &&
-      entries.constructor.name !== "ObservableMap"
-    ) {
+    entries?: Iterable<readonly [K, V]> | Record<string, V> | null,
+    options: MapOptions = {},
+  ) {
+    if (entries instanceof Map && entries.constructor !== Map) {
+      const className = entries.constructor.name
       throw new Error(
-        `[@fobx/core] Cannot make observable map from class that inherit from Map: ${entries.constructor.name}`,
+        `[@fobx/core] Cannot make observable map from class that inherit from Map: ${className}`,
       )
     }
-    super()
-    const name = `ObservableMap@${globalState.getNextId()}`
-    this.#shallow = options?.shallow ?? false
-    this.#equalityOptions = {
-      equals: options?.equals,
-      comparer: options?.comparer,
+
+    const id = getNextId()
+    const name = options.name || `Map@${id}`
+
+    this.data = new Map()
+    this.hasMap = new Map()
+    this._comparer = resolveComparer(options.comparer)
+    this._shallow = options.shallow ?? false
+    this.keysAdmin = {
+      kind: KIND_COLLECTION,
+      id,
+      name: `${name}.keys`,
+      value: undefined,
+      changes: 0,
+      observers: null,
+      comparer: defaultComparer,
+      _epoch: 0,
     }
-    this.#keys = observable(new Set<K>(), {
-      shallow: true,
-    }) as ObservableSetWithAdmin
-    this.#pendingKeys = new Map<K, IObservable<V>>()
-    // assigning the constructor to Map allows for deep compares to correctly compare this against other maps
-    this.constructor = Object.getPrototypeOf(new Map()).constructor
-    // make sure options are set before we add initial values
-    this.#addEntries(entries)
-    Object.defineProperty(this, $fobx, {
-      value: {
-        value: this,
-        name: name,
-        changes: 0,
-        previous: `${name}.0`,
-        current: `${name}.0`,
-        observers: [],
-      },
-    })
-    Object.defineProperty(this, Symbol.iterator, {
-      value: () => {
-        return getEntriesIterator(
-          super[Symbol.iterator](),
-          (this as unknown as ObservableMapWithAdmin)[$fobx],
+    this.collectionAdmin = {
+      kind: KIND_COLLECTION,
+      id: getNextId(),
+      name,
+      value: undefined,
+      changes: 0,
+      observers: null,
+      comparer: defaultComparer,
+      _epoch: 0,
+    }
+    this[$fobx] = this.collectionAdmin
+
+    if (entries != null) {
+      this._init(entries)
+    }
+  }
+
+  /** Fast init — no batching, no notifications, no existence checks. */
+  private _init(
+    entries: Iterable<readonly [K, V]> | Record<string, V>,
+  ): void {
+    if (entries instanceof Map) {
+      for (const [key, value] of entries) {
+        this.data.set(
+          key,
+          this._newAdmin(key, _processValue(value, this._shallow)),
         )
-      },
-    })
-  }
-
-  #delete(
-    this: ObservableMap,
-    key: K,
-    opts: { preventNotification?: boolean } = { preventNotification: false },
-  ) {
-    const result = super.delete(key)
-    if (result) {
-      this.#keys.delete(key)
-      if (!opts.preventNotification) {
-        incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
       }
-    }
-    return result
-  }
-
-  #set(
-    this: ObservableMap,
-    key: K,
-    value: V extends Any ? Any : never,
-    reusableValues: Map<K, V> = new Map(),
-  ) {
-    const val = !this.#shallow && isObject(value) && !isObservable(value)
-      ? (observable(value) as V)
-      : value
-    const reused = reusableValues.get(key) as IObservable<V>
-    const ov = reused ?? (super.get(key) as IObservable<V>)
-
-    this.#keys.add(key)
-
-    if (ov) {
-      if (
-        isDifferent(
-          ov.value,
-          val,
-          this.#equalityOptions?.equals ?? this.#equalityOptions.comparer,
+    } else if (Symbol.iterator in (entries as Any)) {
+      for (const [key, value] of entries as Iterable<readonly [K, V]>) {
+        this.data.set(
+          key,
+          this._newAdmin(key, _processValue(value, this._shallow)),
         )
-      ) {
-        incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
-      }
-      if (reused) {
-        super.set(key, ov as V)
-      }
-      ov.value = val
-      return
-    }
-
-    const pendingOv = this.#pendingKeys.get(key)
-
-    if (pendingOv) {
-      // Remove from pending and place into actual map
-      this.#pendingKeys.delete(key)
-      super.set(key, pendingOv as V)
-
-      incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
-      pendingOv.value = val
-    } else {
-      super.set(key, observableBox(val, this.#equalityOptions) as V)
-    }
-  }
-  #addEntries(
-    entries:
-      | [K, V][]
-      | Map<K, V>
-      | Record<PropertyKey, V>
-      | Iterable<readonly [K, V]>,
-  ) {
-    if (isMap(entries)) {
-      entries.forEach((value, key) => {
-        this.#set(key, value)
-      })
-    } else if (Array.isArray(entries)) {
-      entries.forEach(([key, value]) => {
-        this.#set(key, value)
-      })
-    } else if (Symbol.iterator in entries) {
-      for (const [key, val] of entries as Iterable<[K, V]>) {
-        this.#set(key, val)
       }
     } else {
-      Object.entries(entries).forEach(([key, val]) => {
-        this.#set(key as K, val)
-      })
-    }
-  }
-  override get size(): number {
-    trackObservable((this as unknown as ObservableMapWithAdmin)[$fobx])
-    return super.size
-  }
-  override clear(this: ObservableMap) {
-    const admin = (this as ObservableMapWithAdmin)[$fobx]
-    runInAction(() => {
-      this.#pendingKeys.forEach((pendingOv, key) => {
-        if (super.has(key)) {
-          pendingOv.value = uniqueValue
-        }
-      })
-      // Cannot call super.clear() it stops observability
-      this.forEach((_value, key) => {
-        const ov = super.get(key) as IObservable<V>
-        if (ov) {
-          // Move to pending keys if someone is tracking it
-          this.#moveToPendingIfTracked(key, ov)
-        }
-        this.set(key, uniqueValue)
-        this.#delete(key)
-      })
-      incrementChangeCount(admin)
-      sendChange(admin)
-    })
-  }
-  override delete(this: ObservableMap, key: K): boolean {
-    const admin = (this as ObservableMapWithAdmin)[$fobx]
-    const ov = super.get(key) as IObservable<V>
-
-    // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV !== "production") {
-      if (instanceState.enforceActions) {
-        if (
-          globalState.batchedActionsCount === 0 && admin.observers.length > 0
-        ) {
-          console.warn(
-            `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
-          )
-        }
-      }
-    }
-
-    return runInAction(() => {
-      if (ov) {
-        // Move the observable to pending keys if someone might be tracking it
-        this.#moveToPendingIfTracked(key, ov)
-        ov.value = uniqueValue as V
-      }
-      const result = this.#delete(key, { preventNotification: true })
-      if (result) {
-        if (!this.#pendingKeys.has(key)) {
-          this.#pendingKeys.set(
-            key,
-            observableBox(uniqueValue, this.#equalityOptions),
-          )
-        }
-        incrementChangeCount(admin)
-        sendChange(admin)
-      }
-      return result
-    })
-  }
-  override forEach(
-    this: ObservableMap,
-    callbackFn: (value: V, key: K, map: Map<K, V>) => void,
-    thisArg?: unknown,
-  ) {
-    trackObservable((this as ObservableMapWithAdmin)[$fobx])
-    const cb = (value: V, key: K, map: Map<K, V>) => {
-      callbackFn((value as IObservable<V>).value, key, map)
-    }
-    super.forEach(cb, thisArg)
-  }
-
-  override has(this: ObservableMap, key: K): boolean {
-    if (super.has(key)) {
-      trackObservable((super.get(key) as ObservableBoxWithAdmin)[$fobx])
-      return true
-    } else {
-      let ov = this.#pendingKeys.get(key)
-      if (!ov) {
-        ov = observableBox(uniqueValue as V, this.#equalityOptions)
-        this.#pendingKeys.set(key, ov)
-      }
-      trackObservable((ov as ObservableBoxWithAdmin)[$fobx])
-      return false
-    }
-  }
-
-  override get(this: ObservableMap, key: K): V | undefined {
-    let ov = super.get(key) as IObservable<V> | undefined
-    if (!ov) {
-      ov = this.#pendingKeys.get(key)
-      if (!ov) {
-        ov = observableBox(uniqueValue as V, this.#equalityOptions)
-        this.#pendingKeys.set(key, ov)
-      }
-    }
-    trackObservable((ov as ObservableBoxWithAdmin<V>)[$fobx])
-    const value = ov.value
-    // maps return undefined when key doesn't exist, so make sure that happens if
-    // we're actually in a pendingKey scenario
-    return value === uniqueValue ? undefined : value
-  }
-
-  override set(key: K, value: V): this {
-    if (super.has(key)) {
-      const oldValue = (super.get(key) as IObservable<V>)?.value
-      if (oldValue === value) return this
-    }
-    const admin = (this as unknown as ObservableMapWithAdmin)[$fobx]
-
-    // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV !== "production") {
-      if (
-        instanceState.enforceActions && globalState.batchedActionsCount === 0 &&
-        admin.observers.length > 0
-      ) {
-        console.warn(
-          `[@fobx/core] Changing tracked observable value (${admin.name}) outside of an action is discouraged as reactions run more frequently than necessary.`,
+      for (const key of Object.keys(entries as object)) {
+        const value = (entries as Record<string, Any>)[key]
+        this.data.set(
+          key as unknown as K,
+          this._newAdmin(
+            key as unknown as K,
+            _processValue(value, this._shallow),
+          ),
         )
       }
     }
+  }
 
-    runInAction(() => {
-      this.#set(key, value)
-      incrementChangeCount(admin)
-      sendChange(admin)
-    })
+  /** Create an ObservableAdmin for a value entry (avoids box() wrapper overhead). */
+  private _newAdmin(key: K, value: V): ObservableAdmin<V> {
+    const id = getNextId()
+    return {
+      kind: KIND_BOX,
+      id,
+      name: `${this.keysAdmin.name}[${String(key)}]`,
+      value,
+      observers: null,
+      comparer: this._comparer,
+      _epoch: 0,
+    }
+  }
+
+  has(key: K): boolean {
+    if ($scheduler.tracking === null) return this.data.has(key)
+
+    let hasBox = this.hasMap.get(key)
+    if (!hasBox) {
+      hasBox = observableBox(this.data.has(key), {
+        name: `${this.keysAdmin.name}.has(${String(key)})`,
+      })
+      this.hasMap.set(key, hasBox)
+
+      const hmRef = this.hasMap
+      const keyRef = key
+      hasBox[$fobx].onLoseObserver = () => {
+        if (!hasObservers(hasBox![$fobx])) {
+          hmRef.delete(keyRef)
+        }
+      }
+    }
+
+    return hasBox.get()
+  }
+
+  get(key: K): V | undefined {
+    if ($scheduler.tracking === null) {
+      const admin = this.data.get(key)
+      return admin !== undefined ? admin.value : undefined
+    }
+    if (this.has(key)) {
+      const admin = this.data.get(key)!
+      trackAccess(admin)
+      return admin.value
+    }
+    return undefined
+  }
+
+  set(key: K, value: V): this {
+    const hadKey = this.data.has(key)
+    const processedValue = _processValue(value, this._shallow)
+
+    if (hadKey) {
+      const admin = this.data.get(key)!
+      const changed = setBoxValue(admin, processedValue)
+      if (changed) {
+        this.collectionAdmin.changes++
+        notifyChanged(this.collectionAdmin)
+      }
+    } else {
+      this.data.set(key, this._newAdmin(key, processedValue))
+
+      const hasBox = this.hasMap.get(key)
+      if (hasBox) setBoxValue(hasBox[$fobx], true)
+
+      this.keysAdmin.changes++
+      this.collectionAdmin.changes++
+      notifyChanged(this.keysAdmin)
+      notifyChanged(this.collectionAdmin)
+    }
 
     return this
   }
-  merge(
-    this: ObservableMap,
-    entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>,
-  ) {
-    if (isObservable(entries)) {
-      trackObservable((entries as Any as { [$fobx]: IObservableAdmin })[$fobx])
+
+  delete(key: K): boolean {
+    if (!this.data.has(key)) return false
+
+    const admin = this.data.get(key)!
+    if (hasObservers(admin)) {
+      notifyObservers(admin, NOTIFY_CHANGED)
     }
-    const admin = (this as ObservableMapWithAdmin)[$fobx]
-    runInAction(() => {
-      this.#addEntries(entries)
-      if (admin.previous !== admin.current) {
-        sendChange(admin)
-      }
-    })
+
+    this.data.delete(key)
+
+    const hasBox = this.hasMap.get(key)
+    if (hasBox) setBoxValue(hasBox[$fobx], false)
+
+    this.keysAdmin.changes++
+    this.collectionAdmin.changes++
+    notifyChanged(this.keysAdmin)
+    notifyChanged(this.collectionAdmin)
+
+    return true
   }
-  replace(
-    this: ObservableMap,
-    entries: [K, V][] | Map<K, V> | Record<PropertyKey, V>,
-  ): ObservableMap<K, V> {
-    const admin = (this as ObservableMapWithAdmin)[$fobx]
-    const startingChangeCount = admin.changes
 
-    const originalKeys = [...this.#keys]
+  clear(): void {
+    if (this.data.size === 0) return
 
-    const newKeys = new Set<K>()
-    if (isMap(entries)) {
-      entries.forEach((_, key) => {
-        newKeys.add(key)
-      })
-    } else if (Array.isArray(entries)) {
-      entries.forEach(([key]) => {
-        newKeys.add(key)
-      })
-    } else if (isObject(entries)) {
-      Object.entries(entries).forEach(([key]) => {
-        newKeys.add(key as K)
-      })
-    } else {
-      throw new Error(`[@fobx/core] Cannot convert to map from '${entries}'`)
-    }
-
-    runInAction(() => {
-      const oldValue = new Map<K, V>()
-      const reusedValues = new Map<K, V>()
-
-      super.forEach((ov, key) => {
-        if (newKeys.has(key)) {
-          reusedValues.set(key, ov)
-          this.#delete(key, { preventNotification: true })
-          return
+    startBatch()
+    try {
+      this.data.forEach((admin) => {
+        if (hasObservers(admin)) {
+          notifyObservers(admin, NOTIFY_CHANGED)
         }
-        oldValue.set(key, (ov as IObservable).value)
-        // Move to pending if being tracked
-        this.#moveToPendingIfTracked(key, ov as IObservable<V>)
-        ;(ov as IObservable).value = uniqueValue
-        this.#delete(key)
       })
 
-      if (isMap(entries)) {
-        entries.forEach((value, key) => {
-          this.#set(key, value, reusedValues)
-        })
-      } else if (Array.isArray(entries)) {
-        entries.forEach(([key, value]) => {
-          this.#set(key, value, reusedValues)
-        })
-      } else if (isObject(entries)) {
-        Object.entries(entries).forEach(([key, value]) => {
-          this.#set(key as K, value, reusedValues)
-        })
-      }
+      this.hasMap.forEach((hasBox) => {
+        setBoxValue(hasBox[$fobx], false)
+      })
+      // NOTE: Do NOT clear hasMap — reactions may still be tracking those hasBox references.
+      // Setting their values to false above is sufficient. Future set() calls will update them.
+      this.data.clear()
 
-      if (!areSameOrder(originalKeys, this.#keys)) {
-        incrementChangeCount((this as ObservableMapWithAdmin)[$fobx])
-      }
+      this.keysAdmin.changes++
+      this.collectionAdmin.changes++
+      notifyChanged(this.keysAdmin)
+      notifyChanged(this.collectionAdmin)
+    } finally {
+      endBatch()
+    }
+  }
 
-      if (startingChangeCount !== admin.changes) {
-        sendChange(admin)
-      }
+  get size(): number {
+    trackAccess(this.keysAdmin)
+    return this.data.size
+  }
+
+  keys(): MapIterator<K> {
+    trackAccess(this.keysAdmin)
+    return this.data.keys() as MapIterator<K>
+  }
+
+  values(): MapIterator<V> {
+    trackAccess(this.keysAdmin)
+    const size = this.data.size
+    const values: V[] = new Array(size)
+    let i = 0
+    for (const admin of this.data.values()) {
+      trackAccess(admin)
+      values[i++] = admin.value
+    }
+    return values.values() as MapIterator<V>
+  }
+
+  entries(): MapIterator<[K, V]> {
+    trackAccess(this.keysAdmin)
+    const size = this.data.size
+    const entries: [K, V][] = new Array(size)
+    let i = 0
+    for (const [key, admin] of this.data.entries()) {
+      trackAccess(admin)
+      entries[i++] = [key, admin.value]
+    }
+    return entries.values() as MapIterator<[K, V]>
+  }
+
+  [Symbol.iterator](): MapIterator<[K, V]> {
+    return this.entries()
+  }
+
+  forEach(
+    callback: (value: V, key: K, map: Map<K, V>) => void,
+    thisArg?: Any,
+  ): void {
+    trackAccess(this.keysAdmin)
+    this.data.forEach((admin, key) => {
+      trackAccess(admin)
+      callback.call(thisArg, admin.value, key, this as Any)
     })
+  }
 
-    return this
-  }
-  toJSON(this: ObservableMap): [K, V][] {
-    trackObservable((this as ObservableMapWithAdmin)[$fobx])
-
-    return Array.from(this.entries())
-  }
-  override entries(): MapIterator<[K, V]> {
-    return getEntriesIterator(
-      super.entries(),
-      (this as unknown as ObservableMapWithAdmin)[$fobx],
-    ) as MapIterator<[K, V]>
-  }
-  override keys(): MapIterator<K> {
-    return wrapIteratorForTracking(
-      super.keys(),
-      this.#keys[$fobx],
-    ) as MapIterator<K>
-  }
-  override values(): MapIterator<V> {
-    return getValuesIterator(
-      super.values(),
-      (this as unknown as ObservableMapWithAdmin)[$fobx],
-    ) as MapIterator<V>
-  }
-}
-
-const getValuesIterator = <V>(
-  iterable: IterableIterator<V>,
-  admin: IObservableCollectionAdmin,
-) => {
-  const original = iterable.next
-  Object.defineProperty(iterable, "next", {
-    value: () => {
-      trackObservable(admin)
-      const next = original.call(iterable)
-      if (next.value) {
-        next.value = next.value.value
+  replace(entries: Iterable<[K, V]> | { [key: string]: V } | Map<K, V>): void {
+    startBatch()
+    try {
+      let entriesArray: [K, V][]
+      if (entries instanceof Map) {
+        entriesArray = Array.from(entries.entries())
+      } else if (entries != null && typeof entries === "object") {
+        if (Symbol.iterator in (entries as Any)) {
+          try {
+            entriesArray = Array.from(entries as Iterable<[K, V]>)
+          } catch (_e) {
+            throw new Error(
+              `[@fobx/core] Cannot convert to map from '${typeof entries}'`,
+            )
+          }
+        } else {
+          entriesArray = Object.entries(entries) as unknown as [K, V][]
+        }
+      } else {
+        throw new Error(`[@fobx/core] Cannot convert to map from '${entries}'`)
       }
-      return next
-    },
-  })
-  return iterable
-}
 
-const getEntriesIterator = <K, V>(
-  iterable: IterableIterator<[K, V]>,
-  admin: IObservableCollectionAdmin,
-) => {
-  const original = iterable.next
-  Object.defineProperty(iterable, "next", {
-    value: () => {
-      trackObservable(admin)
-      const next = original.call(iterable)
-      if (next.value) {
-        const [key, value] = next.value
+      const newKeys = new Set(entriesArray.map(([k]) => k))
 
-        next.value = [key, value.value]
+      const toDelete: K[] = []
+      this.data.forEach((_box, key) => {
+        if (!newKeys.has(key)) toDelete.push(key)
+      })
+
+      let hasStructuralChanges = toDelete.length > 0
+
+      for (const [key] of entriesArray) {
+        if (!this.data.has(key)) {
+          hasStructuralChanges = true
+          break
+        }
       }
-      return next
-    },
-  })
-  return iterable
+
+      if (!hasStructuralChanges) {
+        const currentKeys = Array.from(this.data.keys())
+        const newKeysArray = entriesArray.map(([k]) => k)
+        if (currentKeys.length === newKeysArray.length) {
+          for (let i = 0; i < currentKeys.length; i++) {
+            if (currentKeys[i] !== newKeysArray[i]) {
+              hasStructuralChanges = true
+              break
+            }
+          }
+        }
+      }
+
+      const oldData = new Map(this.data)
+
+      toDelete.forEach((key) => {
+        const admin = this.data.get(key)!
+        this.data.delete(key)
+        if (hasObservers(admin)) {
+          notifyObservers(admin, NOTIFY_CHANGED)
+        }
+        const hasBox = this.hasMap.get(key)
+        if (hasBox) setBoxValue(hasBox[$fobx], false)
+      })
+
+      entriesArray.forEach(([key, value]) => {
+        const processedValue = _processValue(value, this._shallow)
+        const existingAdmin = oldData.get(key)
+
+        if (existingAdmin) {
+          this.data.delete(key)
+          setBoxValue(existingAdmin, processedValue)
+          this.data.set(key, existingAdmin)
+        } else {
+          this.data.set(key, this._newAdmin(key, processedValue))
+
+          const hasBox = this.hasMap.get(key)
+          if (hasBox) setBoxValue(hasBox[$fobx], true)
+        }
+      })
+
+      if (hasStructuralChanges) {
+        this.keysAdmin.changes++
+        this.collectionAdmin.changes++
+        notifyChanged(this.keysAdmin)
+        notifyChanged(this.collectionAdmin)
+      }
+    } finally {
+      endBatch()
+    }
+  }
+
+  merge(entries: Iterable<[K, V]> | { [key: string]: V } | Map<K, V>): void {
+    startBatch()
+    try {
+      let entriesArray: [K, V][]
+      if (entries instanceof Map) {
+        entriesArray = Array.from(entries.entries())
+      } else if (Symbol.iterator in (entries as Any)) {
+        entriesArray = Array.from(entries as Iterable<[K, V]>)
+      } else {
+        entriesArray = Object.entries(entries) as unknown as [K, V][]
+      }
+
+      let hasStructuralChanges = false
+
+      entriesArray.forEach(([key, value]) => {
+        const processedValue = _processValue(value, this._shallow)
+        const existingAdmin = this.data.get(key)
+
+        if (existingAdmin) {
+          setBoxValue(existingAdmin, processedValue)
+        } else {
+          this.data.set(key, this._newAdmin(key, processedValue))
+
+          const hasBox = this.hasMap.get(key)
+          if (hasBox) setBoxValue(hasBox[$fobx], true)
+
+          hasStructuralChanges = true
+        }
+      })
+
+      if (hasStructuralChanges) {
+        this.keysAdmin.changes++
+        this.collectionAdmin.changes++
+        notifyChanged(this.keysAdmin)
+        notifyChanged(this.collectionAdmin)
+      }
+    } finally {
+      endBatch()
+    }
+  }
+
+  toJSON(): [K, V][] {
+    trackAccess(this.keysAdmin)
+    return Array.from(this.data.entries()).map((
+      [k, admin],
+    ) => {
+      trackAccess(admin)
+      return [k, admin.value]
+    })
+  }
+
+  toString(): string {
+    return "[object ObservableMap]"
+  }
+
+  get [Symbol.toStringTag](): string {
+    return "Map"
+  }
+} // Prototype-level assignment (one-time, preserves V8 hidden class)
+
+;(ObservableMap.prototype as Any).constructor = Map
+
+export function observableMap<K = Any, V = Any>(
+  entries?: Iterable<readonly [K, V]> | Record<string, V> | null,
+  options: MapOptions = {},
+): ObservableMap<K, V> {
+  return new ObservableMap(entries, options)
 }
 
-const areSameOrder = <K>(a: K[], b: Set<K>) => {
-  if (a.length !== b.size) return false
-  let i = 0
-  let sameOrder = true
-  b.forEach((key) => {
-    sameOrder = key === a[i]
-    i++
-  })
-  return sameOrder
-}
+export type { ObservableMap }

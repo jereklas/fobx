@@ -23,7 +23,7 @@
  * ```
  */
 
-import { dispose } from "../dom/reactive.ts"
+import { dispose } from "@fobx/dom"
 
 export abstract class Component<P = any> {
   props: P
@@ -70,7 +70,7 @@ export abstract class Component<P = any> {
     }
 
     // Render new content
-    let newContent = this.render()
+    const newContent = this.render()
     const newElements: Node[] = Array.isArray(newContent)
       ? newContent
       : newContent

@@ -1,81 +1,148 @@
+/**
+ * useViewModel — manages a reactive ViewModel instance across React renders.
+ *
+ * Creates the VM once, calls vm.update() on subsequent renders to sync React
+ * props into the VM's observable state, and handles lifecycle hooks
+ * (onConnect / onDisconnect) via useEffect.
+ */
+
 // @ts-ignore - to suppress tsc false error
 import { useEffect, useRef, useState } from "react"
-// @ts-ignore - to suppress tsc false error
-import { getGlobalState as getFobxState, observable } from "@fobx/core"
-import { getGlobalState } from "../state/global.ts"
-const globalState = getGlobalState()
-const fobxState = getFobxState()
+import { observable } from "@fobx/core"
+import { endBatch, startBatch } from "@fobx/core/internals"
 
-// deno-lint-ignore no-explicit-any
-export interface IViewModel<VM extends new (...args: any) => any> {
-  update(...args: ConstructorParameters<VM>): void
-  onConnect(): void
-  onDisconnect(): void
+// ─── ViewModel protocol ───────────────────────────────────────────────────────
+
+/**
+ * Interface for objects managed by useViewModel.
+ * All methods are optional — implement only what you need.
+ */
+export interface ViewModelLike {
+  /** Called on subsequent renders with the new constructor arguments. */
+  update?(...args: unknown[]): void
+  /** Called when the component mounts (inside useEffect). */
+  onConnect?(): void
+  /** Called when the component unmounts (useEffect cleanup). */
+  onDisconnect?(): void
 }
 
+// ─── ViewModel base class ─────────────────────────────────────────────────────
+
+/**
+ * Convenience base class for ViewModels.
+ *
+ * Provides:
+ * - `props` — a shallow-observable copy of React props (reads are tracked, writes notify)
+ * - `ref` / `setRef` — a convenience ref callback for the root element
+ * - `update()` — syncs new props into the observable props object
+ * - `onConnect()` / `onDisconnect()` — lifecycle hooks
+ *
+ * Subclasses should call `observable(this)` in their constructor to make
+ * their own properties, getters, and methods reactive:
+ *
+ * ```ts
+ * class CounterVM extends ViewModel<{ initial: number }> {
+ *   count: number
+ *
+ *   constructor(props: { initial: number }) {
+ *     super(props)
+ *     this.count = props.initial
+ *     observable(this)
+ *   }
+ *
+ *   get double() { return this.count * 2 }
+ *   increment() { this.count++ }
+ * }
+ * ```
+ */
 export class ViewModel<
   T extends object = object,
   E extends Element = HTMLElement,
-> implements IViewModel<typeof ViewModel> {
+> implements ViewModelLike {
+  protected _props: T
+
   // @ts-expect-error - when no props are supplied give default empty object
   constructor(props: T = {}) {
-    const annotations: Record<string, "observable"> = {}
-    // spreading to remove all non-enumerable props (e.g. react's ref prop)
-    const newProps = { ...props }
-    Object.entries(newProps).forEach(([key]) => {
-      annotations[key] = "observable"
+    // Each prop is tracked by reference — primitives, callbacks, and objects
+    // are stored as-is without deep observable conversion.
+    this._props = observable({ ...props }, {
+      defaultAnnotation: "observable.ref",
     })
-    this._props = observable(newProps, annotations, { shallowRef: true })
-    observable(this, {}, { shallowRef: true })
+
+    // Define `props` as an own-property getter on this instance rather than on
+    // the prototype, so that calling observable(this) in a subclass installs
+    // any Computed at the instance level and does not affect sibling subclasses.
+    const propsValue = this._props
+    Object.defineProperty(this, "props", {
+      get: () => propsValue,
+      enumerable: true,
+      configurable: true,
+    })
   }
 
-  get props(): T {
-    return this._props
-  }
-  private _props: T
+  /** Read-access to observable props. Reads are tracked. */
+  declare props: T
 
+  /** Ref to the component's root DOM element. */
   ref: E | null = null
 
-  setRef: (el: E | null) => void = (el) => {
+  /** Callback ref — pass as `ref={vm.setRef}` to bind the root element. */
+  setRef = (el: E | null): void => {
     this.ref = el
   }
 
+  /** Called when the component mounts. Override in subclass. */
   onConnect(): void {}
 
+  /** Called when the component unmounts. Override in subclass. */
   onDisconnect(): void {}
 
+  /** Syncs new props into the observable props object. */
   update(props: Partial<T>): void {
     Object.assign(this._props, props)
   }
 }
 
-export function useViewModel<
-  T extends InstanceType<U>,
-  // deno-lint-ignore no-explicit-any
-  U extends new (...args: any) => any,
->(
+// ─── useViewModel hook ────────────────────────────────────────────────────────
+
+/**
+ * Creates and manages a ViewModel instance across React renders.
+ *
+ * On first render: instantiates `new ctor(...args)`.
+ * On subsequent renders: calls `vm.update(...args)` inside a batch so all
+ * prop writes notify reactions atomically, while reads inside `update()` are
+ * still tracked as component dependencies.
+ *
+ * @param ctor - The ViewModel class (or any class matching ViewModelLike)
+ * @param args - Constructor arguments (typically React props)
+ * @returns The ViewModel instance (stable across renders)
+ */
+// deno-lint-ignore no-explicit-any
+export function useViewModel<T extends new (...args: any[]) => any>(
   ctor: T,
   ...args: ConstructorParameters<T>
 ): InstanceType<T> {
   const isFirstRender = useRef(true)
-  const reaction = useRef(fobxState.reactionContext)
 
-  const [vm] = useState(() => new ctor(...args) as IViewModel<T>)
+  const [vm] = useState(() => new ctor(...args))
 
-  if (!isFirstRender.current) {
-    const prev = globalState.updatingReaction
-    globalState.updatingReaction = reaction.current
+  if (!isFirstRender.current && typeof vm.update === "function") {
+    startBatch()
     try {
       vm.update(...args)
     } finally {
-      globalState.updatingReaction = prev
+      endBatch()
     }
   }
   isFirstRender.current = false
 
   useEffect(() => {
-    vm.onConnect()
-    return () => vm.onDisconnect()
+    if (typeof vm.onConnect === "function") vm.onConnect()
+    return () => {
+      if (typeof vm.onDisconnect === "function") vm.onDisconnect()
+    }
+    // vm is stable (created once via useState)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vm])
 
   return vm as InstanceType<T>

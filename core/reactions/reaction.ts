@@ -1,278 +1,172 @@
-import { action } from "../transactions/action.ts"
-import type { IObservableAdmin } from "../observables/observableBox.ts"
-import type { StateNotification } from "../observables/notifications.ts"
-import { isObservableCollection } from "../utils/predicates.ts"
-import { isDifferent } from "../state/instance.ts"
+/**
+ * Reaction — two-phase: expression (tracked) → effect (untracked on change).
+ */
+
 import {
   $fobx,
-  type ComparisonType,
-  type Disposer,
+  $scheduler,
+  addObserver,
+  type Any,
+  defaultComparer,
+  type Dispose,
   type EqualityChecker,
-  getGlobalState,
-  type IFobxAdmin,
+  type EqualityComparison,
+  getNextId,
+  KIND_COLLECTION,
+  KIND_REACTION,
+  pushPending,
+  type ReactionAdmin,
+  setTracking,
+  STALE,
+  UP_TO_DATE,
 } from "../state/global.ts"
+import { resolveComparer } from "../state/instance.ts"
 import {
-  removeAllDependencies,
-  reportExceptionInReaction,
-  runWithTracking,
-  trackObservable,
-} from "../transactions/tracking.ts"
+  cleanupGraph,
+  getOldDeps,
+  getPrevTracking,
+  removeFromAllDeps,
+  startTracking,
+  stopTracking,
+} from "./tracking.ts"
+import { safeRunReaction } from "../transactions/batch.ts"
+import { hasFobxAdmin } from "../utils/utils.ts"
 
-const globalState = /* @__PURE__ */ getGlobalState()
+export const UNDEFINED = Symbol.for("fobx-undefined")
 
-export type ReactionWithAdmin = Reaction & {
-  [$fobx]: ReactionAdmin
-}
-export interface IReaction {
-  track: (fn: () => void) => void
-  dispose: Disposer
-}
-export interface IReactionAdmin extends IFobxAdmin {
-  dependenciesChanged: boolean
-  staleCount: number
-  readyCount: number
-  canRun: () => boolean
-  isDisposed: boolean
-  isPending: boolean
-  hasToRun?: true
-  dependencies: IObservableAdmin[]
-  newDependencies: IObservableAdmin[]
-  onStateChange: (update: StateNotification) => void
-  run: () => void
-  dispose: Disposer
+export interface ReactionOptions<T> {
+  name?: string
+  fireImmediately?: boolean
+  comparer?: EqualityComparison
 }
 
-const MAX_ITERATIONS = 100
+interface ReactionRunAdmin extends ReactionAdmin {
+  _expression: (dispose: Dispose) => Any
+  _effect: (value: Any, previousValue: Any, dispose: Dispose) => void
+  _comparer: EqualityChecker
+  _isDisposed: boolean
+  _isFirst: boolean
+  _previousValue: Any
+  _previousChanges: number | undefined
+  _dispose: Dispose
+  _fireImmediately: boolean
+}
 
-export class ReactionAdmin implements IReactionAdmin {
-  name: string
-  dependenciesChanged = false
-  staleCount = 0
-  readyCount = 0
-  isDisposed = false
-  isPending = false
-  dependencies: IObservableAdmin[] = []
-  newDependencies: IObservableAdmin[] = []
-  hasToRun?: true
-  effectFn: () => void
+/** Shared run function — no per-instance closure. Uses this-based dispatch. */
+function _runReaction(this: ReactionRunAdmin): void {
+  if (this._isDisposed) return
+  this.state = UP_TO_DATE
 
-  constructor(effectFn: () => void, name?: string) {
-    this.name = `${name ?? "Reaction"}@${globalState.getNextId()}`
-    this.effectFn = effectFn
+  // Phase 1: Track dependencies (inlined withTracking — avoids closure)
+  startTracking(this)
+  const oldDeps = getOldDeps()
+  const prevTracking = getPrevTracking()
+  let newValue: Any
+  try {
+    newValue = this._expression(this._dispose)
+  } finally {
+    stopTracking(prevTracking)
+    cleanupGraph(this, oldDeps)
   }
-  canRun(): boolean {
-    return this.staleCount === this.readyCount
+
+  // Check if result is an observable collection (array, map, or set)
+  let currentChanges: number | undefined = undefined
+  const collectionAdmin = hasFobxAdmin(newValue)
+    ? (newValue as Any)[$fobx]
+    : undefined
+  const isObservableCollection = collectionAdmin?.kind === KIND_COLLECTION
+
+  // If result is an observable collection, register as observer and snapshot changes
+  if (isObservableCollection) {
+    const deps = this.deps
+    if (deps.indexOf(collectionAdmin) === -1) {
+      deps.push(collectionAdmin)
+    }
+    addObserver(collectionAdmin, this)
+    currentChanges = collectionAdmin.changes
   }
-  run() {
-    this.dependenciesChanged = false
+
+  // Check if value changed
+  let valueChanged: boolean
+  if (this._previousValue === UNDEFINED) {
+    valueChanged = true
+  } else if (
+    currentChanges !== undefined && this._previousChanges !== undefined
+  ) {
+    valueChanged = currentChanges !== this._previousChanges
+  } else {
+    valueChanged = !this._comparer(this._previousValue, newValue)
+  }
+
+  const shouldRun = this._isFirst ? this._fireImmediately : valueChanged
+
+  if (shouldRun) {
+    // Inlined withoutTracking — avoids closure allocation
+    const prevTrack = $scheduler.tracking
+    setTracking(null)
     try {
-      this.effectFn()
-    } catch (e) {
-      reportExceptionInReaction(this, e)
-    }
-  }
-  onStateChange(update: StateNotification) {
-    switch (update.type) {
-      case "stale":
-        this.staleCount++
-        break
-      case "ready":
-        this.readyCount++
-        /* fall through */
-      case "change":
-        this.dependenciesChanged ||= update.oldValue !== update.newValue
-        break
-    }
-
-    if (!this.isPending && this.dependenciesChanged) {
-      this.isPending = true
-      this.addToPendingReactions()
+      this._effect(newValue, this._previousValue, this._dispose)
+    } finally {
+      setTracking(prevTrack)
     }
   }
 
-  addToPendingReactions() {
-    globalState.pendingReactions.push(this)
-  }
-
-  dispose() {
-    const { pendingReactions } = globalState
-    let idx: number
-    this.isDisposed = true
-    if (!this.hasToRun && (idx = pendingReactions.indexOf(this)) >= 0) {
-      pendingReactions.splice(idx, 1)
-    }
-    removeAllDependencies(this)
-  }
+  this._previousValue = newValue
+  this._previousChanges = currentChanges
+  this._isFirst = false
 }
 
-export class Reaction implements IReaction {
-  constructor(admin: ReactionAdmin) {
-    Object.defineProperty(this, $fobx, { value: admin })
-  }
-  track(this: Reaction, fn: () => void) {
-    startBatch()
-    runWithTracking(fn, (this as ReactionWithAdmin)[$fobx])
-    endBatch()
-  }
-  dispose(this: Reaction) {
-    ;(this as ReactionWithAdmin)[$fobx].dispose()
-  }
-}
-
-export class ReactionWithoutBatch extends Reaction {
-  constructor(admin: ReactionAdmin) {
-    super(admin)
-  }
-  override track(this: ReactionWithoutBatch, fn: () => void) {
-    runWithTracking(fn, (this as ReactionWithAdmin)[$fobx])
-  }
-}
-
-export function runReactions() {
-  if (globalState.batchedActionsCount > 0 || globalState.isRunningReactions) {
-    return
-  }
-  globalState.isRunningReactions = true
-
-  const reactions = globalState.pendingReactions
-  let iterations = 0
-
-  while (reactions.length > 0) {
-    if (++iterations === MAX_ITERATIONS) {
-      reactions.length = 0
-      // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV !== "production") {
-        console.error(
-          "[@fobx/core] Failed to run all reactions. This typically means a bad circular reaction.",
-        )
-      }
-    }
-
-    let i, j
-    for (i = 0, j = 0; i < reactions.length; i += 1) {
-      const reaction = reactions[i]
-      // swap reactions we can't compute to front of array (in-order)
-      if (!reaction.canRun()) {
-        reactions[j] = reactions[i]
-        j++
-        continue
-      }
-      runReaction(reactions[i])
-    }
-    // remove all reactions that ran
-    while (j < reactions.length) {
-      reactions.pop()
-    }
-  }
-
-  globalState.isRunningReactions = false
-}
-
-export function startBatch() {
-  globalState.batchedActionsCount++
-}
-
-export function endBatch() {
-  globalState.batchedActionsCount--
-  runReactions()
-  if (globalState.batchedActionsCount === 0) {
-    globalState.currentlyRunningAction = null
-  }
-}
-
-function runReaction(reaction: IReactionAdmin) {
-  reaction.isPending = false
-  reaction.staleCount = 0
-  reaction.readyCount = 0
-  // run the reaction after clearing out the above state. This is needed as some reactions might
-  // need to re-queue themselves in the case of state changing within the reaction.
-  reaction.run()
-}
-
-export type ReactionOptions = {
-  comparer?: ComparisonType
-  equals?: EqualityChecker
-}
-
-// Overload declarations:
 export function reaction<T>(
-  dataFn: (reaction: IReaction) => T,
-  effectFn: (current: T, previous: T, reaction: IReaction) => void,
-  options?: ReactionOptions,
-): () => void
-export function reaction<T>(
-  dataFn: (reaction: IReaction) => T,
-  effectFn: (current: T, previous: T | undefined, reaction: IReaction) => void,
-  options: ReactionOptions & { fireImmediately: true },
-): () => void
-export function reaction<T>(
-  dataFn: (reaction: IReaction) => T,
-  effectFn: (current: T, previous: T | undefined, reaction: IReaction) => void,
-  options: ReactionOptions & { fireImmediately?: true } = {},
-) {
-  let firstRun = true
-  let previousValue: T | undefined
-  let value: T
+  expression: (dispose: Dispose) => T,
+  effect: (
+    value: T,
+    previousValue: T | typeof UNDEFINED,
+    dispose: Dispose,
+  ) => void,
+  options?: ReactionOptions<T>,
+): Dispose {
+  const comparer = options?.comparer
+    ? resolveComparer(options.comparer)
+    : defaultComparer
 
-  const reaction = new Reaction(
-    new ReactionAdmin(() => {
-      runReaction()
-    }),
-  ) as ReactionWithAdmin
+  const id = getNextId()
+  // Use let + forward reference so dispose closure captures admin
+  // deno-lint-ignore prefer-const
+  let admin: ReactionRunAdmin
 
-  const effectAction = action(
-    (current: T, previous: T | undefined, reaction: IReaction) => {
-      effectFn(current, previous, reaction)
-    },
-    { name: `${reaction[$fobx].name}-sideEffect` },
-  )
-
-  const runReaction = () => {
-    let changed = false
-    let error
-
-    reaction.track(() => {
-      previousValue = value
-      try {
-        value = dataFn(reaction)
-      } catch (e) {
-        // reaction.track handles the error which is why we are re-throwing, catching so we can prevent side effect fn
-        error = e
-        throw error
-      }
-      if (isObservableCollection(value)) trackObservable(value[$fobx])
-    })
-
-    // should only run comparison and side effects if data function didn't throw
-    if (!error) {
-      changed = firstRun || valuesAreDifferent(options, previousValue, value)
-
-      if (firstRun && options?.fireImmediately) {
-        effectAction(value, previousValue, reaction)
-      } else if (!firstRun && changed) {
-        effectAction(value, previousValue, reaction)
-      }
-    }
-
-    firstRun = false
+  const dispose: Dispose = () => {
+    if (admin._isDisposed) return
+    admin._isDisposed = true
+    removeFromAllDeps(admin)
   }
 
-  runReaction()
-  return () => reaction.dispose()
-}
+  admin = {
+    kind: KIND_REACTION,
+    id,
+    name: options?.name || `Reaction@${id}`,
+    state: STALE,
+    deps: [],
+    _expression: expression as (dispose: Dispose) => Any,
+    _effect: effect as (
+      value: Any,
+      previousValue: Any,
+      dispose: Dispose,
+    ) => void,
+    _comparer: comparer,
+    _isDisposed: false,
+    _isFirst: true,
+    _previousValue: UNDEFINED,
+    _previousChanges: undefined,
+    _dispose: dispose,
+    _fireImmediately: options?.fireImmediately === true,
+    run: _runReaction,
+  }
 
-function valuesAreDifferent(
-  options: ReactionOptions,
-  previous: unknown,
-  current: unknown,
-) {
-  return isDifferent(previous, current, options?.equals ?? options.comparer)
-    ? true
-    : isObservableCollection(current)
-    ? isDifferent(
-      current[$fobx].previous,
-      current[$fobx].current,
-      options?.equals ?? options.comparer,
-    )
-    : false
+  if ($scheduler.batchDepth > 0) {
+    pushPending(admin)
+  } else {
+    safeRunReaction(admin)
+  }
+
+  return dispose
 }

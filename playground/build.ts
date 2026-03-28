@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname!, "..")
 
 // Map workspace bare specifiers → actual file paths
 const workspaceAliases: Record<string, string> = {
-  "@fobx/v2": path.join(root, "v2/index.ts"),
+  "@fobx/core": path.join(root, "v2/index.ts"),
   "@fobx/dom": path.join(root, "dom/index.ts"),
   "@fobx/jsx": path.join(root, "jsx/index.ts"),
   "@fobx/jsx/jsx-runtime": path.join(root, "jsx/jsx-runtime.ts"),

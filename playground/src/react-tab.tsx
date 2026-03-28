@@ -12,19 +12,15 @@ import React from "react"
 // @ts-types="@types/react-dom/client"
 import { createRoot } from "react-dom/client"
 import {
-  array,
   autorun,
-  box,
   computed,
   observable,
+  observableArray,
+  observableBox,
   runInTransaction,
-  withoutTracking,
-} from "../../v2/index.ts"
-import {
-  observer,
-  useViewModel,
-  ViewModel,
-} from "../../reactV2/index.ts"
+  runWithoutTracking,
+} from "../../core/index.ts"
+import { observer, useViewModel, ViewModel } from "../../reactV2/index.ts"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. Counter with ViewModel
@@ -59,11 +55,11 @@ class CounterVM extends ViewModel<{ initial: number; step: number }> {
     this.count = this.props.initial
   }
 
-  onConnect() {
+  override onConnect() {
     addLog("[CounterVM] onConnect — mounted")
   }
 
-  onDisconnect() {
+  override onDisconnect() {
     addLog("[CounterVM] onDisconnect — unmounted")
   }
 }
@@ -104,7 +100,7 @@ interface Todo {
 }
 
 class TodoVM extends ViewModel {
-  items = array<Todo>([])
+  items = observableArray<Todo>([])
   nextId = 1
   inputText = ""
 
@@ -149,11 +145,11 @@ class TodoVM extends ViewModel {
     })
   }
 
-  onConnect() {
+  override onConnect() {
     addLog("[TodoVM] onConnect")
   }
 
-  onDisconnect() {
+  override onDisconnect() {
     addLog("[TodoVM] onDisconnect")
   }
 }
@@ -169,8 +165,9 @@ const TodoList = observer(function TodoList() {
           type="text"
           value={vm.inputText}
           placeholder="Add a todo..."
-          onInput={(e: React.ChangeEvent<HTMLInputElement>) =>
-            (vm.inputText = e.target.value)}
+          onInput={(
+            e: React.ChangeEvent<HTMLInputElement>,
+          ) => (vm.inputText = e.target.value)}
           onKeyDown={(e: React.KeyboardEvent) => {
             if (e.key === "Enter") vm.addTodo()
           }}
@@ -226,14 +223,14 @@ const TodoItem = observer(function TodoItem(props: {
 // 3. Reactive Primitives Demo (box, computed, autorun)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const firstName = box("John")
-const lastName = box("Doe")
+const firstName = observableBox("John")
+const lastName = observableBox("Doe")
 const fullName = computed(() => `${firstName.get()} ${lastName.get()}`)
 const nameLength = computed(() => fullName.get().length)
 
-const logLines = array<string>([])
+const logLines = observableArray<string>([])
 function addLog(msg: string) {
-  withoutTracking(() => {
+  runWithoutTracking(() => {
     const ts = new Date().toLocaleTimeString()
     logLines.push(`[${ts}] ${msg}`)
     if (logLines.length > 50) logLines.splice(0, logLines.length - 50)
@@ -271,8 +268,7 @@ const PrimitivesDemo = observer(function PrimitivesDemo() {
         </div>
       </div>
       <div style={{ fontSize: 14 }}>
-        Full Name: <strong>{fullName.get()}</strong> ({nameLength.get()}{" "}
-        chars)
+        Full Name: <strong>{fullName.get()}</strong> ({nameLength.get()} chars)
       </div>
     </div>
   )
@@ -293,13 +289,13 @@ class LifecycleVM extends ViewModel {
     addLog("[LifecycleVM] constructor")
   }
 
-  onConnect() {
+  override onConnect() {
     this.mountCount++
     this.status = "connected"
     addLog(`[LifecycleVM] onConnect (mount #${this.mountCount})`)
   }
 
-  onDisconnect() {
+  override onDisconnect() {
     this.status = "disconnected"
     addLog("[LifecycleVM] onDisconnect")
   }
@@ -323,7 +319,14 @@ const LifecycleChild = observer(function LifecycleChild() {
   const vm = useViewModel(LifecycleVM)
 
   return (
-    <div style={{ marginTop: 12, padding: 12, background: "#f0f8ff", borderRadius: 4 }}>
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        background: "#f0f8ff",
+        borderRadius: 4,
+      }}
+    >
       Status:{" "}
       <span
         className={`status ${
@@ -384,7 +387,7 @@ const StepController = observer(function StepController() {
       <h2>Prop Sync Demo</h2>
       <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
         Change the "step" prop passed to the Counter above. The ViewModel's
-        <code> update()</code> syncs it reactively.
+        <code>update()</code> syncs it reactively.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span>Step:</span>

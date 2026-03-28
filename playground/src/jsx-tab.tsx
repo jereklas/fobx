@@ -13,12 +13,12 @@
 
 import { Component, dispose, For, Fragment, render } from "../../jsx/index.ts"
 import {
-  array,
-  box,
   computed,
   observable,
+  observableArray,
+  observableBox,
   runInTransaction,
-} from "../../v2/index.ts"
+} from "../../core/index.ts"
 
 const container = document.getElementById("tab-jsx")!
 
@@ -26,7 +26,7 @@ const container = document.getElementById("tab-jsx")!
 // 1. Counter — Functional Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const counterValue = box(0)
+const counterValue = observableBox(0)
 const counterDoubled = computed(() => counterValue.get() * 2)
 
 function CounterFC() {
@@ -60,7 +60,7 @@ function CounterFC() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class TempConverter extends Component<{}> {
-  celsius = box(0)
+  celsius = observableBox(0)
   fahrenheit = computed(() => this.celsius.get() * 9 / 5 + 32)
   kelvin = computed(() => this.celsius.get() + 273.15)
 
@@ -99,9 +99,9 @@ class TempConverter extends Component<{}> {
 // 3. Color Picker — Reactive styles with range sliders
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const red = box(100)
-const green = box(150)
-const blue = box(200)
+const red = observableBox(100)
+const green = observableBox(150)
+const blue = observableBox(200)
 const colorHex = computed(() => {
   const r = Math.max(0, Math.min(255, red.get()))
   const g = Math.max(0, Math.min(255, green.get()))
@@ -112,7 +112,7 @@ const colorHex = computed(() => {
 })
 
 function ColorSlider(
-  props: { label: string; value: ReturnType<typeof box<number>> },
+  props: { label: string; value: ReturnType<typeof observableBox<number>> },
 ) {
   return (
     <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
@@ -180,13 +180,13 @@ interface ListItem {
   name: string
 }
 
-const listItems = array<ListItem>([
+const listItems = observableArray<ListItem>([
   { id: 1, name: "First item" },
   { id: 2, name: "Second item" },
   { id: 3, name: "Third item" },
 ])
 let listNextId = 4
-const listInput = box("")
+const listInput = observableBox("")
 
 function DynamicList() {
   const addItem = () => {
@@ -238,7 +238,7 @@ function DynamicList() {
 // 5. Fragment Demo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const showDetails = box(false)
+const showDetails = observableBox(false)
 
 function FragmentDemo() {
   return (
@@ -278,8 +278,8 @@ function FragmentDemo() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class Stopwatch extends Component<{}> {
-  elapsed = box(0)
-  running = box(false)
+  elapsed = observableBox(0)
+  running = observableBox(false)
   private interval: ReturnType<typeof setInterval> | null = null
 
   formattedTime = computed(() => {

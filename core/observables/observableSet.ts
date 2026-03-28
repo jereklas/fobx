@@ -1,214 +1,321 @@
-import { type IObservableCollectionAdmin, observable } from "./observable.ts"
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers.ts"
-import { $fobx, type Any, getGlobalState } from "../state/global.ts"
-import { isObject, isObservable, isSet } from "../utils/predicates.ts"
-import { trackObservable } from "../transactions/tracking.ts"
-import { runInAction } from "../transactions/action.ts"
-import { sendChange } from "./notifications.ts"
+/**
+ * Observable Set — reactive Set implementation.
+ */
+
 import {
-  type IObservable,
+  $fobx,
+  $scheduler,
+  type Any,
+  defaultComparer,
+  getNextId,
+  hasObservers,
+  KIND_COLLECTION,
+  type ObservableAdmin,
+} from "../state/global.ts"
+import { endBatch, startBatch } from "../transactions/batch.ts"
+import { notifyChanged } from "../state/notifications.ts"
+import { trackAccess } from "../reactions/tracking.ts"
+import {
+  type ObservableBox,
   observableBox,
-  type ObservableBoxWithAdmin,
+  setBoxValue,
 } from "./observableBox.ts"
 
-const globalState = /* @__PURE__ */ getGlobalState()
+// Forward declaration — set after object.ts is loaded
+let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
 
-export type ObservableSetWithAdmin<T = Any> = ObservableSet<T> & {
-  [$fobx]: IObservableCollectionAdmin<T>
+export function setSetProcessValue(
+  fn: <T>(value: T, shallow: boolean) => T,
+): void {
+  _processValue = fn
 }
-export type SetOptions = {
+
+export interface SetOptions {
+  name?: string
   shallow?: boolean
 }
-export class ObservableSet<T = Any> extends Set<T> {
-  #shallow: boolean
-  #observables: Map<T, IObservable<boolean>>
 
-  constructor()
-  constructor(values?: T[], options?: SetOptions)
-  constructor(
-    iterable?: Iterable<unknown> | null | undefined,
-    options?: SetOptions,
-  )
-  constructor(values: T[] = [], options?: SetOptions) {
-    super()
-    const name = `ObservableSet@${globalState.getNextId()}`
-    this.#shallow = options?.shallow ?? false
-    this.#observables = new Map()
+export interface SetAdmin extends ObservableAdmin<undefined> {
+  changes: number
+}
 
-    values.forEach((v) => {
-      this.#add(v)
-    })
-    // assigning the constructor to Set allows for deep compares to correctly compare this against other sets
-    this.constructor = Object.getPrototypeOf(new Set()).constructor
-    Object.defineProperty(this, $fobx, {
-      value: {
-        value: this,
-        name: name,
-        changes: 0,
-        previous: `${name}.0`,
-        current: `${name}.0`,
-        observers: [],
-      },
-    })
-  }
+class ObservableSet<T = unknown> implements Set<T> {
+  private data: Set<T>
+  private options: SetOptions
+  private shallow: boolean
+  private hasMap: Map<T, ObservableBox<boolean>>;
+  [$fobx]: SetAdmin
 
-  override get size(): number {
-    trackObservable((this as unknown as ObservableSetWithAdmin)[$fobx])
-    return super.size
-  }
+  constructor(values?: Iterable<T> | null, options: SetOptions = {}) {
+    const id = getNextId()
+    this.data = new Set()
+    this.hasMap = new Map()
+    this.options = options
+    this.shallow = options.shallow ?? false
+    this[$fobx] = {
+      kind: KIND_COLLECTION,
+      id,
+      name: options.name || `Set@${id}`,
+      value: undefined,
+      observers: null,
+      comparer: defaultComparer,
+      _epoch: 0,
+      changes: 0,
+    }
 
-  override toString(): string {
-    return `[object ObservableSet]`
-  }
-
-  #isObservableTracked(observable: IObservable<boolean>): boolean {
-    const ovAdmin = (observable as ObservableBoxWithAdmin<boolean>)[$fobx]
-    return ovAdmin.observers.length > 0
-  }
-
-  #updateObservable(value: T, exists: boolean): void {
-    const observable = this.#observables.get(value)
-    if (observable) {
-      observable.value = exists
-      // If the value doesn't exist and no one is tracking it, we can safely remove it
-      if (!exists && !this.#isObservableTracked(observable)) {
-        this.#observables.delete(value)
+    if (values != null) {
+      for (const value of values) {
+        this.data.add(_processValue(value, this.shallow))
       }
     }
+
+    this.constructor = Set
   }
 
-  #add(value: T extends Any ? Any : never) {
-    const val = !this.#shallow && isObject(value) && !isObservable(value)
-      ? (observable(value) as T)
-      : value
-    super.add(val)
+  has(value: T): boolean {
+    if ($scheduler.tracking === null) return this.data.has(value)
+
+    let hasBox = this.hasMap.get(value)
+    if (!hasBox) {
+      hasBox = observableBox(this.data.has(value), {
+        name: `${this[$fobx].name}.has(${String(value)})`,
+      })
+      this.hasMap.set(value, hasBox)
+
+      // Cleanup when unobserved (prevents memory leaks)
+      const hmRef = this.hasMap
+      const valRef = value
+      hasBox[$fobx].onLoseObserver = () => {
+        if (!hasObservers(hasBox![$fobx])) {
+          hmRef.delete(valRef)
+        }
+      }
+    }
+
+    return hasBox.get()
   }
 
-  override add(value: T): this {
-    if (super.has(value)) return this
-    const admin = (this as unknown as ObservableSetWithAdmin)[$fobx]
+  add(value: T): this {
+    if (this.data.has(value)) return this
 
-    runInAction(() => {
-      this.#add(value)
-      this.#updateObservable(value, true)
-      incrementChangeCount(admin)
-      sendChange(admin)
-    })
+    const processedValue = _processValue(value, this.shallow)
+    this.data.add(processedValue)
+
+    const hasBox = this.hasMap.get(value)
+    if (hasBox) setBoxValue(hasBox[$fobx], true)
+
+    this[$fobx].changes++
+    notifyChanged(this[$fobx])
     return this
   }
 
-  override clear(this: ObservableSet) {
-    const admin = (this as ObservableSetWithAdmin)[$fobx]
-    runInAction(() => {
-      super.clear()
+  delete(value: T): boolean {
+    if (!this.data.has(value)) return false
+    this.data.delete(value)
 
-      // Set all observables to false but only keep the ones being tracked
-      this.#observables.forEach((observable, value) => {
-        observable.value = false
-        if (!this.#isObservableTracked(observable)) {
-          this.#observables.delete(value)
-        }
+    const hasBox = this.hasMap.get(value)
+    if (hasBox) setBoxValue(hasBox[$fobx], false)
+
+    this[$fobx].changes++
+    notifyChanged(this[$fobx])
+    return true
+  }
+
+  clear(): void {
+    if (this.data.size === 0) return
+    startBatch()
+    try {
+      this.data.clear()
+      this.hasMap.forEach((hasBox) => {
+        setBoxValue(hasBox[$fobx], false)
       })
-
-      incrementChangeCount(admin)
-      sendChange(admin)
-    })
-  }
-
-  override delete(this: ObservableSet, value: T): boolean {
-    const admin = (this as ObservableSetWithAdmin)[$fobx]
-    return runInAction(() => {
-      const result = super.delete(value)
-      if (result) {
-        this.#updateObservable(value, false)
-        incrementChangeCount(admin)
-        sendChange(admin)
-      }
-      return result
-    })
-  }
-
-  override forEach(
-    this: ObservableSet,
-    callbackFn: (value: T, key: T, map: Set<T>) => void,
-    thisArg?: unknown,
-  ) {
-    trackObservable((this as ObservableSetWithAdmin)[$fobx])
-    super.forEach(callbackFn, thisArg)
-  }
-
-  override has(this: ObservableSet, value: T): boolean {
-    // Get or create observable for this value and track it
-    let observable = this.#observables.get(value)
-    if (!observable) {
-      observable = observableBox(super.has(value))
-      this.#observables.set(value, observable)
+      this[$fobx].changes++
+      notifyChanged(this[$fobx])
+    } finally {
+      endBatch()
     }
-
-    trackObservable((observable as ObservableBoxWithAdmin<boolean>)[$fobx])
-    return observable.value
   }
 
-  replace(this: ObservableSet, entries: Set<T> | T[]) {
-    const admin = (this as ObservableSetWithAdmin)[$fobx]
-    const removed = new Set(this)
-    if (!Array.isArray(entries) && !isSet(entries)) {
+  get size(): number {
+    trackAccess(this[$fobx])
+    return this.data.size
+  }
+
+  values(): SetIterator<T> {
+    const admin = this[$fobx]
+    const iterator = this.data.values()
+    const origNext = iterator.next.bind(iterator)
+    let tracked = false
+    Object.defineProperty(iterator, "next", {
+      value: function () {
+        if (!tracked) {
+          tracked = true
+          trackAccess(admin)
+        }
+        return origNext()
+      },
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    })
+    return iterator
+  }
+
+  keys(): SetIterator<T> {
+    return this.values()
+  }
+
+  entries(): SetIterator<[T, T]> {
+    const admin = this[$fobx]
+    const iterator = this.data.entries()
+    const origNext = iterator.next.bind(iterator)
+    let tracked = false
+    Object.defineProperty(iterator, "next", {
+      value: function () {
+        if (!tracked) {
+          tracked = true
+          trackAccess(admin)
+        }
+        return origNext()
+      },
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    })
+    return iterator
+  }
+
+  [Symbol.iterator](): SetIterator<T> {
+    return this.values()
+  }
+
+  forEach(
+    callback: (value: T, value2: T, set: Set<T>) => void,
+    thisArg?: unknown,
+  ): void {
+    trackAccess(this[$fobx])
+    this.data.forEach((value) => {
+      callback.call(thisArg, value, value, this)
+    })
+  }
+
+  replace(values: Iterable<T> | T[]): void {
+    if (values == null || typeof values !== "object") {
       throw new Error(
-        `[@fobx/core] Supplied entries was not a Set or an Array.`,
+        "[@fobx/core] Supplied entries was not a Set or an Array.",
+      )
+    }
+    if (
+      !Array.isArray(values) &&
+      typeof (values as Any)[Symbol.iterator] !== "function"
+    ) {
+      throw new Error(
+        "[@fobx/core] Supplied entries was not a Set or an Array.",
       )
     }
 
-    runInAction(() => {
-      // Mark all current values as removed (set to false)
-      removed.forEach((value) => {
-        this.#updateObservable(value, false)
-      })
-      super.clear()
+    startBatch()
+    try {
+      const valuesArray = Array.isArray(values) ? values : Array.from(values)
+      const newValues = new Set(
+        valuesArray.map((v) => _processValue(v, this.shallow)),
+      )
 
-      // Add new values
-      entries.forEach((v) => {
-        if (removed.has(v)) {
-          removed.delete(v)
+      const toDelete: T[] = []
+      this.data.forEach((value) => {
+        if (!newValues.has(value)) toDelete.push(value)
+      })
+
+      const toAdd: T[] = []
+      newValues.forEach((value) => {
+        if (!this.data.has(value)) toAdd.push(value)
+      })
+
+      let orderChanged = false
+      if (toDelete.length === 0 && toAdd.length === 0) {
+        const currentValues = Array.from(this.data)
+        const newValuesArray = Array.from(newValues)
+        if (currentValues.length === newValuesArray.length) {
+          for (let i = 0; i < currentValues.length; i++) {
+            if (currentValues[i] !== newValuesArray[i]) {
+              orderChanged = true
+              break
+            }
+          }
         }
-        super.add(v)
-        this.#updateObservable(v, true)
-      })
+      }
 
-      // Cleanup unused observables
-      this.#observables.forEach((observable, value) => {
-        if (!super.has(value) && !this.#isObservableTracked(observable)) {
-          this.#observables.delete(value)
+      const hasChanges = toDelete.length > 0 || toAdd.length > 0 || orderChanged
+
+      if (hasChanges) {
+        toDelete.forEach((value) => {
+          this.data.delete(value)
+          const hasBox = this.hasMap.get(value)
+          if (hasBox) setBoxValue(hasBox[$fobx], false)
+        })
+
+        if (orderChanged) {
+          this.data.clear()
+          newValues.forEach((value) => {
+            this.data.add(value)
+          })
+        } else {
+          toAdd.forEach((value) => {
+            this.data.add(value)
+            const hasBox = this.hasMap.get(value)
+            if (hasBox) setBoxValue(hasBox[$fobx], true)
+          })
         }
-      })
 
-      incrementChangeCount(admin)
-      sendChange(admin)
-    })
+        this[$fobx].changes++
+        notifyChanged(this[$fobx])
+      }
+    } finally {
+      endBatch()
+    }
   }
 
-  toJSON(this: ObservableSet): T[] {
-    trackObservable((this as ObservableSetWithAdmin)[$fobx])
-    return Array.from(super.values())
+  toJSON(): T[] {
+    trackAccess(this[$fobx])
+    return Array.from(this.data)
   }
 
-  override entries(this: ObservableSet): SetIterator<[T, T]> {
-    return wrapIteratorForTracking(
-      super.entries(),
-      (this as ObservableSetWithAdmin)[$fobx],
-    ) as SetIterator<[T, T]>
+  toString(): string {
+    return "[object ObservableSet]"
   }
 
-  override keys(this: ObservableSet): SetIterator<T> {
-    return wrapIteratorForTracking(
-      super.keys(),
-      (this as ObservableSetWithAdmin)[$fobx],
-    ) as SetIterator<T>
+  get [Symbol.toStringTag](): string {
+    return "Set"
   }
 
-  override values(this: ObservableSet): SetIterator<T> {
-    return wrapIteratorForTracking(
-      super.values(),
-      (this as ObservableSetWithAdmin)[$fobx],
-    ) as SetIterator<T>
+  union<U>(other: ReadonlySetLike<U>): Set<T | U> {
+    return new Set(this).union(other)
+  }
+  intersection<U>(other: ReadonlySetLike<U>): Set<T & U> {
+    return new Set(this).intersection(other)
+  }
+  difference<U>(other: ReadonlySetLike<U>): Set<T> {
+    return new Set(this).difference(other)
+  }
+  symmetricDifference<U>(other: ReadonlySetLike<U>): Set<T | U> {
+    return new Set(this).symmetricDifference(other)
+  }
+  isSubsetOf(other: ReadonlySetLike<unknown>): boolean {
+    return new Set(this).isSubsetOf(other)
+  }
+  isSupersetOf(other: ReadonlySetLike<unknown>): boolean {
+    return new Set(this).isSupersetOf(other)
+  }
+  isDisjointFrom(other: ReadonlySetLike<unknown>): boolean {
+    return new Set(this).isDisjointFrom(other)
   }
 }
+
+export function observableSet<T = unknown>(
+  values?: Iterable<T> | null,
+  options: SetOptions = {},
+): ObservableSet<T> {
+  return new ObservableSet(values, options)
+}
+
+export type { ObservableSet }

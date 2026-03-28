@@ -1,4 +1,4 @@
-import { getPropertyDescriptions } from "../helpers.ts"
+import * as fobx from "../../index.ts"
 import { expect, test } from "@fobx/testing"
 
 test("property descriptor", () => {
@@ -31,52 +31,17 @@ test("property descriptor", () => {
   }
 
   const instance = new TestClass()
-  const testClassProto = Object.getPrototypeOf(instance)
-  const baseProto = Object.getPrototypeOf(testClassProto)
+  fobx.observable(instance)
 
-  const descriptions = getPropertyDescriptions(instance, "class")
-  expect(descriptions.map((d) => d.key).toSorted()).toEqual([
-    "baseMethod",
-    "baseValue",
-    "generator",
-    "getter",
-    "method",
-    "setter",
-    "value",
-  ])
+  expect(fobx.isObservable(instance, "baseValue")).toBe(true)
+  expect(fobx.isObservable(instance, "value")).toBe(true)
+  expect(fobx.isComputed(instance, "getter")).toBe(true)
+  expect(fobx.isTransaction(instance.baseMethod)).toBe(true)
+  expect(fobx.isTransaction(instance.method)).toBe(true)
+  expect(fobx.isFlow(instance.generator)).toBe(true)
 
-  // instance descriptors
-  expect(
-    descriptions.filter((d) => d.level === 0).map((d) => ({
-      key: d.key,
-      proto: d.prototype,
-    })),
-  ).toStrictEqual([
-    { key: "baseValue", proto: null },
-    { key: "value", proto: null },
-  ])
-
-  // TestClass descriptors
-  expect(
-    descriptions.filter((d) => d.level === 1).map((d) => ({
-      key: d.key,
-      proto: d.prototype,
-    })),
-  ).toStrictEqual([
-    { key: "method", proto: testClassProto },
-    { key: "getter", proto: testClassProto },
-    { key: "setter", proto: testClassProto },
-    { key: "generator", proto: testClassProto },
-  ])
-
-  // Base descriptors
-  expect(
-    descriptions.filter((d) => d.level === 2).map((d) => ({
-      key: d.key,
-      proto: d.prototype,
-    })),
-  ).toStrictEqual([
-    { key: "baseMethod", proto: baseProto },
-    // Note: "getter" is not included here because it was found earlier in the prototype chain
-  ])
+  expect(instance.getter).toBe(84)
+  instance.value = 10
+  expect(instance.value).toBe(10)
+  expect(instance.getter).toBe(20)
 })

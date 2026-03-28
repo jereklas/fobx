@@ -19,13 +19,19 @@
     "@fobx/core": ">=0.10.0",
     "react": ">=18"
   },
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+  },
   /* everything below this is replaced in build.ts */
   "exports": {
     ".": "./index.ts"
   },
   "imports": {
     "@types/react": "npm:@types/react@^18.0.0",
-    "react": "npm:react@^18.0.0"
+    "@types/react-dom": "npm:@types/react-dom@^18.0.0",
+    "react": "npm:react@^18.0.0",
+    "react-dom": "npm:react-dom@^18.0.0",
+    "react-dom/client": "npm:react-dom@^18.0.0/client"
   },
   "tasks": {
     "lint": "deno lint",

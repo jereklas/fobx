@@ -18,8 +18,7 @@
  * ```
  */
 
-import { el } from "../dom/element.ts"
-import { appendChildNode } from "../dom/reactive.ts"
+import { el } from "@fobx/dom"
 import { Component } from "./component.ts"
 
 /**

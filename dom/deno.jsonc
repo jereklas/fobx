@@ -1,5 +1,13 @@
 {
   "name": "@fobx/dom",
   "version": "0.1.0",
-  "exports": "./index.ts"
+  "exports": "./index.ts",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-slow-types"]
+    }
+  }
 }

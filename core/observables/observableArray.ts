@@ -1,396 +1,425 @@
-import { type IObservableCollectionAdmin, observable } from "./observable.ts"
-import { endAction, runInAction, startAction } from "../transactions/action.ts"
-import { incrementChangeCount, wrapIteratorForTracking } from "./helpers.ts"
-import { $fobx, type Any, getGlobalState } from "../state/global.ts"
-import { isObject, isObservable } from "../utils/predicates.ts"
-import { trackObservable } from "../transactions/tracking.ts"
-import { instanceState, isDifferent } from "../state/instance.ts"
-import { sendChange } from "./notifications.ts"
-import type { EqualityOptions } from "./observableBox.ts"
+/**
+ * Observable Array — reactive array backed by a Proxy.
+ *
+ * Method wrappers are cached per-instance (created once, not per access).
+ */
 
-const globalState = /* @__PURE__ */ getGlobalState()
+import {
+  $fobx,
+  $scheduler,
+  type Any,
+  type EqualityComparison,
+  getNextId,
+  KIND_COLLECTION,
+  type ObservableAdmin,
+} from "../state/global.ts"
+import { resolveComparer } from "../state/instance.ts"
+import { notifyChanged } from "../state/notifications.ts"
+import { trackAccess } from "../reactions/tracking.ts"
 
-export interface ArrayOptions extends EqualityOptions {
+// Forward declaration — set after object.ts is loaded to break circular dep
+let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
+
+export function setProcessValue(
+  fn: <T>(value: T, shallow: boolean) => T,
+): void {
+  _processValue = fn
+}
+
+export interface ArrayOptions {
+  name?: string
+  comparer?: EqualityComparison
   shallow?: boolean
 }
 
-export interface ObservableArrayWithAdmin<T = Any> extends ObservableArray<T> {
-  [$fobx]: IObservableArrayAdmin
-}
-export interface ObservableArray<T = Any> extends Array<T> {
-  replace: (newArray: T[]) => T[]
-  remove: (item: T) => number
-  clear: () => T[]
-  toJSON: () => T[]
-}
-export interface IObservableArrayAdmin<T = Any>
-  extends IObservableCollectionAdmin<T> {
-  runningAction: string
-  temp: T[]
+export interface ArrayAdmin<T = unknown> extends ObservableAdmin<T[]> {
+  shallow: boolean
+  changes: number
 }
 
-export function createObservableArray<T = Any>(
-  initialValue: T[] = [],
-  options?: ArrayOptions,
-) {
-  const shallow = options?.shallow ?? false
-  const equalityOptions = {
-    equals: options?.equals,
-    comparer: options?.comparer,
-  }
-  const arr: T[] = []
-  // have to use for-loop as forEach ignores empty slots (i.e. observable(new Array(10)) wont correctly be length 10)
-  for (let i = 0; i < initialValue.length; i += 1) {
-    arr.push(
-      !shallow && isObject(initialValue[i]) && !isObservable(initialValue[i])
-        ? (observable(initialValue[i] as Any, equalityOptions) as T)
-        : initialValue[i],
-    )
-  }
-  const internalName = `ObservableArray@${globalState.getNextId()}`
-  const admin: IObservableArrayAdmin<T[]> = {
-    value: arr,
-    temp: [],
-    name: internalName,
-    observers: [],
-    changes: 0,
-    previous: `${internalName}.0`,
-    current: `${internalName}.0`,
-    runningAction: "",
-  }
-  Object.defineProperties(arr, {
-    [$fobx]: { value: admin },
-    remove: { value: remove, writable: true },
-    replace: { value: replace, writable: true },
-    clear: { value: clear, writable: true },
-    toJSON: { value: toJSON, writable: true },
-  })
-
-  return new Proxy(arr as ObservableArrayWithAdmin, {
-    get(target, prop, proxy) {
-      if (typeof prop === "symbol") {
-        if (prop === $fobx) return admin
-        if (prop === Symbol.iterator) {
-          trackObservable(admin)
-          // binding the function to force the iterator through the non-proxied array for performance
-          return target.values.bind(target)
-        }
-        return target[prop as keyof typeof target]
-      }
-      if (prop === "length" || isIndex(prop)) {
-        trackObservable(admin)
-      }
-
-      // Special handling for constructor to preserve Array.prototype.constructor
-      if (prop === "constructor") {
-        return Array
-      }
-
-      const value = target[prop as keyof typeof target]
-      if (typeof value === "function") {
-        if (noArgFns.has(prop)) {
-          return () => {
-            let result
-            if (globalState.reactionContext && prop === "reverse") {
-              const alternative = mutationFns[prop]
-              throw new Error(
-                `[@fobx/core] "observableArray.reverse" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`,
-              )
-            }
-
-            try {
-              startFnCall(admin, prop)
-              if (prop === "entries") {
-                result = wrapIteratorForTracking(target.entries(), admin)
-              } else if (prop === "keys") {
-                result = wrapIteratorForTracking(target.keys(), admin)
-              } else if (prop === "values") {
-                result = wrapIteratorForTracking(target.values(), admin)
-              } else result = value.call(target)
-            } finally {
-              endFnCall(admin, prop, result)
-            }
-            return result
-          }
-        }
-        if (singleArgFns.has(prop)) {
-          return (a: Any) => {
-            let result
-            if (globalState.reactionContext && prop === "sort") {
-              const alternative = mutationFns[prop]
-              throw new Error(
-                `[@fobx/core] "observableArray.${prop}" mutates state in-place, which cannot happen in a reaction. Use "${alternative}" instead.`,
-              )
-            }
-
-            try {
-              startFnCall(admin, prop)
-              result = value.call(target, a)
-            } finally {
-              endFnCall(admin, prop, result)
-            }
-            return result
-          }
-        }
-        if (twoArgFns.has(prop)) {
-          return (a: Any, b: Any) => {
-            let result
-            try {
-              startFnCall(admin, prop)
-              result = value.call(target, a, b)
-            } finally {
-              endFnCall(admin, prop, result)
-            }
-            return result
-          }
-        }
-        if (threeArgFns.has(prop)) {
-          return (a: Any, b: Any, c: Any) => {
-            let result
-            try {
-              startFnCall(admin, prop)
-              if (prop === "copyWithin") {
-                // copyWithin doesn't give access to removed elements, so we need to take the performance
-                // hit and pass it through the proxy so that the set trap observes each index that gets re-assigned.
-                result = value.call(proxy, a, b, c)
-              } else {
-                result = value.call(target, a, b, c)
-              }
-            } finally {
-              endFnCall(admin, prop, result)
-            }
-            return result
-          }
-        }
-        return (...args: Any[]) => {
-          let result
-          try {
-            startFnCall(admin, prop)
-            if (prop === "push" || prop === "unshift" || prop === "splice") {
-              const start = prop === "splice" ? 2 : 0
-              for (let i = start; i < args.length; i += 1) {
-                args[i] = convertValue(args[i], shallow, equalityOptions)
-              }
-              result = value.apply(target, args)
-            } else if (prop === "replace") {
-              for (let i = 0; i < args[0].length; i += 1) {
-                args[0][i] = convertValue(args[0][i], shallow, equalityOptions)
-              }
-              result = value.apply(target, args)
-            } else {
-              result = value.apply(target, args)
-            }
-          } finally {
-            endFnCall(admin, prop, result, args.length)
-          }
-          return result
-        }
-      } else {
-        return value
-      }
-    },
-    set(target, prop, newValue) {
-      if (admin.runningAction === "copyWithin") {
-        admin.temp.push(target[prop as unknown as number])
-        target[prop as unknown as number] = newValue
-      } else {
-        const fn = equalityOptions?.equals ?? equalityOptions.comparer
-        if (!isDifferent(target[prop as unknown as number], newValue, fn)) {
-          return true
-        }
-        incrementChangeCount(admin)
-
-        runInAction(() => {
-          target[prop as unknown as number] = prop === "length"
-            ? newValue
-            : convertValue(newValue, shallow, equalityOptions)
-          sendChange(admin)
-        })
-      }
-
-      return true
-    },
-  })
+export interface ObservableArray<T> extends Array<T> {
+  [$fobx]: ArrayAdmin<T>
+  replace(newArray: T[]): T[]
+  remove(item: T): number
+  clear(): T[]
+  toJSON(): T[]
 }
 
-const noArgFns = new Set([
-  "entries",
-  "keys",
-  "pop",
-  "reverse",
-  "shift",
-  "toLocaleString",
-  "toReversed",
-  "toString",
-  "values",
-])
-const singleArgFns = new Set(["at", "flat", "join", "sort", "toSorted"])
-const twoArgFns = new Set([
-  "every",
-  "filter",
-  "find",
-  "findIndex",
-  "findLast",
-  "findLastIndex",
-  "flatMap",
-  "forEach",
-  "includes",
-  "indexOf",
-  "lastIndexOf",
-  "map",
-  "slice",
-  "some",
-  "with",
-])
-const threeArgFns = new Set(["copyWithin", "fill"])
+const MAX_SPLICE_SIZE = 10000
 
-function convertValue<T>(
-  value: T,
-  shallow: boolean,
-  equalityOptions: EqualityOptions,
-): T {
-  if (shallow) return value
-  return isObject(value) && !isObservable(value)
-    ? (observable(value as Any, equalityOptions) as T)
-    : value
-}
-
-function toJSON<T>(this: ObservableArrayWithAdmin<T>) {
-  const admin = this[$fobx]
-  trackObservable(admin)
-  return admin.value
-}
-
-function replace<T>(this: ObservableArrayWithAdmin<T>, newArray: T[]) {
-  const originalLength = this.length
-  const removed: T[] = []
-  let i = 0
-  for (const len = newArray.length; i < len; i += 1) {
-    if (i < originalLength) {
-      removed.push(this[i])
-    }
-    this[i] = newArray[i]
-  }
-
-  // original length of list was longer than new list, remove remaining
-  while (i < originalLength) {
-    removed.push(this.pop()!)
-    i++
-  }
-  return removed
-}
-
-function remove<T>(this: ObservableArrayWithAdmin<T>, item: T) {
-  const len = this.length
-  let indexFound = -1
-  let i = 0
-
-  while (indexFound === -1 && i < len) {
-    if (this[i] === item) {
-      indexFound = i
-    } else {
-      i++
-    }
-  }
-
-  for (const last = len - 1; i < last; i += 1) {
-    this[i] = this[i + 1]
-  }
-
-  if (indexFound !== -1) {
-    this.pop()
-  }
-  return indexFound
-}
-
-function clear<T>(this: ObservableArrayWithAdmin<T>) {
-  const removed = this.slice()
-  this.length = 0
-  return removed
-}
-
-const mutationFns = /* @__PURE__ */ Object.freeze(
-  /* @__PURE__ */ Object.create(null, {
-    copyWithin: { value: "arr.slice().copyWithin()" },
-    fill: { value: "arr.slice().fill()" },
-    pop: { value: "arr.slice(0,-1)" },
-    push: { value: "arr.concat([v1,v2,...])" },
-    reverse: { value: "arr.toReversed()" },
-    shift: { value: "arr.slice(1)" },
-    sort: { value: "arr.toSorted()" },
-    splice: { value: "arr.toSpliced()" },
-    unshift: { value: "arr.toSpliced(0,0,v1,v2,...)" },
-    // custom mutation function
-    replace: { value: "none" },
-    remove: { value: "none" },
-    clear: { value: "none" },
-  }),
-)
-
-// this was the most performant way of identifying if a prop name was a direct index access
-const numbers = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
-const isIndex = (key: string | symbol) => {
-  if (typeof key === "symbol") return false
-  for (let i = 0; i < key.length; i += 1) {
-    if (!numbers.has(key[i])) return false
+function isNumericIndex(key: string): boolean {
+  const code = key.charCodeAt(0)
+  if (code < 48 || code > 57) return false
+  if (key.length === 1) return true
+  for (let i = 1; i < key.length; i++) {
+    const c = key.charCodeAt(i)
+    if (c < 48 || c > 57) return false
   }
   return true
 }
 
-const startFnCall = (admin: IObservableArrayAdmin, prop: string) => {
-  const alternative = mutationFns[prop]
-  if (
-    prop !== "entries" && prop !== "values" && prop !== "keys" && !alternative
-  ) {
-    trackObservable(admin)
-  }
-  if (!alternative) return
+export function observableArray<T>(
+  initialValue: T[] = [],
+  options: ArrayOptions = {},
+): ObservableArray<T> {
+  const id = getNextId()
+  const shallow = options.shallow ?? false
 
-  if (
-    // deno-lint-ignore no-process-global
-    process.env.NODE_ENV !== "production" &&
-    instanceState.enforceActions &&
-    globalState.batchedActionsCount === 0 &&
-    admin.observers.length > 0
-  ) {
-    console.warn(
-      `[@fobx/core] ${admin.name}.${prop}(...) was called outside of an action which is discouraged as reactions run more frequently than necessary.`,
-    )
-  }
-  admin.runningAction = prop
-  startAction()
-}
-
-const endFnCall = (
-  admin: IObservableArrayAdmin,
-  prop: string,
-  result: Any,
-  argsLength = 0,
-) => {
-  if (!mutationFns[prop]) return
-  const arr = admin.value as Array<unknown>
-
-  switch (prop) {
-    case "copyWithin":
-      incrementChangeCount(admin)
-      sendChange(admin)
-      admin.temp.length = 0
-      break
-
-    case "splice":
-      if (result.length === 0 && argsLength < 3) break
-      /* falls through */
-    case "pop":
-      if (result === undefined && arr.length === 0) break
-      /* falls through */
-    case "remove":
-      if (result === -1) break
-      /* falls through */
-    default:
-      incrementChangeCount(admin)
-      sendChange(admin)
+  const arr: T[] = []
+  for (let i = 0; i < initialValue.length; i++) {
+    arr[i] = initialValue[i]
   }
 
-  endAction()
-  admin.runningAction = ""
+  const admin: ArrayAdmin<T> = {
+    kind: KIND_COLLECTION,
+    id,
+    name: options.name || `Array@${id}`,
+    value: arr,
+    observers: null,
+    comparer: resolveComparer(options.comparer),
+    _epoch: 0,
+    shallow,
+    changes: 0,
+  }
+
+  if (!shallow) {
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = _processValue(arr[i], shallow)
+    }
+  }
+
+  // ─── Cached method wrappers ────────────────────────────────────────────────
+  // Null prototype avoids Object.prototype.toString/valueOf false positives
+  const methodCache: Record<string, ((...args: Any[]) => Any) | undefined> =
+    Object.create(null)
+
+  function getOrCreateMethod(
+    prop: string,
+    fn: (...args: Any[]) => Any,
+  ): (...args: Any[]) => Any {
+    let cached = methodCache[prop]
+    if (cached) return cached
+    cached = createMethod(prop, fn)
+    methodCache[prop] = cached
+    return cached
+  }
+
+  function createMethod(
+    method: string,
+    fn: (...args: Any[]) => Any,
+  ): (...args: Any[]) => Any {
+    switch (method) {
+      case "push":
+        return function (...items: Any[]) {
+          if (!admin.shallow) {
+            for (let i = 0; i < items.length; i++) {
+              items[i] = _processValue(items[i], admin.shallow)
+            }
+          }
+          const result = arr.push(...items)
+          admin.changes++
+          notifyChanged(admin)
+          return result
+        }
+      case "pop":
+        return function () {
+          const len = arr.length
+          const result = arr.pop()
+          if (len > 0) {
+            admin.changes++
+            notifyChanged(admin)
+          }
+          return result
+        }
+      case "shift":
+        return function () {
+          const len = arr.length
+          const result = arr.shift()
+          if (len > 0) {
+            admin.changes++
+            notifyChanged(admin)
+          }
+          return result
+        }
+      case "unshift":
+        return function (...items: Any[]) {
+          if (!admin.shallow) {
+            for (let i = 0; i < items.length; i++) {
+              items[i] = _processValue(items[i], admin.shallow)
+            }
+          }
+          const result = arr.unshift(...items)
+          admin.changes++
+          notifyChanged(admin)
+          return result
+        }
+      case "splice":
+        return function (start: number, deleteCount?: number, ...items: Any[]) {
+          if (!admin.shallow && items.length > 0) {
+            for (let i = 0; i < items.length; i++) {
+              items[i] = _processValue(items[i], admin.shallow)
+            }
+          }
+          let result: Any[]
+          if (items.length < MAX_SPLICE_SIZE) {
+            result = arr.splice(start, deleteCount ?? 0, ...items)
+          } else {
+            const index = start < 0
+              ? Math.max(0, arr.length + start)
+              : Math.min(start, arr.length)
+            const delCount = deleteCount === undefined
+              ? arr.length - index
+              : Math.max(0, deleteCount)
+            result = arr.slice(index, index + delCount)
+            const tail = arr.slice(index + delCount)
+            arr.length = index + items.length + tail.length
+            for (let i = 0; i < items.length; i++) arr[index + i] = items[i]
+            for (let i = 0; i < tail.length; i++) {
+              arr[index + items.length + i] = tail[i]
+            }
+          }
+          if (result.length > 0 || items.length > 0) {
+            admin.changes++
+            notifyChanged(admin)
+          }
+          return result
+        }
+      case "reverse":
+        return function () {
+          if ($scheduler.tracking !== null) {
+            throw new Error(
+              `[${admin.name}] reverse() mutates in-place and cannot be called in a reaction. Use toReversed() instead.`,
+            )
+          }
+          const result = arr.reverse()
+          admin.changes++
+          notifyChanged(admin)
+          return result
+        }
+      case "sort":
+        return function (compareFn?: (a: Any, b: Any) => number) {
+          if ($scheduler.tracking !== null) {
+            throw new Error(
+              `[${admin.name}] sort() mutates in-place and cannot be called in a reaction. Use toSorted() instead.`,
+            )
+          }
+          const result = arr.sort(compareFn)
+          admin.changes++
+          notifyChanged(admin)
+          return result
+        }
+      case "fill":
+        return function (value: Any, start?: number, end?: number) {
+          const processedValue = _processValue(value, admin.shallow)
+          arr.fill(processedValue, start, end)
+          admin.changes++
+          notifyChanged(admin)
+          return proxy
+        }
+      case "copyWithin":
+        return function (target: number, start: number, end?: number) {
+          arr.copyWithin(target, start, end)
+          admin.changes++
+          notifyChanged(admin)
+          return proxy
+        }
+      // Iteration methods — track once, delegate to backing array
+      case "forEach":
+      case "map":
+      case "filter":
+      case "find":
+      case "findIndex":
+      case "findLast":
+      case "findLastIndex":
+      case "some":
+      case "every":
+      case "reduce":
+      case "reduceRight":
+      case "flat":
+      case "flatMap":
+        return function (...args: Any[]) {
+          trackAccess(admin)
+          return fn.apply(arr, args)
+        }
+      // Read methods — track once
+      case "at":
+      case "includes":
+      case "indexOf":
+      case "lastIndexOf":
+      case "join":
+      case "toString":
+      case "toLocaleString":
+      case "slice":
+      case "concat":
+      case "toReversed":
+      case "toSorted":
+      case "toSpliced":
+      case "with":
+        return function (...args: Any[]) {
+          trackAccess(admin)
+          return fn.apply(arr, args)
+        }
+      // Iterator methods — lazy tracking
+      case "entries":
+      case "keys":
+      case "values":
+        return function (...args: Any[]) {
+          const iterator = fn.apply(arr, args)
+          let tracked = false
+          return {
+            next() {
+              if (!tracked) {
+                tracked = true
+                trackAccess(admin)
+              }
+              return iterator.next()
+            },
+            [Symbol.iterator]() {
+              return this
+            },
+          }
+        }
+      default:
+        return function (...args: Any[]) {
+          return fn.apply(arr, args)
+        }
+    }
+  }
+
+  // Track user-defined property overrides (e.g. Object.defineProperty(ar, "toString", ...))
+  // Null prototype avoids Object.prototype.toString/valueOf false positives
+  const userProps: Record<string | symbol, PropertyDescriptor> = Object.create(
+    null,
+  )
+
+  // Custom methods bound to proxy
+  function replace(newArray: T[]): T[] {
+    const oldLength = arr.length
+    const newLength = newArray.length
+    const removed: T[] = []
+    const processedValues = newArray.map((v) => _processValue(v, admin.shallow))
+
+    if (newLength > MAX_SPLICE_SIZE) {
+      for (let i = 0; i < oldLength; i++) removed.push(arr[i])
+      arr.length = 0
+      for (let i = 0; i < newLength; i += MAX_SPLICE_SIZE) {
+        const chunk = processedValues.slice(i, i + MAX_SPLICE_SIZE)
+        arr.push(...chunk)
+      }
+    } else {
+      const removedItems = arr.splice(0, oldLength, ...processedValues)
+      removed.push(...removedItems)
+    }
+    admin.changes++
+    notifyChanged(admin)
+    return removed
+  }
+
+  function remove(item: T): number {
+    const index = arr.indexOf(item)
+    if (index === -1) return -1
+    arr.splice(index, 1)
+    admin.changes++
+    notifyChanged(admin)
+    return index
+  }
+
+  function clear(): T[] {
+    const removed = arr.slice()
+    arr.length = 0
+    admin.changes++
+    notifyChanged(admin)
+    return removed
+  }
+
+  function toJSON(): T[] {
+    trackAccess(admin)
+    return arr.slice()
+  }
+
+  const proxy = new Proxy(arr as Any, {
+    get(_target: Any, prop: string | symbol): Any {
+      // Numeric indices first (hottest path)
+      if (typeof prop === "string" && isNumericIndex(prop)) {
+        if ($scheduler.tracking !== null) trackAccess(admin)
+        return arr[prop as Any]
+      }
+      if (prop === "length") {
+        if ($scheduler.tracking !== null) trackAccess(admin)
+        return arr.length
+      }
+      if (prop === $fobx) return admin
+
+      // Check user-defined property overrides BEFORE built-in methods
+      // This allows Object.defineProperty(arr, "toString", ...) to work
+      const userProp = userProps[prop as string]
+      if (userProp) {
+        if (userProp.get) return userProp.get.call(proxy)
+        return userProp.value
+      }
+
+      if (prop === "replace") return replace.bind(proxy)
+      if (prop === "remove") return remove.bind(proxy)
+      if (prop === "clear") return clear.bind(proxy)
+      if (prop === "toJSON") return toJSON.bind(proxy)
+      if (prop === Symbol.iterator) {
+        return function () {
+          trackAccess(admin)
+          return arr[Symbol.iterator]()
+        }
+      }
+
+      const value = arr[prop as Any]
+      if (typeof value === "function") {
+        return getOrCreateMethod(
+          prop as string,
+          value as (...args: Any[]) => Any,
+        )
+      }
+      return value
+    },
+
+    set(_target: Any, prop: string | symbol, newValue: Any): boolean {
+      if (prop === "length") {
+        const oldLength = arr.length
+        if (newValue !== oldLength) {
+          arr.length = newValue
+          admin.changes++
+          notifyChanged(admin)
+        }
+        return true
+      }
+      if (typeof prop === "string" && isNumericIndex(prop)) {
+        const index = prop as Any
+        const oldValue = arr[index]
+        if (admin.comparer(oldValue, newValue)) return true
+        arr[index] = _processValue(newValue, admin.shallow)
+        admin.changes++
+        notifyChanged(admin)
+        return true
+      }
+      _target[prop] = newValue
+      return true
+    },
+
+    has(_target: Any, prop: string | symbol): boolean {
+      if (prop === $fobx) return true
+      if (typeof prop === "string" && isNumericIndex(prop)) {
+        trackAccess(admin)
+        return prop in arr
+      }
+      return prop in arr
+    },
+
+    defineProperty(
+      _target: Any,
+      prop: string | symbol,
+      descriptor: PropertyDescriptor,
+    ): boolean {
+      userProps[prop as string] = descriptor
+      return true
+    },
+  })
+
+  return proxy
 }

@@ -12,7 +12,7 @@
  *
  * ```tsx
  * import { For } from "@fobx/jsx"
- * import { array } from "@fobx/v2"
+ * import { array } from "@fobx/core"
  *
  * const todos = array([
  *   { id: 1, text: "Buy milk" },
@@ -39,8 +39,8 @@
  * | `children` | `(item: T, index: number) => Node` | Render callback — the single child of `<For>`.      |
  */
 
-import { mountList } from "../dom/map-array.ts"
-import { onDispose } from "../dom/reactive.ts"
+import { mountList } from "@fobx/dom"
+import { onDispose } from "@fobx/dom"
 
 /** Props accepted by the `<For>` component. */
 export interface ForProps<T> {

@@ -1,13 +1,18 @@
-// deno-lint-ignore-file no-explicit-any
 // ─── @fobx/dom — Reactive DOM element library ──────────────────────────────
 //
 // Provides fine-grained reactive DOM construction that integrates natively
-// with @fobx/v2 observables. Every element factory (div, span, input, …)
+// with @fobx/core observables. Every element factory (div, span, input, …)
 // returns a real DOM node. Reactive expressions (functions) passed as props
 // or children are automatically wrapped in autoruns that surgically update
 // only the affected DOM attribute / text node when dependencies change.
 
-export { createScope, dispose, onCleanup, onDispose } from "./reactive.ts"
+export {
+  appendChildNode,
+  createScope,
+  dispose,
+  onCleanup,
+  onDispose,
+} from "./reactive.ts"
 export { mapArray, mountList } from "./map-array.ts"
 export { el } from "./element.ts"
 export type { Child, Children, Props, ReactiveValue } from "./types.ts"

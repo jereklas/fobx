@@ -7,9 +7,6 @@ const bundle = (format: "esm" | "cjs") => {
     bundle: true,
     format,
     define: {
-      // TODO: we want the following define for NODE_ENV for bundles that target consumers using bundlers
-      // TODO: we would want these to be true/false for non-bundler consumers (true for develop build, false for production)
-      // makes string persist in final bundle instead of replacing with environment variable value
       "process.env.NODE_ENV": "process.env.NODE_ENV",
     },
     external: ["@fobx/core", "react"],

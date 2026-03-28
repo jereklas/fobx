@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 /**
  * Core element factory — creates a real DOM element with reactive bindings.
  */

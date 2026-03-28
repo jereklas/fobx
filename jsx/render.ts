@@ -3,7 +3,7 @@
  * render — Mount a component or element tree into a DOM container.
  */
 
-import { dispose as disposeNode } from "../dom/reactive.ts"
+import { dispose as disposeNode } from "@fobx/dom"
 
 /**
  * Render a component or element into a container.

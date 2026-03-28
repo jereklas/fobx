@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 /**
  * @fobx/jsx — A JSX rendering solution that works natively with fobx.
  *
@@ -14,8 +13,8 @@
  *   }
  *
  * Usage with classic JSX transform:
- *   /** @jsx h *​/
- *   /** @jsxFrag Fragment *​/
+ *   // @jsx h
+ *   // @jsxFrag Fragment
  *   import { h, Fragment } from "@fobx/jsx"
  *
  * Reactive expressions in JSX:
@@ -32,5 +31,5 @@ export { For } from "./for.ts"
 export type { ForProps } from "./for.ts"
 
 // Re-export useful dom utilities
-export { dispose, onDispose } from "../dom/reactive.ts"
-export { mapArray, mountList } from "../dom/map-array.ts"
+export { dispose, onDispose } from "@fobx/dom"
+export { mapArray, mountList } from "@fobx/dom"

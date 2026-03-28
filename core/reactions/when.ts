@@ -1,55 +1,90 @@
-import { Reaction, ReactionAdmin, type ReactionWithAdmin } from "./reaction.ts"
-import { action } from "../transactions/action.ts"
-import { $fobx, type Any } from "../state/global.ts"
+/**
+ * When — one-time reaction that disposes itself when predicate becomes true.
+ */
+
+import {
+  $scheduler,
+  type Dispose,
+  getNextId,
+  KIND_WHEN,
+  pushPending,
+  type ReactionAdmin,
+  STALE,
+  UP_TO_DATE,
+} from "../state/global.ts"
+import {
+  removeFromAllDeps,
+  runWithoutTracking,
+  runWithTracking,
+} from "./tracking.ts"
+import { safeRunReaction } from "../transactions/batch.ts"
 
 const ERR_TIMEOUT = "When reaction timed out"
 const ERR_CANCEL = "When reaction was canceled"
 const ERR_ABORT = "When reaction was aborted"
 
-export type WhenPromise = Promise<void> & { cancel: () => void }
-export type WhenOptions = {
+export interface WhenOptions {
+  name?: string
   timeout?: number
   onError?: (error: Error) => void
   signal?: AbortSignal
 }
 
+export type WhenPromise = Promise<void> & { cancel: () => void }
+
+// Overloads
 export function when(
   predicate: () => boolean,
   options?: WhenOptions,
 ): WhenPromise
 export function when(
   predicate: () => boolean,
-  sideEffectFn?: () => void,
+  effect: () => void,
   options?: WhenOptions,
-): () => void
+): Dispose
 export function when(
   predicate: () => boolean,
-  effectOrOptions: Any,
-  options?: WhenOptions,
-): WhenPromise | (() => void) {
-  return typeof effectOrOptions !== "function"
-    ? createWhenPromise(predicate, effectOrOptions)
-    : createWhen(predicate, effectOrOptions, options)
+  effectOrOptions?: (() => void) | WhenOptions,
+  maybeOptions?: WhenOptions,
+): WhenPromise | Dispose {
+  const hasEffect = typeof effectOrOptions === "function"
+  const effect = hasEffect ? effectOrOptions : undefined
+  const options = hasEffect
+    ? maybeOptions
+    : effectOrOptions as WhenOptions | undefined
+
+  if (!effect) {
+    if (options?.onError) {
+      throw new Error(
+        "[@fobx/core] Cannot use onError option when using async when.",
+      )
+    }
+    return createWhenPromise(predicate, options)
+  }
+
+  return createWhen(predicate, effect, options)
 }
 
 function createWhen(
-  predicate: () => boolean,
-  sideEffectFn: () => void,
+  predicate: (dispose: Dispose) => boolean,
+  effect: () => void,
   options?: WhenOptions,
-) {
-  const reaction = new Reaction(
-    new ReactionAdmin(() => {
-      run()
-    }, "When"),
-  ) as ReactionWithAdmin
+): Dispose {
+  let isDisposed = false
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
 
-  let timeoutHandle: ReturnType<typeof setTimeout>
+  const dispose: Dispose = () => {
+    if (isDisposed) return
+    isDisposed = true
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle)
+    removeFromAllDeps(admin)
+  }
 
   if (options?.timeout) {
     timeoutHandle = setTimeout(
       () => {
-        if (reaction[$fobx].isDisposed) return
-        reaction.dispose()
+        if (isDisposed) return
+        dispose()
         const err = new Error(ERR_TIMEOUT)
         if (options.onError) {
           options.onError(err)
@@ -57,46 +92,68 @@ function createWhen(
           throw err
         }
       },
-      options?.timeout,
+      options.timeout,
     )
   }
 
-  const sideEffectAction = action(sideEffectFn, {
-    name: `${reaction[$fobx].name}-sideEffect`,
-  })
+  const id = getNextId()
+  const admin: ReactionAdmin = {
+    kind: KIND_WHEN,
+    id,
+    name: options?.name || `When@${id}`,
+    state: STALE,
+    deps: [],
+    run: () => {
+      if (isDisposed) return
+      admin.state = UP_TO_DATE
 
-  const run = () => {
-    let value = false
-    reaction.track(() => {
-      value = predicate()
-    })
+      let predicateResult: boolean
+      try {
+        predicateResult = runWithTracking(admin, () => predicate(dispose))
+      } catch (error) {
+        dispose()
+        if (options?.onError) {
+          options.onError(
+            error instanceof Error ? error : new Error(String(error)),
+          )
+        }
+        return
+      }
 
-    if (value) {
-      if (timeoutHandle) clearTimeout(timeoutHandle)
-      // set 'hasToRun' so that the dispose() will not prevent the side effect from running
-      reaction[$fobx].hasToRun = true
-      reaction.dispose()
-      sideEffectAction()
-    }
+      if (predicateResult) {
+        dispose()
+        runWithoutTracking(() => {
+          try {
+            effect()
+          } catch (error) {
+            if (options?.onError) {
+              options.onError(
+                error instanceof Error ? error : new Error(String(error)),
+              )
+            }
+          }
+        })
+      }
+    },
   }
-  run()
-  return () => {
-    reaction.dispose()
+
+  if ($scheduler.batchDepth > 0) {
+    pushPending(admin)
+  } else {
+    safeRunReaction(admin)
   }
+
+  return dispose
 }
 
-function createWhenPromise(predicate: () => boolean, options?: WhenOptions) {
-  // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV !== "production" && options?.onError) {
-    throw new Error(
-      "[@fobx/core] Cannot use onError option when using async when.",
-    )
-  }
-
+function createWhenPromise(
+  predicate: () => boolean,
+  options?: WhenOptions,
+): WhenPromise {
   let cancel!: () => void
   let abort!: () => void
-  const promise = new Promise((resolve, reject) => {
-    const dispose = createWhen(predicate, resolve as () => void, {
+  const promise = new Promise<void>((resolve, reject) => {
+    const dispose = createWhen(predicate, resolve, {
       ...options,
       onError: reject,
     })

@@ -1,8 +1,0 @@
-{
-  "name": "@fobx/v2",
-  "version": "2.0.0-alpha.1",
-  "exports": "./index.ts",
-  "compilerOptions": {
-    "lib": ["es2023", "dom", "dom.asynciterable", "dom.iterable", "deno.ns"]
-  }
-}

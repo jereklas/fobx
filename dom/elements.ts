@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 /**
  * Named factory functions for every standard HTML element.
  *

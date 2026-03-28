@@ -1,14 +1,13 @@
 {
   "workspace": [
-    "./core",
+    "./core_old",
     "./react",
-    "./reactV2",
     "./preact",
     "./utils",
     "./testing",
     "./doc-site",
     "./static-docs",
-    "./v2",
+    "./core",
     "./dom",
     "./jsx",
     "./benchmark",

@@ -1,75 +1,97 @@
+/**
+ * Makes a React render function reactive.
+ *
+ * Tracks which observables are read during render and schedules a re-render
+ * via useSyncExternalStore when any of them change.
+ */
+
 // @ts-ignore - to suppress tsc false error
 import { useRef, useSyncExternalStore } from "react"
+import { createTracker, type Tracker } from "@fobx/core/internals"
 import { observerFinalizationRegistry } from "./finalizationRegistry.ts"
-import {
-  createReaction,
-  type ObserverAdministration,
-} from "../reactions/reaction.ts"
 
-export const useObserver = <T>(
+interface ObserverAdministration {
+  tracker: Tracker | null
+  /** Incremented on every invalidation; useSyncExternalStore uses this to detect changes. */
+  stateVersion: symbol
+  onStoreChange: (() => void) | null
+  subscribe: (onStoreChange: () => void) => () => void
+  getSnapshot: () => symbol
+}
+
+function createTrackerForAdm(adm: ObserverAdministration): Tracker {
+  return createTracker(() => {
+    adm.stateVersion = Symbol()
+    adm.onStoreChange?.()
+  }, `ReactObserver`)
+}
+
+export function useObserver<T>(
   render: () => T,
-  baseComponentName: string = "observed",
-) => {
+  _baseComponentName: string = "observed",
+): T {
   const admRef = useRef<ObserverAdministration>(undefined)
 
-  // first render - create and assign the administration ref
   if (!admRef.current) {
+    // Callbacks close over `adm` (not admRef) so the ref object remains
+    // eligible for garbage collection, allowing FinalizationRegistry to fire.
     const adm: ObserverAdministration = {
-      reaction: null,
-      state: Symbol(),
-      name: baseComponentName,
+      tracker: null,
+      stateVersion: Symbol(),
       onStoreChange: null,
-      subscribe: (onStoreChange) => {
-        // being here means the component was mounted, unregister the administration so reaction
-        // wont be disposed by the finalization registry
+
+      subscribe(onStoreChange: () => void) {
         observerFinalizationRegistry.unregister(adm)
         adm.onStoreChange = onStoreChange
 
-        // Reaction was disposed before mount, occurs when:
-        // 1. observerFinalizationRegistry disposes prior to component mount.
-        // 2. React "re-mounts" same component without calling render in between (StrictMode/ConcurrentMode/Suspense).
-        if (!adm.reaction) {
-          createReaction(adm)
+        if (!adm.tracker) {
+          // Tracker was disposed before mount (e.g. by the finalization
+          // registry, or during a StrictMode unmount/remount cycle).
+          // Recreate it and bump stateVersion to trigger a re-render so that
+          // dep subscriptions are re-established via tracker.track(render).
+          adm.tracker = createTrackerForAdm(adm)
+          adm.stateVersion = Symbol()
         }
 
-        // cleanup function
         return () => {
           adm.onStoreChange = null
-          adm.reaction?.dispose()
-          adm.reaction = null
+          adm.tracker?.dispose()
+          adm.tracker = null
         }
       },
-      getSnapshot: () => {
-        return adm.state
+
+      getSnapshot() {
+        return adm.stateVersion
       },
     }
+
     admRef.current = adm
   }
 
   const adm = admRef.current!
-  // first render - create the reaction
-  if (!adm.reaction) {
-    createReaction(adm)
-    // StrictMode/ConcurrentMode/Suspense could mean component is rendered and abandoned multiple
-    // times. Track the reaction so it can be disposed if it was abandoned (prevent memory leaks)
-    observerFinalizationRegistry.register(adm)
+
+  // Create a tracker for this render if one doesn't already exist.
+  if (!adm.tracker) {
+    adm.tracker = createTrackerForAdm(adm)
+    observerFinalizationRegistry.register(adm, adm.tracker)
   }
 
   useSyncExternalStore(adm.subscribe, adm.getSnapshot, adm.getSnapshot)
 
-  // closure to keep the render result/exception within the react function scope
+  // Run render inside the tracker to subscribe to any observables it reads.
+  // Exceptions are re-thrown outside the tracker so React error boundaries
+  // can catch them.
   let renderResult!: T
-  let exception
-  adm.reaction!.track(() => {
+  let exception: unknown
+
+  adm.tracker!.track(() => {
     try {
       renderResult = render()
     } catch (e) {
-      // DO NOT throw here, needs to be thrown below
       exception = e
     }
   })
 
-  // render exception has to be thrown within react function scope to trigger react's error boundary
   if (exception) {
     throw exception
   }

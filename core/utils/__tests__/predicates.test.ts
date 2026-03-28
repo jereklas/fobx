@@ -1,15 +1,25 @@
-import { isObservableCollection, isPlainObject } from "../predicates.ts"
 import { $fobx } from "../../state/global.ts"
-import * as fobx from "@fobx/core"
+import * as fobx from "../../index.ts"
+import { hasFobxAdmin } from "../utils.ts"
 import { describe, expect, test } from "@fobx/testing"
 
 describe("isPlainObject", () => {
   test("returns false when non-object is passed", () => {
-    expect(isPlainObject("str")).toBe(false)
+    expect(fobx.isPlainObject("str")).toBe(false)
   })
 
   test("returns true for objects with a null prototype", () => {
-    expect(isPlainObject(Object.create(null))).toBe(true)
+    expect(fobx.isPlainObject(Object.create(null))).toBe(true)
+  })
+})
+
+describe("hasFobxAdmin", () => {
+  test("returns false when non-object is passed", () => {
+    expect(hasFobxAdmin("str")).toBe(false)
+  })
+
+  test("returns true for observable values", () => {
+    expect(hasFobxAdmin(fobx.observableBox(1))).toBe(true)
   })
 })
 
@@ -34,10 +44,18 @@ describe("isComputed", () => {
 })
 
 describe("isObservableCollection", () => {
+  test("array detection is based on array shape plus fobx symbol", () => {
+    const arr = [1]
+    Object.defineProperty(arr, $fobx, { value: "str" })
+    expect(fobx.isObservableArray(arr)).toBe(true)
+    expect(fobx.isObservableMap(arr)).toBe(false)
+    expect(fobx.isObservableSet(arr)).toBe(false)
+  })
+
   test("returns false when administration is invalid", () => {
     const arr = [1]
     Object.defineProperty(arr, $fobx, { value: "str" })
-    expect(isObservableCollection(arr)).toBe(false)
+    expect(fobx.isObservableCollection(arr)).toBe(false)
   })
 })
 
@@ -53,7 +71,6 @@ test("isObservable works as expected", () => {
     expect(fobx.isObservable(obs)).toBe(true)
   })
 
-  // objects/collections
   class NonObservableClass {}
   const objects = [[], new Set(), new Map(), new NonObservableClass(), {}]
 
@@ -61,8 +78,6 @@ test("isObservable works as expected", () => {
     expect(fobx.isObservable(i)).toBe(false)
   })
 
-  // remove the object and class as they become a container of observable values but they
-  // themselves are not observable
   objects.pop()
   objects.pop()
 

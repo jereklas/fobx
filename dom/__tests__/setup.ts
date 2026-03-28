@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 /**
  * DOM test environment setup.
  *
@@ -26,7 +27,6 @@ export function setupDOM(): {
   const doc = _window.document as unknown as Document
 
   // Install globals that the libraries need
-  // deno-lint-ignore no-explicit-any
   const g = globalThis as any
   // DO NOT set g.window — it conflicts with Deno internals
   g.document = doc

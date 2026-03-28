@@ -1,29 +1,45 @@
-import * as fobx from "@fobx/core"
+import * as fobx from "../../index.ts"
 import { beforeAll, expect, FakeTime, fn, test } from "@fobx/testing"
 
 beforeAll(() => {
   fobx.configure({ enforceActions: false })
 })
 
-test("when reaction dispose itself once condition is met", () => {
+test("when reaction disposes itself once condition is met", () => {
   const a = fobx.observableBox(0)
   let runs = 0
 
   fobx.when(
-    () => a.value === 1,
+    () => a.get() === 1,
     () => {
       runs += 1
     },
-    { timeout: 100 },
   )
 
-  a.value = 1
+  a.set(1)
   expect(runs).toBe(1)
 
   // the reaction was disposed so changing the value to 1 again doesn't cause another run
-  a.value = 2
-  a.value = 1
+  a.set(2)
+  a.set(1)
   expect(runs).toBe(1)
+})
+
+test("when reaction does nothing when disposed before condition is met", () => {
+  const a = fobx.observableBox(0)
+  let runs = 0
+
+  const dispose = fobx.when(
+    () => a.get() === 1,
+    () => {
+      runs += 1
+    },
+  )
+  dispose()
+
+  // reaction is disposed, so even if condition is met it doesn't run
+  a.set(1)
+  expect(runs).toBe(0)
 })
 
 test("when reaction throws timeout error if timeout was hit", () => {
@@ -32,7 +48,7 @@ test("when reaction throws timeout error if timeout was hit", () => {
   let runs = 0
 
   fobx.when(
-    () => a.value === 1,
+    () => a.get() === 1,
     () => {
       runs += 1
     },
@@ -41,7 +57,7 @@ test("when reaction throws timeout error if timeout was hit", () => {
 
   expect(() => time.tick(100)).toThrow("When reaction timed out")
   // reaction is disposed when timeout occurs
-  a.value = 1
+  a.set(1)
   expect(runs).toBe(0)
 })
 
@@ -52,7 +68,7 @@ test("when reaction calls onError function on timeout if one is provided", () =>
   let runs = 0
 
   fobx.when(
-    () => a.value === 1,
+    () => a.get() === 1,
     () => {
       runs += 1
     },
@@ -63,7 +79,7 @@ test("when reaction calls onError function on timeout if one is provided", () =>
   expect(onError).toHaveBeenCalledWith(Error("When reaction timed out"))
 
   // reaction is disposed when timeout occurs
-  a.value = 1
+  a.set(1)
   expect(runs).toBe(0)
 })
 
@@ -84,6 +100,14 @@ test("an error is thrown if onError is provided as an option to async when", () 
   expect(() => fobx.when(() => false, { onError: fn() })).toThrow(
     "[@fobx/core] Cannot use onError option when using async when.",
   )
+})
+
+test("async when resolves when condition is met", async () => {
+  const a = fobx.observableBox(0)
+
+  const p = fobx.when(() => a.get() === 1)
+  a.set(1)
+  await p
 })
 
 test("async when rejects when timeout hits", async () => {

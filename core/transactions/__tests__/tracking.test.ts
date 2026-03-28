@@ -1,4 +1,4 @@
-import * as fobx from "@fobx/core"
+import * as fobx from "../../index.ts"
 import { expect, test } from "@fobx/testing"
 
 fobx.configure({ enforceActions: false })
@@ -20,11 +20,9 @@ test("computed values correctly re-compute after a suspended state", () => {
   })
   expect(value).toBe(1)
 
-  // make o.a become "suspended" and then set a new value on the computed
   dispose()
   o.a = 4
 
-  // make o.a become "active" again to verify the value seen in the autorun is not the cached value
   dispose = fobx.autorun(() => {
     value = o.a
   })
@@ -57,7 +55,6 @@ test("computed values correctly re-compute after a suspended state #2", () => {
   o.c = true
   expect(value).toBe(1)
 
-  // the underlying observable changes, make sure the value isn't cached
   o._b = 3
   o.c = false
   expect(value).toBe(3)

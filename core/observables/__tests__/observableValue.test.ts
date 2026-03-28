@@ -1,7 +1,7 @@
-import type { ReactionWithAdmin } from "../../reactions/reaction.ts"
-import type { ObservableBoxWithAdmin } from "../observableBox.ts"
+import type { ObservableBox } from "../observableBox.ts"
 import { $fobx } from "../../state/global.ts"
-import * as fobx from "@fobx/core"
+import { observerCount, observerHas } from "../../state/global.ts"
+import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 
 beforeEach(() => {
@@ -10,40 +10,42 @@ beforeEach(() => {
 
 describe("ObservableBox", () => {
   test("wraps supplied value in an object", () => {
-    const str = fobx.observableBox("a") as ObservableBoxWithAdmin
-    expect(str[$fobx].observers.length).toBe(0)
-    expect(str[$fobx].name).toBe("ObservableBox@1")
-    expect(str.value).toBe("a")
+    const str = fobx.observableBox("a") as ObservableBox<string>
+    expect(observerCount(str[$fobx])).toBe(0)
+    expect(str[$fobx].name).toBe("Box@1")
+    expect(str.get()).toBe("a")
 
-    const num = fobx.observableBox(10) as ObservableBoxWithAdmin
-    expect(num.value).toBe(10)
-    expect(num[$fobx].name).toBe("ObservableBox@2")
-    expect(num[$fobx].observers.length).toBe(0)
+    const num = fobx.observableBox(10) as ObservableBox<number>
+    expect(num.get()).toBe(10)
+    expect(num[$fobx].name).toBe("Box@2")
+    expect(observerCount(num[$fobx])).toBe(0)
   })
 
   test("are correctly associated with the reaction when dereferenced.", () => {
-    const obs1 = fobx.observableBox("a") as ObservableBoxWithAdmin
-    const obs2 = fobx.observableBox("b") as ObservableBoxWithAdmin
-    let r!: ReactionWithAdmin
+    const obs1 = fobx.observableBox("a")
+    const obs2 = fobx.observableBox("b")
     const dispose = fobx.reaction(
       () => {
-        return [obs1.value, obs2.value]
+        return [obs1.get(), obs2.get()]
       },
-      fn((_n, _o, reaction) => {
-        r = reaction as unknown as ReactionWithAdmin
-      }),
+      fn(() => {}),
     )
-    // force reaction to run once so we can have reference to reaction
-    obs1.value = "c"
+    obs1.set("c")
 
-    expect(r[$fobx].dependencies.length).toBe(2)
-    expect(r[$fobx].dependencies.indexOf(obs1[$fobx])).not.toBe(-1)
-    expect(r[$fobx].dependencies.indexOf(obs2[$fobx])).not.toBe(-1)
+    // Get the reaction — with compact observers, extract from single ref or Set
+    const obsField = obs1[$fobx].observers
+    const r = obsField instanceof Set
+      ? obsField.values().next().value!
+      : obsField!
 
-    expect(obs1[$fobx].observers.length).toBe(1)
-    expect(obs2[$fobx].observers.length).toBe(1)
-    expect(obs1[$fobx].observers.includes(r[$fobx])).toBe(true)
-    expect(obs2[$fobx].observers.includes(r[$fobx])).toBe(true)
+    expect(r.deps.length).toBe(2)
+    expect(r.deps.indexOf(obs1[$fobx])).not.toBe(-1)
+    expect(r.deps.indexOf(obs2[$fobx])).not.toBe(-1)
+
+    expect(observerCount(obs1[$fobx])).toBe(1)
+    expect(observerCount(obs2[$fobx])).toBe(1)
+    expect(observerHas(obs1[$fobx], r)).toBe(true)
+    expect(observerHas(obs2[$fobx], r)).toBe(true)
     dispose()
   })
 })

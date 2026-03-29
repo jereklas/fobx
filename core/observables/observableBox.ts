@@ -11,7 +11,11 @@ import {
   type ObservableAdmin,
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
-import { notifyChanged } from "../state/notifications.ts"
+import {
+  isNotProduction,
+  notifyChanged,
+  warnIfObservedWriteOutsideTransaction,
+} from "../state/notifications.ts"
 import { trackAccess } from "../reactions/tracking.ts"
 
 export interface ObservableBox<T> {
@@ -50,6 +54,9 @@ export function observableBox<T>(
       return getBoxValue(admin)
     },
     set(newValue: T): void {
+      if (isNotProduction) {
+        warnIfObservedWriteOutsideTransaction(admin, "observable values")
+      }
       setBoxValue(admin, newValue)
     },
   }

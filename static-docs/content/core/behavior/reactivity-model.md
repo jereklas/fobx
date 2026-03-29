@@ -11,7 +11,7 @@ helps you write more predictable reactive code and debug subtle behaviors.
 ## Dependency tracking
 
 FobX uses a **push-pull** reactivity model. When a reaction or computed runs, it
-enters a *tracking context*. Every observable `get()` that happens inside that
+enters a _tracking context_. Every observable `get()` that happens inside that
 context registers the observable as a dependency of the currently-running node.
 
 When any dependency changes (via `set()` or a collection mutation), FobX marks
@@ -30,9 +30,9 @@ execution. This means:
 ```ts
 import * as fobx from "@fobx/core"
 
-const flag = fobx.box(false)
-const a = fobx.box("value-a")
-const b = fobx.box("value-b")
+const flag = fobx.observableBox(false)
+const a = fobx.observableBox("value-a")
+const b = fobx.observableBox("value-b")
 
 let log: string[] = []
 const stop = fobx.autorun(() => {
@@ -40,10 +40,10 @@ const stop = fobx.autorun(() => {
 })
 
 // flag=false: tracked = {flag, a}
-a.set("new-a")   // re-runs: a is tracked
-b.set("new-b")   // does NOT re-run: b is not tracked yet
+a.set("new-a") // re-runs: a is tracked
+b.set("new-b") // does NOT re-run: b is not tracked yet
 
-flag.set(true)   // re-runs: flag changed
+flag.set(true) // re-runs: flag changed
 // flag=true: tracked = {flag, b}
 
 a.set("another-a") // does NOT re-run: a is no longer tracked
@@ -63,7 +63,7 @@ asynchronous continuations are NOT tracked:
 ```ts
 import * as fobx from "@fobx/core"
 
-const value = fobx.box(1)
+const value = fobx.observableBox(1)
 let syncRuns = 0
 let asyncRead = 0
 
@@ -96,8 +96,8 @@ Transactions provide two guarantees:
 
 1. **Batching**: Reactions and computed invalidations accumulate during the
    transaction. Reactions only run after the outermost transaction ends.
-2. **Untrackeability**: Reads inside a transaction body do not add
-   dependencies to an enclosing reaction.
+2. **Untrackeability**: Reads inside a transaction body do not add dependencies
+   to an enclosing reaction.
 
 ### Why batching matters
 
@@ -107,8 +107,8 @@ potentially seeing inconsistent intermediate state:
 ```ts
 import * as fobx from "@fobx/core"
 
-const x = fobx.box(0)
-const y = fobx.box(0)
+const x = fobx.observableBox(0)
+const y = fobx.observableBox(0)
 
 const seen: string[] = []
 const stop = fobx.autorun(() => {
@@ -135,17 +135,20 @@ Transactions nest cleanly. Only the outermost transaction triggers the flush:
 ```ts
 import * as fobx from "@fobx/core"
 
-const a = fobx.box(0)
+const a = fobx.observableBox(0)
 let runs = 0
-const stop = fobx.autorun(() => { a.get(); runs++ })
+const stop = fobx.autorun(() => {
+  a.get()
+  runs++
+})
 // runs = 1
 
-fobx.runInTransaction(() => {       // outer batch
-  fobx.runInTransaction(() => {     // inner batch
-    a.set(1)                        // pending...
-  })                                // inner end — still pending (outer open)
-  a.set(2)                          // still pending...
-})                                  // outer end — flush! reactions run once
+fobx.runInTransaction(() => { // outer batch
+  fobx.runInTransaction(() => { // inner batch
+    a.set(1) // pending...
+  }) // inner end — still pending (outer open)
+  a.set(2) // still pending...
+}) // outer end — flush! reactions run once
 
 // runs = 2 (not 3)
 stop()
@@ -172,7 +175,7 @@ This prevents memory leaks from computeds that are read once and abandoned.
 ```ts
 import * as fobx from "@fobx/core"
 
-const a = fobx.box(1)
+const a = fobx.observableBox(1)
 let computeCount = 0
 
 const doubled = fobx.computed(() => {
@@ -201,7 +204,7 @@ activates **cached mode**:
 ```ts
 import * as fobx from "@fobx/core"
 
-const a = fobx.box(1)
+const a = fobx.observableBox(1)
 let computeCount = 0
 
 const doubled = fobx.computed(() => {
@@ -216,7 +219,7 @@ const stop = fobx.autorun(() => doubled.get())
 doubled.get() // computeCount still 1 — served from cache
 doubled.get() // computeCount still 1 — served from cache
 
-a.set(2)       // dependency changed, computed invalidated
+a.set(2) // dependency changed, computed invalidated
 doubled.get() // computeCount = 2 — recomputed
 doubled.get() // computeCount still 2 — served from cache again
 
@@ -230,13 +233,14 @@ if (computeCount !== 3) throw new Error("expected 3 computations total")
 ### Computed as an optimization layer
 
 Because computeds cache their result and only propagate if the output actually
-changed, they act as **firewalls** between upstream state and downstream reactions:
+changed, they act as **firewalls** between upstream state and downstream
+reactions:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const price = fobx.box(10)
-const quantity = fobx.box(3)
+const price = fobx.observableBox(10)
+const quantity = fobx.observableBox(3)
 
 let reactionRuns = 0
 let computeRuns = 0
@@ -270,14 +274,14 @@ if (computeRuns !== 2) throw new Error("wrong compute run count")
 
 ## Collection change signaling
 
-Observable arrays, maps, and sets use a **change counter** in addition to
-the standard observable mechanism. When returned from a `reaction` expression,
+Observable arrays, maps, and sets use a **change counter** in addition to the
+standard observable mechanism. When returned from a `reaction` expression,
 collections are compared by change count rather than by reference:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const m = fobx.map<string, number>()
+const m = fobx.observableMap<string, number>()
 let runs = 0
 const stop = fobx.reaction(() => m, () => runs++)
 
@@ -297,8 +301,8 @@ granularities depending on the collection type:
 - `map.get(key)` / `map.has(key)` — tracks that specific key.
 - `set.has(value)` — tracks that specific value.
 - `map.size` / `set.size` — tracks the size observable.
-- Iteration (`for...of`, spread, `forEach`) on any collection — tracks the
-  whole collection.
+- Iteration (`for...of`, spread, `forEach`) on any collection — tracks the whole
+  collection.
 
 ---
 
@@ -310,8 +314,8 @@ FobX wraps scheduled reaction and computed executions in error boundaries:
   `configure({ onReactionError })` if set, then logged in development.
 - The reaction remains active and will run again on the next change.
 - If the **transaction body** throws, the error is re-thrown to the caller.
-  Secondary reaction errors in the same cycle are suppressed (logged in dev)
-  to avoid noise from cascading failures.
+  Secondary reaction errors in the same cycle are suppressed (logged in dev) to
+  avoid noise from cascading failures.
 - An unobserved `computed.get()` runs directly and throws to the caller.
 
 ```ts
@@ -322,7 +326,7 @@ fobx.configure({
   onReactionError: (err) => errors.push(err),
 })
 
-const value = fobx.box(0)
+const value = fobx.observableBox(0)
 const stop = fobx.autorun(() => {
   if (value.get() === 1) throw new Error("boom")
 })

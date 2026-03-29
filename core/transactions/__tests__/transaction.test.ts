@@ -174,8 +174,7 @@ test("should be able to change unobserved state in a transaction called from a c
   d()
 })
 
-// TODO: enforceActions warning not yet implemented in v2 — box/observable setters don't check enforceActions
-test.skip("should be able to change observed state in a transaction called from a computed", () => {
+test("should be able to change observed state in a transaction called from a computed", () => {
   configure({ enforceActions: true })
 
   const a = observableBox(2)
@@ -194,7 +193,7 @@ test.skip("should be able to change observed state in a transaction called from 
         a.set(4)
       }),
     ).toMatch(
-      /<STDERR> \[@fobx\/core\] Changing tracked observable values.*outside of a transaction is discouraged/,
+      /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(Box@.*\) outside of a transaction is discouraged/,
     )
     expect(a.get()).toBe(4)
 

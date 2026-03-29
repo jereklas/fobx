@@ -18,7 +18,12 @@ import {
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
 import { endBatch, startBatch } from "../transactions/batch.ts"
-import { notifyChanged, notifyObservers } from "../state/notifications.ts"
+import {
+  isNotProduction,
+  notifyChanged,
+  notifyObservers,
+  warnIfObservedWriteOutsideTransaction,
+} from "../state/notifications.ts"
 import {
   type ObservableBox,
   observableBox,
@@ -145,6 +150,24 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     }
   }
 
+  private _warnIfObservedWriteOutsideTransaction(key?: K): void {
+    const valueAdmin = key !== undefined ? this.data.get(key) : undefined
+    const hasBox = key !== undefined ? this.hasMap.get(key) : undefined
+    const observedAdmin = this.collectionAdmin.observers !== null
+      ? this.collectionAdmin
+      : this.keysAdmin.observers !== null
+      ? this.keysAdmin
+      : valueAdmin?.observers !== null && valueAdmin !== undefined
+      ? valueAdmin
+      : hasBox?.[$fobx].observers !== null && hasBox !== undefined
+      ? hasBox[$fobx]
+      : undefined
+
+    if (observedAdmin !== undefined) {
+      warnIfObservedWriteOutsideTransaction(observedAdmin)
+    }
+  }
+
   has(key: K): boolean {
     if ($scheduler.tracking === null) return this.data.has(key)
 
@@ -184,6 +207,10 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     const hadKey = this.data.has(key)
     const processedValue = _processValue(value, this._shallow)
 
+    if (isNotProduction) {
+      this._warnIfObservedWriteOutsideTransaction(key)
+    }
+
     if (hadKey) {
       const admin = this.data.get(key)!
       const changed = setBoxValue(admin, processedValue)
@@ -209,6 +236,10 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   delete(key: K): boolean {
     if (!this.data.has(key)) return false
 
+    if (isNotProduction) {
+      this._warnIfObservedWriteOutsideTransaction(key)
+    }
+
     const admin = this.data.get(key)!
     if (hasObservers(admin)) {
       notifyObservers(admin, NOTIFY_CHANGED)
@@ -229,6 +260,10 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
   clear(): void {
     if (this.data.size === 0) return
+
+    if (isNotProduction) {
+      this._warnIfObservedWriteOutsideTransaction()
+    }
 
     startBatch()
     try {

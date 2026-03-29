@@ -989,8 +989,7 @@ test("work with 'toString' key", () => {
   expect(m.get("toString")).toBe("test")
 })
 
-// TODO: enforceActions warning not yet implemented in v2 — observable setters don't check enforceActions
-test.skip("issue 940, should not be possible to change maps outside strict mode", () => {
+test("should not be possible to change maps outside strict mode", () => {
   fobx.configure({ enforceActions: true })
 
   const m = fobx.observable(new Map())
@@ -1001,7 +1000,7 @@ test.skip("issue 940, should not be possible to change maps outside strict mode"
       m.set("x", 1)
     }),
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./,
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Map@.*\) outside of a transaction is discouraged as reactions run more frequently than necessary\./,
   )
 
   expect(
@@ -1009,7 +1008,7 @@ test.skip("issue 940, should not be possible to change maps outside strict mode"
       m.set("x", 2)
     }),
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./,
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Map@.*\) outside of a transaction is discouraged as reactions run more frequently than necessary\./,
   )
 
   expect(
@@ -1017,7 +1016,7 @@ test.skip("issue 940, should not be possible to change maps outside strict mode"
       m.delete("x")
     }),
   ).toMatch(
-    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(ObservableMap@.*\) outside of an action is discouraged as reactions run more frequently than necessary\./,
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Map@.*\) outside of a transaction is discouraged as reactions run more frequently than necessary\./,
   )
 
   d()

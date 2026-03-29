@@ -18,6 +18,7 @@
  */
 
 import { autorun } from "./autorun.ts"
+import { UNDEFINED } from "./reaction.ts"
 import {
   $scheduler,
   defaultComparer,
@@ -32,20 +33,26 @@ import { notifyObservers } from "../state/notifications.ts"
 // deno-lint-ignore no-explicit-any
 type Any = any
 
+export type Selector<T> = ((key: T) => boolean) & {
+  dispose(): void
+  getAdmin(key: T): ObservableAdmin<boolean>
+}
+
 /**
  * Create a reactive selector function.
  *
  * @param source - A reactive function returning the current selected key.
- * @param equals - Optional custom equality function (defaults to ===).
+ * @param equals - Optional custom equality function
  * @returns A function `(key) => boolean` that is reactive and O(1).
  */
 export function createSelector<T>(
   source: () => T,
-  equals: (a: T, b: T) => boolean = (a, b) => a === b,
-): (key: T) => boolean {
+  equals: (a: T, b: T) => boolean = defaultComparer,
+): Selector<T> {
   // Map from key → the admin that observers of that key track
   const subs = new Map<Any, ObservableAdmin<boolean>>()
-  let currentValue: T
+  let currentValue: T | typeof UNDEFINED = UNDEFINED
+  const isDefaultEquals = equals === defaultComparer
 
   // Auto-track the source; on change, only notify old + new key admins
   const disposeAutorun = autorun(() => {
@@ -54,21 +61,13 @@ export function createSelector<T>(
     currentValue = newValue
 
     // Notify the previously-selected key's observers (it's now false)
-    if (prevValue !== undefined) {
-      const prevAdmin = subs.get(prevValue)
-      if (prevAdmin && hasObservers(prevAdmin)) {
-        prevAdmin.value = false
-        notifyObservers(prevAdmin, NOTIFY_CHANGED)
-      }
+    if (prevValue !== UNDEFINED) {
+      notifyMatchingAdmins(prevValue, false)
     }
 
     // Notify the newly-selected key's observers (it's now true)
-    if (newValue !== undefined) {
-      const newAdmin = subs.get(newValue)
-      if (newAdmin && hasObservers(newAdmin)) {
-        newAdmin.value = true
-        notifyObservers(newAdmin, NOTIFY_CHANGED)
-      }
+    if (newValue !== UNDEFINED) {
+      notifyMatchingAdmins(newValue, true)
     }
   })
 
@@ -76,8 +75,9 @@ export function createSelector<T>(
    * Check if `key` matches the current selection. Reactive — tracks
    * only the admin for this specific key, not the source signal.
    */
-  function isSelected(key: T): boolean {
+  const isSelected = ((key: T): boolean => {
     if ($scheduler.tracking === null) {
+      if (currentValue === UNDEFINED) return false
       return equals(currentValue, key)
     }
 
@@ -88,7 +88,7 @@ export function createSelector<T>(
         kind: KIND_BOX,
         id: 0,
         name: "",
-        value: equals(currentValue, key),
+        value: currentValue !== UNDEFINED && equals(currentValue, key),
         observers: null,
         comparer: defaultComparer,
         _epoch: 0,
@@ -101,7 +101,7 @@ export function createSelector<T>(
 
     trackAccess(admin)
     return admin.value
-  }
+  }) as Selector<T>
 
   // Dispose function: tears down the autorun + clears all subscriptions
   isSelected.dispose = (): void => {
@@ -120,7 +120,7 @@ export function createSelector<T>(
         kind: KIND_BOX,
         id: 0,
         name: "",
-        value: equals(currentValue, key),
+        value: currentValue !== UNDEFINED && equals(currentValue, key),
         observers: null,
         comparer: defaultComparer,
         _epoch: 0,
@@ -134,6 +134,24 @@ export function createSelector<T>(
   }
 
   return isSelected
+
+  function notifyMatchingAdmins(value: T, nextState: boolean): void {
+    if (isDefaultEquals) {
+      const admin = subs.get(value)
+      if (admin && hasObservers(admin) && admin.value !== nextState) {
+        admin.value = nextState
+        notifyObservers(admin, NOTIFY_CHANGED)
+      }
+      return
+    }
+
+    for (const [key, admin] of subs) {
+      if (!equals(value, key)) continue
+      if (!hasObservers(admin) || admin.value === nextState) continue
+      admin.value = nextState
+      notifyObservers(admin, NOTIFY_CHANGED)
+    }
+  }
 }
 
 /** Shared onLoseObserver — cleans up the per-key admin when unobserved. */

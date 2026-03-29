@@ -131,7 +131,7 @@ export function effect(fn: () => void): Dispose {
 }
 
 /** Shared empty deps sentinel — avoids 1 allocation per effect on first run. */
-const _EMPTY_DEPS: readonly never[] = []
+const _EMPTY_DEPS = [] as never[]
 
 // ─── Subscribe ───────────────────────────────────────────────────────────────
 

@@ -1,14 +1,14 @@
 ---
 title: Core Primitives
-description: box, computed, autorun, reaction, and when — the fundamental reactive building blocks.
+description: observableBox, computed, autorun, reaction, and when — the fundamental reactive building blocks.
 navSection: Core/API
 navOrder: 1
 ---
 
-## `box(initialValue, options?)`
+## `observableBox(initialValue, options?)`
 
 ```ts
-box<T>(initialValue: T, options?: BoxOptions): ObservableBox<T>
+observableBox<T>(initialValue: T, options?: BoxOptions): ObservableBox<T>
 
 interface ObservableBox<T> {
   get(): T
@@ -30,7 +30,7 @@ primitives build on.
 ```ts
 import * as fobx from "@fobx/core"
 
-const count = fobx.box(0)
+const count = fobx.observableBox(0)
 
 console.log(count.get()) // 0
 count.set(1)
@@ -42,7 +42,7 @@ console.log(count.get()) // 1
 ```ts
 import * as fobx from "@fobx/core"
 
-const count = fobx.box(0)
+const count = fobx.observableBox(0)
 const log: number[] = []
 
 const stop = fobx.autorun(() => {
@@ -66,13 +66,16 @@ prevent reactions when the value is "equal" by your own definition:
 ```ts
 import * as fobx from "@fobx/core"
 
-const point = fobx.box(
+const point = fobx.observableBox(
   { x: 0, y: 0 },
   { comparer: (a, b) => a.x === b.x && a.y === b.y },
 )
 
 let runs = 0
-const stop = fobx.autorun(() => { point.get(); runs++ })
+const stop = fobx.autorun(() => {
+  point.get()
+  runs++
+})
 // runs = 1
 
 point.set({ x: 0, y: 0 }) // structurally same — comparer returns true — no reaction
@@ -99,12 +102,17 @@ fobx.configure({
   },
 })
 
-const settings = fobx.box({ theme: "dark" }, { comparer: "structural" })
+const settings = fobx.observableBox({ theme: "dark" }, {
+  comparer: "structural",
+})
 
 let runs = 0
-const stop = fobx.autorun(() => { settings.get(); runs++ })
+const stop = fobx.autorun(() => {
+  settings.get()
+  runs++
+})
 
-settings.set({ theme: "dark" })  // same structure — no reaction
+settings.set({ theme: "dark" }) // same structure — no reaction
 if (runs !== 1) throw new Error("expected structural comparer to suppress")
 
 settings.set({ theme: "light" }) // changed
@@ -143,8 +151,8 @@ layer — they prevent unnecessary re-runs of reactions downstream.
 ```ts
 import * as fobx from "@fobx/core"
 
-const width = fobx.box(5)
-const height = fobx.box(3)
+const width = fobx.observableBox(5)
+const height = fobx.observableBox(3)
 
 const area = fobx.computed(() => width.get() * height.get())
 
@@ -160,13 +168,13 @@ stop()
 ### Computed as a cache
 
 A computed only notifies downstream reactions when its output actually changes.
-This means an expensive computation can sit between state and UI without
-causing unnecessary re-renders:
+This means an expensive computation can sit between state and UI without causing
+unnecessary re-renders:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const items = fobx.array([1, 2, 3, 4, 5])
+const items = fobx.observableArray([1, 2, 3, 4, 5])
 
 let filterRuns = 0
 const evenItems = fobx.computed(() => {
@@ -199,7 +207,7 @@ fobx.configure({
   comparer: { structural: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
 })
 
-const items = fobx.array([1, 2, 3, 4, 5])
+const items = fobx.observableArray([1, 2, 3, 4, 5])
 
 const evenItems = fobx.computed(
   () => items.filter((n) => n % 2 === 0),
@@ -207,11 +215,16 @@ const evenItems = fobx.computed(
 )
 
 let reactionRuns = 0
-const stop = fobx.autorun(() => { reactionRuns++; evenItems.get() })
+const stop = fobx.autorun(() => {
+  reactionRuns++
+  evenItems.get()
+})
 // reactionRuns=1
 
 items.push(7) // recomputes — [2,4] again — structural comparer suppresses reaction
-if (reactionRuns !== 1) throw new Error("structural comparer should prevent re-run")
+if (reactionRuns !== 1) {
+  throw new Error("structural comparer should prevent re-run")
+}
 
 items.push(8) // recomputes — [2,4,8] — different output — reaction runs
 if (reactionRuns !== 2) throw new Error("expected reaction after output change")
@@ -221,13 +234,13 @@ stop()
 
 ### Writable computed
 
-Pass a `set` option to make the computed writable. The setter receives the
-value and can update the underlying observable state:
+Pass a `set` option to make the computed writable. The setter receives the value
+and can update the underlying observable state:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const _celsius = fobx.box(0)
+const _celsius = fobx.observableBox(0)
 
 const temperature = fobx.computed(
   () => _celsius.get(),
@@ -256,7 +269,7 @@ Calling `dispose()` on a computed removes it from all its dependencies:
 ```ts
 import * as fobx from "@fobx/core"
 
-const a = fobx.box(1)
+const a = fobx.observableBox(1)
 const doubled = fobx.computed(() => a.get() * 2)
 
 const stop = fobx.autorun(() => doubled.get())
@@ -291,15 +304,15 @@ An **autorun** runs its `effect` function once immediately (unless created
 inside a batch), then re-runs automatically whenever any observable it read
 during the last run changes.
 
-The return value is a **disposer** function. Always call it when the autorun
-is no longer needed.
+The return value is a **disposer** function. Always call it when the autorun is
+no longer needed.
 
 ### Basic usage
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const name = fobx.box("Alice")
+const name = fobx.observableBox("Alice")
 const greeting: string[] = []
 
 const stop = fobx.autorun(() => {
@@ -324,7 +337,7 @@ clean itself up based on some condition:
 ```ts
 import * as fobx from "@fobx/core"
 
-const status = fobx.box("loading")
+const status = fobx.observableBox("loading")
 const events: string[] = []
 
 fobx.autorun((stop) => {
@@ -337,8 +350,8 @@ fobx.autorun((stop) => {
 // events: ["loading"]
 
 status.set("loading") // still same value, no re-run
-status.set("done")   // re-runs, then disposes itself
-status.set("done")   // autorun is gone, no effect
+status.set("done") // re-runs, then disposes itself
+status.set("done") // autorun is gone, no effect
 
 if (events.length !== 2) throw new Error("expected 2 events")
 if (events[1] !== "done") throw new Error("expected done")
@@ -348,8 +361,8 @@ if (events[1] !== "done") throw new Error("expected done")
 
 - Use **autorun** when you want to track ALL observables accessed in your
   function and run on first invocation.
-- Use **reaction** when you want to control which observables trigger the
-  effect and skip the initial run.
+- Use **reaction** when you want to control which observables trigger the effect
+  and skip the initial run.
 
 ### Autorun cannot wrap a transaction
 
@@ -379,7 +392,7 @@ until the batch ends rather than running immediately:
 ```ts
 import * as fobx from "@fobx/core"
 
-const value = fobx.box(0)
+const value = fobx.observableBox(0)
 const log: number[] = []
 let stop: () => void
 
@@ -401,7 +414,7 @@ if (log[0] !== 42) throw new Error("expected 42")
 ```ts
 reaction<T>(
   expression: (dispose: Dispose) => T,
-  effect: (value: T, previousValue: T | undefined, dispose: Dispose) => void,
+  effect: (value: T, previousValue: T | typeof UNDEFINED, dispose: Dispose) => void,
   options?: ReactionOptions<T>
 ): Dispose
 
@@ -434,7 +447,7 @@ const stop = fobx.reaction(
 )
 // No initial run (unlike autorun)
 
-user.age = 31    // effect does NOT run — age is not in the expression
+user.age = 31 // effect does NOT run — age is not in the expression
 user.name = "Bob" // effect runs: "Alice → Bob"
 user.name = "Bob" // no effect — value didn't change
 user.name = "Carol" // effect runs: "Bob → Carol"
@@ -452,7 +465,7 @@ Set `fireImmediately: true` to also run the effect once on creation (like
 ```ts
 import * as fobx from "@fobx/core"
 
-const count = fobx.box(5)
+const count = fobx.observableBox(5)
 const log: number[] = []
 
 const stop = fobx.reaction(
@@ -472,13 +485,13 @@ if (log.length !== 2) throw new Error("expected 2 log entries")
 ### Tracking observable collections
 
 When the expression returns an **observable collection** (array, map, or set),
-FobX compares by change count rather than reference, so the effect re-runs
-on every structural change:
+FobX compares by change count rather than reference, so the effect re-runs on
+every structural change:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const list = fobx.array([1, 2, 3])
+const list = fobx.observableArray([1, 2, 3])
 let runs = 0
 
 const stop = fobx.reaction(
@@ -486,8 +499,8 @@ const stop = fobx.reaction(
   () => runs++,
 )
 
-list.push(4)     // runs = 1
-list.push(5)     // runs = 2
+list.push(4) // runs = 1
+list.push(5) // runs = 2
 list.splice(0, 1) // runs = 3
 
 stop()
@@ -496,27 +509,31 @@ if (runs !== 3) throw new Error("expected 3 runs")
 
 ### Previous value
 
-The effect receives both the new value and the previous value. On the very
-first call (even with `fireImmediately`), the previous value is `undefined`:
+The effect receives both the new value and the previous value. Without
+`fireImmediately`, the previous value is always a real `T` (the initial
+expression result). With `fireImmediately: true`, the first call passes the
+internal `UNDEFINED` sentinel (`Symbol.for("fobx-undefined")`) as the previous
+value — you can check for it with `typeof prev === "symbol"` or by importing the
+`UNDEFINED` sentinel from `@fobx/core`:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const score = fobx.box(0)
+const score = fobx.observableBox(0)
 const deltas: number[] = []
 
 const stop = fobx.reaction(
   () => score.get(),
   (next, prev) => {
-    if (prev !== undefined) {
+    if (typeof prev !== "symbol") {
       deltas.push(next - prev)
     }
   },
 )
 
-score.set(5)   // delta = 5 - 0 = 5
-score.set(3)   // delta = 3 - 5 = -2
-score.set(10)  // delta = 10 - 3 = 7
+score.set(5) // delta = 5 - 0 = 5
+score.set(3) // delta = 3 - 5 = -2
+score.set(10) // delta = 10 - 3 = 7
 
 stop()
 if (deltas.length !== 3) throw new Error("expected 3 deltas")
@@ -565,7 +582,7 @@ becomes `true`, runs the effect (or resolves the promise) and disposes itself.
 ```ts
 import * as fobx from "@fobx/core"
 
-const isReady = fobx.box(false)
+const isReady = fobx.observableBox(false)
 const log: string[] = []
 
 const stop = fobx.when(
@@ -573,9 +590,9 @@ const stop = fobx.when(
   () => log.push("ready!"),
 )
 
-isReady.set(true)  // fires effect, then disposes
+isReady.set(true) // fires effect, then disposes
 isReady.set(false) // no effect — when is already disposed
-isReady.set(true)  // no effect
+isReady.set(true) // no effect
 
 if (log.length !== 1) throw new Error("expected exactly 1 fire")
 if (log[0] !== "ready!") throw new Error("wrong message")
@@ -589,12 +606,16 @@ immediately on the initial check:
 ```ts
 import * as fobx from "@fobx/core"
 
-const flag = fobx.box(true) // already true
+const flag = fobx.observableBox(true) // already true
 let fired = false
 
-fobx.when(() => flag.get(), () => { fired = true })
+fobx.when(() => flag.get(), () => {
+  fired = true
+})
 
-if (!fired) throw new Error("when should fire immediately if predicate is already true")
+if (!fired) {
+  throw new Error("when should fire immediately if predicate is already true")
+}
 ```
 
 ### Promise form with async/await
@@ -604,7 +625,7 @@ Omit the `effect` argument to get a cancellable `Promise`:
 ```ts
 import * as fobx from "@fobx/core"
 
-const loaded = fobx.box(false)
+const loaded = fobx.observableBox(false)
 
 async function waitForLoad() {
   await fobx.when(() => loaded.get())
@@ -614,7 +635,7 @@ async function waitForLoad() {
 // Simulate async load
 const promise = waitForLoad()
 loaded.set(true) // resolves the when promise
-await promise    // logs: "loaded!"
+await promise // logs: "loaded!"
 ```
 
 ### Timeout

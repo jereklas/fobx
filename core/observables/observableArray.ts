@@ -14,7 +14,11 @@ import {
   type ObservableAdmin,
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
-import { notifyChanged } from "../state/notifications.ts"
+import {
+  isNotProduction,
+  notifyChanged,
+  warnIfObservedWriteOutsideTransaction,
+} from "../state/notifications.ts"
 import { trackAccess } from "../reactions/tracking.ts"
 
 // Forward declaration — set after object.ts is loaded to break circular dep
@@ -111,6 +115,9 @@ export function observableArray<T>(
     switch (method) {
       case "push":
         return function (...items: Any[]) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           if (!admin.shallow) {
             for (let i = 0; i < items.length; i++) {
               items[i] = _processValue(items[i], admin.shallow)
@@ -123,6 +130,9 @@ export function observableArray<T>(
         }
       case "pop":
         return function () {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           const len = arr.length
           const result = arr.pop()
           if (len > 0) {
@@ -133,6 +143,9 @@ export function observableArray<T>(
         }
       case "shift":
         return function () {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           const len = arr.length
           const result = arr.shift()
           if (len > 0) {
@@ -143,6 +156,9 @@ export function observableArray<T>(
         }
       case "unshift":
         return function (...items: Any[]) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           if (!admin.shallow) {
             for (let i = 0; i < items.length; i++) {
               items[i] = _processValue(items[i], admin.shallow)
@@ -155,6 +171,9 @@ export function observableArray<T>(
         }
       case "splice":
         return function (start: number, deleteCount?: number, ...items: Any[]) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           if (!admin.shallow && items.length > 0) {
             for (let i = 0; i < items.length; i++) {
               items[i] = _processValue(items[i], admin.shallow)
@@ -186,6 +205,9 @@ export function observableArray<T>(
         }
       case "reverse":
         return function () {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           if ($scheduler.tracking !== null) {
             throw new Error(
               `[${admin.name}] reverse() mutates in-place and cannot be called in a reaction. Use toReversed() instead.`,
@@ -198,6 +220,9 @@ export function observableArray<T>(
         }
       case "sort":
         return function (compareFn?: (a: Any, b: Any) => number) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           if ($scheduler.tracking !== null) {
             throw new Error(
               `[${admin.name}] sort() mutates in-place and cannot be called in a reaction. Use toSorted() instead.`,
@@ -210,6 +235,9 @@ export function observableArray<T>(
         }
       case "fill":
         return function (value: Any, start?: number, end?: number) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           const processedValue = _processValue(value, admin.shallow)
           arr.fill(processedValue, start, end)
           admin.changes++
@@ -218,6 +246,9 @@ export function observableArray<T>(
         }
       case "copyWithin":
         return function (target: number, start: number, end?: number) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           arr.copyWithin(target, start, end)
           admin.changes++
           notifyChanged(admin)
@@ -294,6 +325,9 @@ export function observableArray<T>(
 
   // Custom methods bound to proxy
   function replace(newArray: T[]): T[] {
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(admin, "observable values")
+    }
     const oldLength = arr.length
     const newLength = newArray.length
     const removed: T[] = []
@@ -316,6 +350,9 @@ export function observableArray<T>(
   }
 
   function remove(item: T): number {
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(admin, "observable values")
+    }
     const index = arr.indexOf(item)
     if (index === -1) return -1
     arr.splice(index, 1)
@@ -325,6 +362,9 @@ export function observableArray<T>(
   }
 
   function clear(): T[] {
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(admin, "observable values")
+    }
     const removed = arr.slice()
     arr.length = 0
     admin.changes++
@@ -383,6 +423,9 @@ export function observableArray<T>(
       if (prop === "length") {
         const oldLength = arr.length
         if (newValue !== oldLength) {
+          if (isNotProduction) {
+            warnIfObservedWriteOutsideTransaction(admin, "observable values")
+          }
           arr.length = newValue
           admin.changes++
           notifyChanged(admin)
@@ -393,6 +436,9 @@ export function observableArray<T>(
         const index = prop as Any
         const oldValue = arr[index]
         if (admin.comparer(oldValue, newValue)) return true
+        if (isNotProduction) {
+          warnIfObservedWriteOutsideTransaction(admin, "observable values")
+        }
         arr[index] = _processValue(newValue, admin.shallow)
         admin.changes++
         notifyChanged(admin)

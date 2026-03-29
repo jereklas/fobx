@@ -40,7 +40,7 @@ Create standalone observable boxes:
 ```ts
 import * as fobx from "@fobx/core"
 
-const temperature = fobx.box(22)
+const temperature = fobx.observableBox(22)
 console.log(temperature.get()) // 22
 temperature.set(30)
 console.log(temperature.get()) // 30
@@ -72,9 +72,9 @@ Collections — arrays, maps, and sets — have their own reactive wrappers:
 ```ts
 import * as fobx from "@fobx/core"
 
-const items = fobx.array(["a", "b"])
-const scores = fobx.map([["alice", 100]])
-const tags = fobx.set(["typescript", "reactive"])
+const items = fobx.observableArray(["a", "b"])
+const scores = fobx.observableMap([["alice", 100]])
+const tags = fobx.observableSet(["typescript", "reactive"])
 ```
 
 ### 2. Computeds — derived state
@@ -85,8 +85,8 @@ recomputes when an upstream dependency changes and it has at least one observer.
 ```ts
 import * as fobx from "@fobx/core"
 
-const price = fobx.box(10)
-const quantity = fobx.box(3)
+const price = fobx.observableBox(10)
+const quantity = fobx.observableBox(3)
 
 const total = fobx.computed(() => price.get() * quantity.get())
 
@@ -104,9 +104,9 @@ price.set(10)
 stop()
 ```
 
-Think of computeds like spreadsheet cells: they always reflect the current
-state of their inputs, but they don't recompute unless something they read
-actually changed.
+Think of computeds like spreadsheet cells: they always reflect the current state
+of their inputs, but they don't recompute unless something they read actually
+changed.
 
 ### 3. Reactions — side effects
 
@@ -138,14 +138,15 @@ user.loggedIn = false
 
 ## Putting it all together
 
-Here is a small but complete example that shows all three building blocks working together:
+Here is a small but complete example that shows all three building blocks
+working together:
 
 ```ts
 import * as fobx from "@fobx/core"
 
 // 1. Define observable state
 const cart = fobx.observable({
-  items: fobx.array<{ name: string; price: number }>([]),
+  items: fobx.observableArray<{ name: string; price: number }>([]),
 
   addItem(item: { name: string; price: number }) {
     this.items.push(item)
@@ -196,8 +197,8 @@ Use `runInTransaction` to execute a block once in a batch:
 ```ts
 import * as fobx from "@fobx/core"
 
-const firstName = fobx.box("Alice")
-const lastName = fobx.box("Smith")
+const firstName = fobx.observableBox("Alice")
+const lastName = fobx.observableBox("Smith")
 
 fobx.autorun(() => {
   console.log(`Name: ${firstName.get()} ${lastName.get()}`)
@@ -205,8 +206,8 @@ fobx.autorun(() => {
 // Logs: "Name: Alice Smith"
 
 fobx.runInTransaction(() => {
-  firstName.set("Bob")   // reaction not yet triggered
-  lastName.set("Jones")  // reaction not yet triggered
+  firstName.set("Bob") // reaction not yet triggered
+  lastName.set("Jones") // reaction not yet triggered
 })
 // Logs: "Name: Bob Jones" — one output, never "Bob Smith"
 ```
@@ -216,8 +217,8 @@ Use `transaction` to wrap a **function** permanently as a transaction:
 ```ts
 import * as fobx from "@fobx/core"
 
-const x = fobx.box(0)
-const y = fobx.box(0)
+const x = fobx.observableBox(0)
+const y = fobx.observableBox(0)
 
 // Every call to movePoint is automatically wrapped in a transaction
 const movePoint = fobx.transaction((nx: number, ny: number) => {
@@ -232,11 +233,12 @@ movePoint(3, 4)
 // Logs: "Point: (3, 4)" — one reaction run, not two
 ```
 
-> **FobX vs MobX terminology**: FobX uses `transaction`/`runInTransaction`
-> where MobX uses `action`/`runInAction`. The semantics are the same — batched,
+> **FobX vs MobX terminology**: FobX uses `transaction`/`runInTransaction` where
+> MobX uses `action`/`runInAction`. The semantics are the same — batched,
 > untracked state mutation — but FobX's naming foregrounds the transactional
-> guarantee. See [Compatibility and Non-goals](/core/behavior/compatibility-and-non-goals/)
-> for a full list of differences.
+> guarantee. See
+> [Compatibility and Non-goals](/core/behavior/compatibility-and-non-goals/) for
+> a full list of differences.
 
 ---
 
@@ -254,9 +256,9 @@ reflects only the reads from the most recent execution:
 ```ts
 import * as fobx from "@fobx/core"
 
-const showDetails = fobx.box(false)
-const summary = fobx.box("Loading...")
-const details = fobx.box("Full content here")
+const showDetails = fobx.observableBox(false)
+const summary = fobx.observableBox("Loading...")
+const details = fobx.observableBox("Full content here")
 
 const stop = fobx.autorun(() => {
   if (showDetails.get()) {
@@ -297,7 +299,7 @@ is no longer needed — otherwise it may hold references and keep running foreve
 ```ts
 import * as fobx from "@fobx/core"
 
-const count = fobx.box(0)
+const count = fobx.observableBox(0)
 
 const stop = fobx.autorun(() => {
   console.log("count:", count.get())
@@ -315,13 +317,14 @@ count.set(2) // (no output — reaction is disposed)
 
 ## What to read next
 
-- [Core Primitives](/core/api/core-primitives/) — `box`, `computed`, `autorun`,
-  `reaction`, `when`
+- [Core Primitives](/core/api/core-primitives/) — `observableBox`, `computed`,
+  `autorun`, `reaction`, `when`
 - [Objects and Annotations](/core/api/objects-and-annotations/) — `observable`,
   `makeObservable`, annotation reference
-- [Collections](/core/api/collections/) — `array`, `map`, `set`
+- [Collections](/core/api/collections/) — `observableArray`, `observableMap`,
+  `observableSet`
 - [Transactions and Tracking](/core/api/transactions-and-tracking/) —
-  `transaction`, `runInTransaction`, `withoutTracking`
+  `transaction`, `runInTransaction`, `runWithoutTracking`
 - [Utilities and Configuration](/core/api/utilities-and-configuration/) —
   `configure`, inspection predicates
 - [Reactivity Model](/core/behavior/reactivity-model/) — deep dive into how

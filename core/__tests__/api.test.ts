@@ -4,6 +4,7 @@ import { expect, test } from "@fobx/testing"
 
 test("library has expected exports", () => {
   expect(Object.keys(fobx).sort()).toEqual([
+    "UNDEFINED",
     "autorun",
     "computed",
     "configure",
@@ -31,7 +32,7 @@ test("library has expected exports", () => {
     "runWithoutTracking",
     "transaction",
     "when",
-  ])
+  ].sort())
 })
 
 test("internals has expected exports", () => {
@@ -45,5 +46,5 @@ test("internals has expected exports", () => {
     "setActiveScope",
     "startBatch",
     "subscribe",
-  ])
+  ].sort())
 })

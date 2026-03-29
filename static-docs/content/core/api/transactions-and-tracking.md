@@ -19,28 +19,29 @@ runInTransaction<T>(fn: () => T): T
 ```
 
 Executes `fn` synchronously inside a one-off transaction, then returns its
-return value. All reactions triggered by changes inside `fn` are deferred
-until `fn` completes.
+return value. All reactions triggered by changes inside `fn` are deferred until
+`fn` completes.
 
 ### Basic usage
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const a = fobx.box(1)
-const b = fobx.box(2)
+const a = fobx.observableBox(1)
+const b = fobx.observableBox(2)
 let runs = 0
 
 const stop = fobx.autorun(() => {
-  a.get(); b.get()
+  a.get()
+  b.get()
   runs++
 })
 // runs = 1
 
 // Without runInTransaction, autorun would fire twice (once per set)
 fobx.runInTransaction(() => {
-  a.set(10)  // deferred
-  b.set(20)  // deferred
+  a.set(10) // deferred
+  b.set(20) // deferred
 })
 // reactions run here, once
 
@@ -53,7 +54,7 @@ if (runs !== 2) throw new Error("expected 2 total runs (initial + 1 batch)")
 ```ts
 import * as fobx from "@fobx/core"
 
-const counter = fobx.box(0)
+const counter = fobx.observableBox(0)
 
 const result = fobx.runInTransaction(() => {
   counter.set(42)
@@ -113,8 +114,8 @@ is set to `fn` so duck-typing against the original still works.
 ```ts
 import * as fobx from "@fobx/core"
 
-const x = fobx.box(0)
-const y = fobx.box(0)
+const x = fobx.observableBox(0)
+const y = fobx.observableBox(0)
 
 const setPoint = fobx.transaction((nx: number, ny: number) => {
   x.set(nx)
@@ -138,8 +139,8 @@ if (positions[1] !== "(3,4)") throw new Error("expected (3,4)")
 ### Using transaction for class methods
 
 The most common pattern is to annotate class methods with `transaction` or
-`transaction.bound` via `makeObservable`. But you can also wrap methods
-manually after construction:
+`transaction.bound` via `makeObservable`. But you can also wrap methods manually
+after construction:
 
 ```ts
 import * as fobx from "@fobx/core"
@@ -174,8 +175,12 @@ import * as fobx from "@fobx/core"
 const plain = () => {}
 const wrapped = fobx.transaction(plain)
 
-if (fobx.isTransaction(plain)) throw new Error("plain should not be a transaction")
-if (!fobx.isTransaction(wrapped)) throw new Error("wrapped should be a transaction")
+if (fobx.isTransaction(plain)) {
+  throw new Error("plain should not be a transaction")
+}
+if (!fobx.isTransaction(wrapped)) {
+  throw new Error("wrapped should be a transaction")
+}
 ```
 
 ### Transactions are untracked
@@ -187,8 +192,8 @@ dependencies:
 ```ts
 import * as fobx from "@fobx/core"
 
-const source = fobx.box(1)
-const target = fobx.box(0)
+const source = fobx.observableBox(1)
+const target = fobx.observableBox(0)
 let runs = 0
 
 const copy = fobx.transaction(() => {
@@ -196,7 +201,7 @@ const copy = fobx.transaction(() => {
 })
 
 const stop = fobx.autorun(() => {
-  copy()   // calls transaction, which reads source untracked
+  copy() // calls transaction, which reads source untracked
   runs++
 })
 // runs = 1
@@ -209,32 +214,32 @@ stop()
 
 ---
 
-## `withoutTracking(fn)`
+## `runWithoutTracking(fn)`
 
 ```ts
-withoutTracking<T>(fn: () => T): T
+runWithoutTracking<T>(fn: () => T): T
 ```
 
 Runs `fn` while temporarily disabling dependency tracking, then restores the
 previous tracking context. Any observable reads inside `fn` are **not
 registered** as dependencies of the current reaction or computed.
 
-This is useful when you need to read an observable for its value but you do
-not want changes to that observable to re-trigger the current reaction.
+This is useful when you need to read an observable for its value but you do not
+want changes to that observable to re-trigger the current reaction.
 
 ### Basic usage
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const trigger = fobx.box(0)
-const untracked = fobx.box(100)
+const trigger = fobx.observableBox(0)
+const untracked = fobx.observableBox(100)
 let runs = 0
 
 const stop = fobx.autorun(() => {
-  trigger.get()  // tracked
+  trigger.get() // tracked
   // We want to READ untracked without subscribing to it:
-  const value = fobx.withoutTracking(() => untracked.get())
+  const value = fobx.runWithoutTracking(() => untracked.get())
   runs++
   void value
 })
@@ -243,7 +248,7 @@ const stop = fobx.autorun(() => {
 untracked.set(999) // does NOT cause re-run — read was untracked
 if (runs !== 1) throw new Error("untracked read should not subscribe")
 
-trigger.set(1)     // DOES cause re-run — trigger is tracked
+trigger.set(1) // DOES cause re-run — trigger is tracked
 if (runs !== 2) throw new Error("tracked read should subscribe")
 
 stop()
@@ -251,15 +256,15 @@ stop()
 
 ### Reading analytics without subscribing
 
-A practical use case is reading a value only for logging or analytics, where
-you do not want a reaction to re-run just because the analytics-related state
+A practical use case is reading a value only for logging or analytics, where you
+do not want a reaction to re-run just because the analytics-related state
 changed:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const items = fobx.array([1, 2, 3])
-const userId = fobx.box("user-123") // changes often, but we only read it for logging
+const items = fobx.observableArray([1, 2, 3])
+const userId = fobx.observableBox("user-123") // changes often, but we only read it for logging
 
 let renderCount = 0
 
@@ -267,7 +272,7 @@ const stop = fobx.autorun(() => {
   renderCount++
   const count = items.length // tracked: re-run when items change
 
-  fobx.withoutTracking(() => {
+  fobx.runWithoutTracking(() => {
     // read userId for logging, but don't subscribe to it
     const uid = userId.get()
     void `User ${uid} sees ${count} items`
@@ -277,20 +282,20 @@ const stop = fobx.autorun(() => {
 userId.set("user-456") // does NOT re-run (userId is untracked)
 if (renderCount !== 1) throw new Error("expected 1 render")
 
-items.push(4)           // DOES re-run (items is tracked)
+items.push(4) // DOES re-run (items is tracked)
 if (renderCount !== 2) throw new Error("expected 2 renders")
 
 stop()
 ```
 
-### Difference between `withoutTracking` and `transaction`
+### Difference between `runWithoutTracking` and `transaction`
 
-| | `withoutTracking` | `transaction` |
-|---|---|---|
-| Purpose | Read without subscribing | Batch writes |
-| Batches notifications | No | Yes |
-| Reads inside contribute dependencies | No | No |
-| Returns value | Yes | Yes (wraps a function) |
+|                                      | `runWithoutTracking`     | `transaction`          |
+| ------------------------------------ | ------------------------ | ---------------------- |
+| Purpose                              | Read without subscribing | Batch writes           |
+| Batches notifications                | No                       | Yes                    |
+| Reads inside contribute dependencies | No                       | No                     |
+| Returns value                        | Yes                      | Yes (wraps a function) |
 
 Both suppress dependency tracking for reads, but `transaction` also batches
 notifications from writes.

@@ -29,7 +29,11 @@ import {
   trackAccess,
 } from "../reactions/tracking.ts"
 import { endBatch, safeRunReaction, startBatch } from "../transactions/batch.ts"
-import { notifyObservers } from "../state/notifications.ts"
+import {
+  isNotProduction,
+  notifyObservers,
+  warnIfObservedWriteOutsideTransaction,
+} from "../state/notifications.ts"
 
 export interface Computed<T> {
   get(): T
@@ -120,6 +124,9 @@ function setComputedValue<T>(
   bindContext?: unknown,
 ): void {
   if (userSetter) {
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(admin)
+    }
     if (admin.isInsideSetter) {
       throw new Error(
         `[@fobx/core] Computed setter is assigning to itself, this will cause an infinite loop.`,

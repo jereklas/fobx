@@ -4,7 +4,7 @@ import * as iterall from "iterall"
 import { deepEqual } from "fast-equals"
 import { $fobx, observerCount } from "../../state/global.ts"
 import * as fobx from "../../index.ts"
-import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
+import { beforeEach, describe, expect, fn, grabConsole, test } from "@fobx/testing"
 
 type ObservableSetWithAdmin = fobx.ObservableSet<string> & {
   [$fobx]: { observers: unknown[] }
@@ -560,4 +560,53 @@ test("set.forEach is reactive", () => {
   s.add(1)
   s.add(2)
   expect(c).toBe(3)
+})
+
+describe("warns when mutating observed set outside of a transaction", () => {
+  const warnPattern =
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Set@.*\) outside of a transaction is discouraged/
+
+  beforeEach(() => {
+    fobx.configure({ enforceActions: true })
+  })
+
+  test("add", () => {
+    const s = fobx.observable(new Set([1, 2]))
+    const d = fobx.autorun(() => s.forEach(() => {}))
+    expect(grabConsole(() => s.add(3))).toMatch(warnPattern)
+    d()
+  })
+
+  test("delete", () => {
+    const s = fobx.observable(new Set([1, 2]))
+    const d = fobx.autorun(() => s.forEach(() => {}))
+    expect(grabConsole(() => s.delete(1))).toMatch(warnPattern)
+    d()
+  })
+
+  test("clear", () => {
+    const s = fobx.observable(new Set([1, 2]))
+    const d = fobx.autorun(() => s.forEach(() => {}))
+    expect(grabConsole(() => s.clear())).toMatch(warnPattern)
+    d()
+  })
+
+  test("replace", () => {
+    const s = fobx.observable(new Set([1, 2])) as fobx.ObservableSet<number>
+    const d = fobx.autorun(() => s.forEach(() => {}))
+    expect(grabConsole(() => s.replace([3, 4]))).toMatch(warnPattern)
+    d()
+  })
+
+  test("does not warn when unobserved", () => {
+    const s = fobx.observable(new Set([1, 2]))
+    expect(grabConsole(() => s.add(3))).toBe("")
+  })
+
+  test("does not warn inside a transaction", () => {
+    const s = fobx.observable(new Set([1, 2]))
+    const d = fobx.autorun(() => s.forEach(() => {}))
+    expect(grabConsole(() => fobx.runInTransaction(() => s.add(3)))).toBe("")
+    d()
+  })
 })

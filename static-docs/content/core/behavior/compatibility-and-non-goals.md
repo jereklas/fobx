@@ -16,30 +16,52 @@ specific differences so you know what to expect.
 The most significant naming difference is that FobX uses **`transaction`** where
 MobX uses `action`, and **`runInTransaction`** where MobX uses `runInAction`.
 
-| MobX | FobX |
-|------|------|
-| `action(fn)` | `transaction(fn)` |
-| `action.bound` | `transaction.bound` |
-| `runInAction(fn)` | `runInTransaction(fn)` |
-| `observable.box(v)` | `box(v)` |
-| `observable.array(v)` | `array(v)` |
-| `observable.map(v)` | `map(v)` |
-| `observable.set(v)` | `set(v)` |
+| MobX                  | FobX                   |
+| --------------------- | ---------------------- |
+| `action(fn)`          | `transaction(fn)`      |
+| `action.bound`        | `transaction.bound`    |
+| `runInAction(fn)`     | `runInTransaction(fn)` |
+| `observable.box(v)`   | `observableBox(v)`     |
+| `observable.array(v)` | `observableArray(v)`   |
+| `observable.map(v)`   | `observableMap(v)`     |
+| `observable.set(v)`   | `observableSet(v)`     |
 
 The semantics are identical — only the names changed to reflect FobX’s framing
 of mutations as transactional operations.
 
 ---
 
-## No top-level `flow` / `flowResult` export
+## Standalone `flow` export
 
-FobX does not export a standalone `flow` function or `flowResult`. The `flow`
-and `flow.bound` strings are accepted as **annotation values** in
-`makeObservable` and `observable`, but they wrap the generator function
-invocation in a transaction rather than managing the full iterator lifecycle
-the way MobX’s `flow` does.
+FobX exports a standalone `flow` function that wraps a generator function and
+automatically advances the iterator, running each synchronous segment inside a
+transaction. Unlike MobX, FobX does not export `flowResult`.
 
-For async state mutations, the recommended pattern is:
+```ts
+import * as fobx from "@fobx/core"
+
+const store = fobx.observable({
+  data: null as string | null,
+  status: "idle" as "idle" | "loading" | "done" | "error",
+})
+
+const fetchData = fobx.flow(function* (url: string) {
+  store.status = "loading"
+  store.data = null
+  try {
+    const result = yield Promise.resolve(`data from ${url}`)
+    store.data = result as string
+    store.status = "done"
+  } catch {
+    store.status = "error"
+  }
+})
+
+await fetchData("https://example.com")
+```
+
+For simple async cases, `runInTransaction` inside an `async` function works
+equally well:
 
 ```ts
 import * as fobx from "@fobx/core"
@@ -83,22 +105,22 @@ small. Use `reaction` with a specific expression for observation needs.
 ## Collection construction
 
 In FobX, `observable([])`, `observable(new Map())`, and `observable(new Set())`
-route to the collection constructors rather than throwing a type error. MobX
-has similar behavior but its collection APIs are accessed differently.
+route to the collection constructors rather than throwing a type error. MobX has
+similar behavior but its collection APIs are accessed differently.
 
 FobX collections are constructed directly:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const arr = fobx.array([1, 2, 3])         // ObservableArray
-const map = fobx.map([["a", 1]])          // ObservableMap
-const set = fobx.set(["x", "y"])          // ObservableSet
+const arr = fobx.observableArray([1, 2, 3]) // ObservableArray
+const map = fobx.observableMap([["a", 1]]) // ObservableMap
+const set = fobx.observableSet(["x", "y"]) // ObservableSet
 
 // Also works via observable():
-const arr2 = fobx.observable([1, 2, 3])   // same as array()
-const map2 = fobx.observable(new Map([["a", 1]]))  // same as map()
-const set2 = fobx.observable(new Set(["x", "y"]))  // same as set()
+const arr2 = fobx.observable([1, 2, 3]) // same as array()
+const map2 = fobx.observable(new Map([["a", 1]])) // same as map()
+const set2 = fobx.observable(new Set(["x", "y"])) // same as set()
 
 if (!fobx.isObservableArray(arr)) throw new Error("should be observable array")
 if (!fobx.isObservableMap(map2)) throw new Error("should be observable map")
@@ -129,7 +151,9 @@ const obs = fobx.observable(source, { inPlace: true })
 
 // source and obs are the same object
 if (obs !== source) throw new Error("expected same reference with inPlace")
-if (!fobx.isObservableObject(source)) throw new Error("source should be observable")
+if (!fobx.isObservableObject(source)) {
+  throw new Error("source should be observable")
+}
 ```
 
 ---

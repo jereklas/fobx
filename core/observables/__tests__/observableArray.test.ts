@@ -954,3 +954,129 @@ test("accessing out of bound indices is supported", () => {
   expect(array.length).toBe(1002)
   expect(array[1001]).toBe("foo")
 })
+
+describe("warns when mutating observed array outside of a transaction", () => {
+  const warnPattern =
+    /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(Array@.*\) outside of a transaction is discouraged/
+
+  beforeEach(() => {
+    fobx.configure({ enforceActions: true })
+  })
+  afterAll(() => {
+    fobx.configure({ enforceActions: false })
+  })
+
+  test("push", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.push(3))).toMatch(warnPattern)
+    d()
+  })
+
+  test("pop", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.pop())).toMatch(warnPattern)
+    d()
+  })
+
+  test("shift", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.shift())).toMatch(warnPattern)
+    d()
+  })
+
+  test("unshift", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.unshift(0))).toMatch(warnPattern)
+    d()
+  })
+
+  test("splice", () => {
+    const a = observable([1, 2, 3])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.splice(1, 1))).toMatch(warnPattern)
+    d()
+  })
+
+  test("reverse", () => {
+    const a = observable([1, 2, 3])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.reverse())).toMatch(warnPattern)
+    d()
+  })
+
+  test("sort", () => {
+    const a = observable([3, 1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.sort())).toMatch(warnPattern)
+    d()
+  })
+
+  test("fill", () => {
+    const a = observable([1, 2, 3])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.fill(0))).toMatch(warnPattern)
+    d()
+  })
+
+  test("copyWithin", () => {
+    const a = observable([1, 2, 3, 4])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.copyWithin(0, 2))).toMatch(warnPattern)
+    d()
+  })
+
+  test("replace", () => {
+    const a = observable([1, 2]) as fobx.ObservableArray<number>
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.replace([3, 4]))).toMatch(warnPattern)
+    d()
+  })
+
+  test("remove", () => {
+    const a = observable([1, 2, 3]) as fobx.ObservableArray<number>
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.remove(2))).toMatch(warnPattern)
+    d()
+  })
+
+  test("clear", () => {
+    const a = observable([1, 2]) as fobx.ObservableArray<number>
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => a.clear())).toMatch(warnPattern)
+    d()
+  })
+
+  test("indexed assignment", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a[0])
+    expect(grabConsole(() => {
+      a[0] = 99
+    })).toMatch(warnPattern)
+    d()
+  })
+
+  test("length assignment", () => {
+    const a = observable([1, 2, 3])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => {
+      a.length = 1
+    })).toMatch(warnPattern)
+    d()
+  })
+
+  test("does not warn when unobserved", () => {
+    const a = observable([1, 2])
+    expect(grabConsole(() => a.push(3))).toBe("")
+  })
+
+  test("does not warn inside a transaction", () => {
+    const a = observable([1, 2])
+    const d = autorun(() => a.length)
+    expect(grabConsole(() => fobx.runInTransaction(() => a.push(3)))).toBe("")
+    d()
+  })
+})

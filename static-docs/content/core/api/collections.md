@@ -5,16 +5,16 @@ navSection: Core/API
 navOrder: 3
 ---
 
-FobX provides reactive wrappers for the three JavaScript collection types.
-Each one tracks read and write operations so reactions and computeds
-automatically update when the collection changes.
+FobX provides reactive wrappers for the three JavaScript collection types. Each
+one tracks read and write operations so reactions and computeds automatically
+update when the collection changes.
 
 ---
 
-## `array(initialValue?, options?)`
+## `observableArray(initialValue?, options?)`
 
 ```ts
-array<T>(initialValue?: T[], options?: ArrayOptions): ObservableArray<T>
+observableArray<T>(initialValue?: T[], options?: ArrayOptions): ObservableArray<T>
 
 interface ArrayOptions {
   name?: string
@@ -30,15 +30,15 @@ interface ObservableArray<T> extends Array<T> {
 }
 ```
 
-An `ObservableArray` is backed by a JavaScript `Proxy`. It supports the
-complete `Array` interface plus a few extra utility methods.
+An `ObservableArray` is backed by a JavaScript `Proxy`. It supports the complete
+`Array` interface plus a few extra utility methods.
 
 ### Basic usage
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const fruits = fobx.array(["apple", "banana"])
+const fruits = fobx.observableArray(["apple", "banana"])
 
 const log: string[] = []
 const stop = fobx.autorun(() => {
@@ -58,7 +58,7 @@ if (log.length !== 2) throw new Error("expected 2 log entries")
 ```ts
 import * as fobx from "@fobx/core"
 
-const items = fobx.array([1, 2, 3])
+const items = fobx.observableArray([1, 2, 3])
 const sizes: number[] = []
 
 const stop = fobx.reaction(
@@ -66,8 +66,8 @@ const stop = fobx.reaction(
   (n) => sizes.push(n),
 )
 
-items.push(4)      // sizes: [4]
-items.push(5)      // sizes: [4, 5]
+items.push(4) // sizes: [4]
+items.push(5) // sizes: [4, 5]
 items.splice(0, 2) // sizes: [4, 5, 3]
 
 stop()
@@ -83,24 +83,26 @@ re-trigger a reaction that read any element by index:
 ```ts
 import * as fobx from "@fobx/core"
 
-const items = fobx.array(["a", "b", "c"])
+const items = fobx.observableArray(["a", "b", "c"])
 const log: string[] = []
 
 // Reading items[1] subscribes to the whole array
 const stop = fobx.autorun(() => log.push(items[1]))
 // log: ["b"]
 
-items[0] = "z"  // reaction runs — whole-array tracking
-items[1] = "y"  // reaction runs
-items[2] = "x"  // reaction runs
+items[0] = "z" // reaction runs — whole-array tracking
+items[1] = "y" // reaction runs
+items[2] = "x" // reaction runs
 
 stop()
-if (log.length !== 4) throw new Error("expected 4 entries (initial + 3 mutations)")
+if (log.length !== 4) {
+  throw new Error("expected 4 entries (initial + 3 mutations)")
+}
 if (log[2] !== "y") throw new Error("expected y after items[1] change")
 ```
 
-> **Tip:** For fine-grained per-slot tracking, use an observable `map` keyed
-> by index, or wrap each item in a `box`.
+> **Tip:** For fine-grained per-slot tracking, use an `observableMap` keyed by
+> index, or wrap each item in an `observableBox`.
 
 ### Mutation methods
 
@@ -110,14 +112,14 @@ All standard mutating methods are supported (`push`, `pop`, `shift`, `unshift`,
 ```ts
 import * as fobx from "@fobx/core"
 
-const numbers = fobx.array([3, 1, 4, 1, 5, 9])
+const numbers = fobx.observableArray([3, 1, 4, 1, 5, 9])
 
 // replace() swaps entire contents
 const removed = numbers.replace([1, 2, 3])
 if (numbers.length !== 3) throw new Error("expected 3")
 
 // remove() finds and removes first occurrence, returns index (-1 if not found)
-const idx = numbers.remove(2)   // removes the 2, returns index 1
+const idx = numbers.remove(2) // removes the 2, returns index 1
 if (idx !== 1) throw new Error("expected index 1")
 if (numbers.length !== 2) throw new Error("expected 2")
 
@@ -134,8 +136,8 @@ observables. Pass `shallow: true` to keep items as plain values:
 ```ts
 import * as fobx from "@fobx/core"
 
-const deep = fobx.array([{ x: 1 }])
-const shallow = fobx.array([{ x: 1 }], { shallow: true })
+const deep = fobx.observableArray([{ x: 1 }])
+const shallow = fobx.observableArray([{ x: 1 }], { shallow: true })
 
 // Deep array converts items:
 if (!fobx.isObservableObject(deep[0])) {
@@ -155,19 +157,21 @@ Converts back to a plain JavaScript array (shallow copy):
 ```ts
 import * as fobx from "@fobx/core"
 
-const obs = fobx.array([1, 2, 3])
+const obs = fobx.observableArray([1, 2, 3])
 const plain = obs.toJSON()
 
-if (fobx.isObservableArray(plain)) throw new Error("toJSON should return plain array")
+if (fobx.isObservableArray(plain)) {
+  throw new Error("toJSON should return plain array")
+}
 if (plain.length !== 3) throw new Error("expected 3 items")
 ```
 
 ---
 
-## `map(entries?, options?)`
+## `observableMap(entries?, options?)`
 
 ```ts
-map<K, V>(entries?: Iterable<[K, V]>, options?: MapOptions): ObservableMap<K, V>
+observableMap<K, V>(entries?: Iterable<[K, V]>, options?: MapOptions): ObservableMap<K, V>
 
 interface MapOptions {
   name?: string
@@ -178,7 +182,7 @@ interface MapOptions {
 interface ObservableMap<K, V> extends Map<K, V> {
   replace(entries: Iterable<[K, V]> | Record<string, V>): void
   merge(entries: Iterable<[K, V]> | Record<string, V>): void
-  toJSON(): Record<string, V>  // when keys are strings
+  toJSON(): [K, V][]
 }
 ```
 
@@ -187,7 +191,7 @@ interface ObservableMap<K, V> extends Map<K, V> {
 ```ts
 import * as fobx from "@fobx/core"
 
-const scores = fobx.map([["alice", 100], ["bob", 85]])
+const scores = fobx.observableMap([["alice", 100], ["bob", 85]])
 
 const log: string[] = []
 const stop = fobx.autorun(() => {
@@ -206,28 +210,28 @@ if (log.length !== 2) throw new Error("expected 2")
 
 ### Key-level tracking
 
-`get(key)` and `has(key)` track at the key level. Changing a different key
-does not re-run a reaction that only reads one key:
+`get(key)` and `has(key)` track at the key level. Changing a different key does
+not re-run a reaction that only reads one key:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const m = fobx.map<string, number>()
+const m = fobx.observableMap<string, number>()
 let runs = 0
 
 const stop = fobx.autorun(() => {
-  m.get("target")  // tracks only "target"
+  m.get("target") // tracks only "target"
   runs++
 })
 // runs = 1
 
-m.set("other", 99)    // does NOT trigger ("other" not tracked)
+m.set("other", 99) // does NOT trigger ("other" not tracked)
 if (runs !== 1) throw new Error("unrelated key should not trigger")
 
-m.set("target", 1)   // triggers ("target" is tracked)
+m.set("target", 1) // triggers ("target" is tracked)
 if (runs !== 2) throw new Error("tracked key should trigger")
 
-m.set("target", 1)   // does NOT trigger (same value)
+m.set("target", 1) // does NOT trigger (same value)
 if (runs !== 2) throw new Error("same value should not trigger")
 
 stop()
@@ -238,11 +242,11 @@ stop()
 ```ts
 import * as fobx from "@fobx/core"
 
-const m = fobx.map<string, number>()
+const m = fobx.observableMap<string, number>()
 let runs = 0
 
 const stop = fobx.autorun(() => {
-  m.has("x")  // tracks "x" even when absent
+  m.has("x") // tracks "x" even when absent
   runs++
 })
 // runs = 1 (has returns false)
@@ -258,23 +262,23 @@ stop()
 
 ### Iterating the whole map
 
-Iterating (spread, `forEach`, `for...of`, checking `size`) tracks the entire
-map and re-runs on any structural change:
+Iterating (spread, `forEach`, `for...of`, checking `size`) tracks the entire map
+and re-runs on any structural change:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const m = fobx.map([["a", 1], ["b", 2]])
+const m = fobx.observableMap([["a", 1], ["b", 2]])
 let runs = 0
 
 const stop = fobx.autorun(() => {
-  for (const [, v] of m) { void v } // iterates all entries
+  for (const [, v] of m) void v // iterates all entries
   runs++
 })
 // runs = 1
 
 m.set("a", 99) // changes a value — re-run
-m.set("c", 3)  // adds a new key — re-run
+m.set("c", 3) // adds a new key — re-run
 m.delete("b") // removes a key — re-run
 
 stop()
@@ -286,7 +290,7 @@ if (runs !== 4) throw new Error("expected 4 runs")
 ```ts
 import * as fobx from "@fobx/core"
 
-const m = fobx.map([["a", 1], ["b", 2]])
+const m = fobx.observableMap([["a", 1], ["b", 2]])
 
 // replace: clears and repopulates atomically
 m.replace([["c", 3], ["d", 4]])
@@ -301,10 +305,10 @@ if (m.get("c") !== 3) throw new Error("c should be preserved")
 
 ---
 
-## `set(values?, options?)`
+## `observableSet(values?, options?)`
 
 ```ts
-set<T>(values?: Iterable<T>, options?: SetOptions): ObservableSet<T>
+observableSet<T>(values?: Iterable<T>, options?: SetOptions): ObservableSet<T>
 
 interface SetOptions {
   name?: string
@@ -322,7 +326,7 @@ interface ObservableSet<T> extends Set<T> {
 ```ts
 import * as fobx from "@fobx/core"
 
-const tags = fobx.set(["typescript", "reactive"])
+const tags = fobx.observableSet(["typescript", "reactive"])
 
 const log: boolean[] = []
 const stop = fobx.autorun(() => {
@@ -347,7 +351,7 @@ Like `map.has`, `set.has` tracks at the value level:
 ```ts
 import * as fobx from "@fobx/core"
 
-const s = fobx.set<string>()
+const s = fobx.observableSet<string>()
 let runs = 0
 
 const stop = fobx.autorun(() => {
@@ -356,10 +360,10 @@ const stop = fobx.autorun(() => {
 })
 // runs = 1
 
-s.add("other")   // does NOT trigger
+s.add("other") // does NOT trigger
 if (runs !== 1) throw new Error("unrelated value should not trigger")
 
-s.add("target")  // triggers
+s.add("target") // triggers
 if (runs !== 2) throw new Error("tracked value should trigger")
 
 stop()
@@ -370,7 +374,7 @@ stop()
 ```ts
 import * as fobx from "@fobx/core"
 
-const s = fobx.set(["a", "b", "c"])
+const s = fobx.observableSet(["a", "b", "c"])
 let runs = 0
 
 const stop = fobx.reaction(() => s.size, () => runs++)
@@ -391,7 +395,7 @@ Converts to a plain array:
 ```ts
 import * as fobx from "@fobx/core"
 
-const s = fobx.set([1, 2, 3])
+const s = fobx.observableSet([1, 2, 3])
 const plain = s.toJSON()
 
 if (!Array.isArray(plain)) throw new Error("toJSON should return array")
@@ -404,22 +408,22 @@ if (plain.length !== 3) throw new Error("expected 3 items")
 
 ### Reacting to the whole collection
 
-To react whenever _anything_ in a collection changes, return the collection
-from the `reaction` expression:
+To react whenever _anything_ in a collection changes, return the collection from
+the `reaction` expression:
 
 ```ts
 import * as fobx from "@fobx/core"
 
-const list = fobx.array([1, 2, 3])
+const list = fobx.observableArray([1, 2, 3])
 let snapshots: number[] = []
 
 const stop = fobx.reaction(
-  () => list,  // returning the collection itself tracks all changes
+  () => list, // returning the collection itself tracks all changes
   () => snapshots.push(list.length),
 )
 
-list.push(4)    // fires
-list.pop()      // fires
+list.push(4) // fires
+list.pop() // fires
 list.push(5, 6) // fires
 
 stop()
@@ -431,7 +435,10 @@ if (snapshots.length !== 3) throw new Error("expected 3")
 ```ts
 import * as fobx from "@fobx/core"
 
-const prices = fobx.map([["coffee", 3.50], ["tea", 2.00], ["juice", 4.50]])
+const prices = fobx.observableMap([["coffee", 3.50], ["tea", 2.00], [
+  "juice",
+  4.50,
+]])
 
 const average = fobx.computed(() => {
   const values = Array.from(prices.values())

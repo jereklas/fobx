@@ -5,10 +5,11 @@ navSection: Core/API
 navOrder: 2
 ---
 
-While `box` gives you a single reactive value, `observable` and `makeObservable`
-let you make an **entire object** reactive in one call. Getters become
-computeds, functions become transactions, and data properties become observable
-boxes — all with property-access syntax rather than explicit `.get()`/`.set()`.
+While `observableBox` gives you a single reactive value, `observable` and
+`makeObservable` let you make an **entire object** reactive in one call. Getters
+become computeds, functions become transactions, and data properties become
+observable boxes — all with property-access syntax rather than explicit
+`.get()`/`.set()`.
 
 ---
 
@@ -32,11 +33,11 @@ interface ObservableOptions<T extends object = object> {
 `observable` is the auto-annotation API. It inspects the target object and
 applies sensible defaults to each member:
 
-| Member type | Default annotation |
-|---|---|
+| Member type   | Default annotation  |
+| ------------- | ------------------- |
 | Data property | `observable` (deep) |
-| Getter | `computed` |
-| Function | `transaction` |
+| Getter        | `computed`          |
+| Function      | `transaction`       |
 
 ### Plain objects — new reference by default
 
@@ -74,7 +75,9 @@ const state = { count: 0, label: "hello" }
 const obs = fobx.observable(state, { inPlace: true })
 
 if (obs !== state) throw new Error("inPlace should return the same reference")
-if (!fobx.isObservableObject(state)) throw new Error("state should be observable")
+if (!fobx.isObservableObject(state)) {
+  throw new Error("state should be observable")
+}
 
 state.count = 5
 if (state.count !== 5) throw new Error("should be 5")
@@ -123,20 +126,24 @@ import * as fobx from "@fobx/core"
 
 const model = fobx.observable(
   {
-    id: "abc-123",       // constant identifier
-    name: "Widget",      // mutable
-    tags: ["a", "b"],   // mutable collection
+    id: "abc-123", // constant identifier
+    name: "Widget", // mutable
+    tags: ["a", "b"], // mutable collection
   },
   {
     annotations: {
-      id: "none",             // not reactive — it never changes
+      id: "none", // not reactive — it never changes
       tags: "observable.shallow", // array is observable but items are not
     },
   },
 )
 
-if (fobx.isObservable(model, "id")) throw new Error("id should not be observable")
-if (!fobx.isObservableArray(model.tags)) throw new Error("tags should be observable array")
+if (fobx.isObservable(model, "id")) {
+  throw new Error("id should not be observable")
+}
+if (!fobx.isObservableArray(model.tags)) {
+  throw new Error("tags should be observable array")
+}
 ```
 
 ### Changing the default annotation
@@ -190,7 +197,7 @@ makeObservable(
 
 interface MakeObservableOptions<T extends object = object> {
   name?: string
-  annotations: AnnotationsMap<T>  // explicit member-by-member annotations
+  annotations?: AnnotationsMap<T>
   ownPropertiesOnly?: boolean
 }
 ```
@@ -259,8 +266,12 @@ fobx.makeObservable(obj, {
   annotations: { tracked: "observable" },
 })
 
-if (!fobx.isObservable(obj, "tracked")) throw new Error("tracked should be observable")
-if (fobx.isObservable(obj, "notTracked")) throw new Error("notTracked should NOT be observable")
+if (!fobx.isObservable(obj, "tracked")) {
+  throw new Error("tracked should be observable")
+}
+if (fobx.isObservable(obj, "notTracked")) {
+  throw new Error("notTracked should NOT be observable")
+}
 ```
 
 ---
@@ -277,7 +288,8 @@ converted to their observable counterparts:
 - Maps → `ObservableMap`
 - Sets → `ObservableSet`
 - Functions → wrapped as `transaction`
-- Primitives and class instances → stored as-is (only the box tracks reassignment)
+- Primitives and class instances → stored as-is (only the box tracks
+  reassignment)
 
 ```ts
 import * as fobx from "@fobx/core"
@@ -309,9 +321,12 @@ if (fobx.isObservableObject(model.data)) {
 }
 
 let runs = 0
-const stop = fobx.autorun(() => { model.data; runs++ })
+const stop = fobx.autorun(() => {
+  model.data
+  runs++
+})
 
-model.data.x = 2   // does NOT trigger (inner mutation, not tracked)
+model.data.x = 2 // does NOT trigger (inner mutation, not tracked)
 if (runs !== 1) throw new Error("inner mutation should not trigger")
 
 model.data = { x: 3 } // DOES trigger (reassignment)
@@ -392,7 +407,10 @@ const model = fobx.observable(
 )
 
 let runs = 0
-const stop = fobx.autorun(() => { model.sortedItems; runs++ })
+const stop = fobx.autorun(() => {
+  model.sortedItems
+  runs++
+})
 // runs = 1
 
 // Pushing a new item that doesn't change the sorted output would still
@@ -414,7 +432,7 @@ const counter = fobx.observable({
   step: 1,
 
   incrementBy(n: number) {
-    this.value += n  // wrapped in transaction — batched
+    this.value += n // wrapped in transaction — batched
   },
 })
 
@@ -429,14 +447,19 @@ stop()
 
 ### `"transaction.bound"`
 
-Same as `"transaction"` but also binds `this`. Useful when passing the method
-as a callback:
+Same as `"transaction"` but also binds `this`. Useful when passing the method as
+a callback:
 
 ```ts
 import * as fobx from "@fobx/core"
 
 const counter = fobx.makeObservable(
-  { value: 0, increment() { this.value++ } },
+  {
+    value: 0,
+    increment() {
+      this.value++
+    },
+  },
   { annotations: { value: "observable", increment: "transaction.bound" } },
 )
 
@@ -463,20 +486,26 @@ const model = fobx.observable(
   { annotations: { id: "none" } },
 )
 
-if (fobx.isObservable(model, "id")) throw new Error("id should not be observable")
-if (!fobx.isObservable(model, "name")) throw new Error("name should be observable")
+if (fobx.isObservable(model, "id")) {
+  throw new Error("id should not be observable")
+}
+if (!fobx.isObservable(model, "name")) {
+  throw new Error("name should be observable")
+}
 ```
 
 ### `"flow"` and `"flow.bound"` annotations
 
-These annotation strings are accepted and wrap the generator **function** in a
-transaction. They are accepted for compatibility, but they do **not** manage
-the generator iterator lifecycle — calling the method returns a generator
-iterator without auto-advancing it. For async state mutations use
-`runInTransaction` inside async handlers instead (see
-[Compatibility and Non-goals](/core/behavior/compatibility-and-non-goals/)).
+These annotations wrap a generator method with the standalone `flow()` function.
+The resulting method fully manages the generator iterator lifecycle: calling it
+returns a **Promise**, not a raw generator. Each synchronous segment between
+`yield` points runs inside `runInTransaction`, so all observable mutations
+within a segment are batched into a single notification.
 
-You can verify the wrapping is in place with `isTransaction`:
+Use `"flow.bound"` to additionally bind `this` to the host object, analogous to
+`"transaction.bound"`.
+
+You can verify the wrapping is in place with `isFlow`:
 
 ```ts
 import * as fobx from "@fobx/core"
@@ -486,14 +515,22 @@ const store = fobx.makeObservable(
     status: "idle" as string,
     *loadData() {
       this.status = "loading"
+      yield Promise.resolve() // async boundary
+      this.status = "done"
     },
   },
   { annotations: { status: "observable", loadData: "flow" } },
 )
 
-// The method is wrapped as a transaction:
-if (!fobx.isTransaction(store.loadData)) {
-  throw new Error("flow-annotated method should be a transaction wrapper")
+// The method is a flow — calling it returns a Promise:
+if (!fobx.isFlow(store.loadData)) {
+  throw new Error("flow-annotated method should be a flow wrapper")
+}
+
+// Each sync segment between yields runs in a transaction:
+await store.loadData()
+if (store.status !== "done") {
+  throw new Error("flow should auto-advance the generator")
 }
 ```
 
@@ -501,8 +538,8 @@ if (!fobx.isTransaction(store.loadData)) {
 
 ## Writable computed on objects
 
-Define both a getter and a setter for the same property; FobX will install it
-as a writable computed:
+Define both a getter and a setter for the same property; FobX will install it as
+a writable computed:
 
 ```ts
 import * as fobx from "@fobx/core"

@@ -13,7 +13,11 @@ import {
   type ObservableAdmin,
 } from "../state/global.ts"
 import { endBatch, startBatch } from "../transactions/batch.ts"
-import { notifyChanged } from "../state/notifications.ts"
+import {
+  isNotProduction,
+  notifyChanged,
+  warnIfObservedWriteOutsideTransaction,
+} from "../state/notifications.ts"
 import { trackAccess } from "../reactions/tracking.ts"
 import {
   type ObservableBox,
@@ -98,6 +102,10 @@ class ObservableSet<T = unknown> implements Set<T> {
   add(value: T): this {
     if (this.data.has(value)) return this
 
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(this[$fobx])
+    }
+
     const processedValue = _processValue(value, this.shallow)
     this.data.add(processedValue)
 
@@ -111,6 +119,11 @@ class ObservableSet<T = unknown> implements Set<T> {
 
   delete(value: T): boolean {
     if (!this.data.has(value)) return false
+
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(this[$fobx])
+    }
+
     this.data.delete(value)
 
     const hasBox = this.hasMap.get(value)
@@ -123,6 +136,11 @@ class ObservableSet<T = unknown> implements Set<T> {
 
   clear(): void {
     if (this.data.size === 0) return
+
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(this[$fobx])
+    }
+
     startBatch()
     try {
       this.data.clear()
@@ -212,6 +230,10 @@ class ObservableSet<T = unknown> implements Set<T> {
       throw new Error(
         "[@fobx/core] Supplied entries was not a Set or an Array.",
       )
+    }
+
+    if (isNotProduction) {
+      warnIfObservedWriteOutsideTransaction(this[$fobx])
     }
 
     startBatch()

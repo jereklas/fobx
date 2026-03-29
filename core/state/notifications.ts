@@ -21,17 +21,27 @@ import {
   STALE,
   UP_TO_DATE,
 } from "./global.ts"
+import { $instance } from "./instance.ts"
 
 // Forward declaration — set by batch.ts to break circular dep
 let _runPendingReactions: () => void = () => {}
+
+type DenoEnvLike = {
+  env?: {
+    get?: (key: string) => string | undefined
+  }
+}
 
 export function setRunPendingReactions(fn: () => void): void {
   _runPendingReactions = fn
 }
 
 // Cache dev mode check at module level (supports both Deno and Node)
+const denoNodeEnv = (globalThis as typeof globalThis & { Deno?: DenoEnvLike })
+  .Deno?.env?.get?.("NODE_ENV")
+
 const isNotProduction =
-  (typeof Deno !== "undefined" && Deno.env?.get("NODE_ENV") !== "production") ||
+  (denoNodeEnv !== undefined && denoNodeEnv !== "production") ||
   // deno-lint-ignore no-process-global no-process-global
   (typeof process !== "undefined" && process.env?.NODE_ENV !== "production")
 
@@ -126,6 +136,21 @@ export function notifyChanged(admin: ObservableAdmin): void {
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).
   if ($scheduler.batchDepth === 0 && $scheduler.pending.length > 0) {
     _runPendingReactions()
+  }
+}
+
+export function warnIfObservedWriteOutsideTransaction(
+  admin: ObservableAdmin,
+  label: "observable value" | "observable values" = "observable value",
+): void {
+  if (
+    $instance.enforceActions &&
+    $scheduler.batchDepth === 0 &&
+    _hasObservers(admin)
+  ) {
+    console.warn(
+      `[@fobx/core] Changing tracked ${label} (${admin.name}) outside of a transaction is discouraged as reactions run more frequently than necessary.`,
+    )
   }
 }
 

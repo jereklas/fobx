@@ -15,7 +15,7 @@ interface ConfigureOptions {
   comparer?: {
     structural?: (a: unknown, b: unknown) => boolean
   }
-  onReactionError?: (error: unknown, reaction: ReactionAdmin) => void
+  onReactionError?: (error: unknown, reaction: unknown) => void
 }
 ```
 
@@ -37,10 +37,13 @@ fobx.configure({
   },
 })
 
-const point = fobx.box({ x: 1, y: 2 }, { comparer: "structural" })
+const point = fobx.observableBox({ x: 1, y: 2 }, { comparer: "structural" })
 
 let runs = 0
-const stop = fobx.autorun(() => { point.get(); runs++ })
+const stop = fobx.autorun(() => {
+  point.get()
+  runs++
+})
 
 point.set({ x: 1, y: 2 }) // structurally equal — no reaction
 if (runs !== 1) throw new Error("structural equality should suppress reaction")
@@ -61,8 +64,10 @@ import * as fobx from "@fobx/core"
 let threw = false
 try {
   // Reset to no structural comparer for this test
-  fobx.configure({ comparer: { structural: undefined as unknown as () => boolean } })
-  fobx.box({ x: 1 }, { comparer: "structural" })
+  fobx.configure({
+    comparer: { structural: undefined as unknown as () => boolean },
+  })
+  fobx.observableBox({ x: 1 }, { comparer: "structural" })
 } catch {
   threw = true
 }
@@ -85,7 +90,7 @@ fobx.configure({
   onReactionError: (err) => errors.push(err as Error),
 })
 
-const value = fobx.box(0)
+const value = fobx.observableBox(0)
 const stop = fobx.autorun(() => {
   if (value.get() === 1) throw new Error("reaction error")
 })
@@ -130,7 +135,9 @@ const plain = { x: 1 }
 
 if (!fobx.isObservable(obj, "x")) throw new Error("x should be observable")
 if (!fobx.isObservable(obj, "y")) throw new Error("y should be observable")
-if (fobx.isObservable(plain, "x")) throw new Error("plain prop should not be observable")
+if (fobx.isObservable(plain, "x")) {
+  throw new Error("plain prop should not be observable")
+}
 ```
 
 ### `isObservableObject(value)`
@@ -145,7 +152,9 @@ const obs = fobx.observable({ a: 1 })
 const plain = { a: 1 }
 
 if (!fobx.isObservableObject(obs)) throw new Error("expected observable object")
-if (fobx.isObservableObject(plain)) throw new Error("plain object should return false")
+if (fobx.isObservableObject(plain)) {
+  throw new Error("plain object should return false")
+}
 ```
 
 ### `isObservableArray(value)`
@@ -153,11 +162,13 @@ if (fobx.isObservableObject(plain)) throw new Error("plain object should return 
 ```ts
 import * as fobx from "@fobx/core"
 
-const obs = fobx.array([1, 2, 3])
+const obs = fobx.observableArray([1, 2, 3])
 const plain = [1, 2, 3]
 
 if (!fobx.isObservableArray(obs)) throw new Error("expected observable array")
-if (fobx.isObservableArray(plain)) throw new Error("plain array should return false")
+if (fobx.isObservableArray(plain)) {
+  throw new Error("plain array should return false")
+}
 ```
 
 ### `isObservableMap(value)`
@@ -165,11 +176,13 @@ if (fobx.isObservableArray(plain)) throw new Error("plain array should return fa
 ```ts
 import * as fobx from "@fobx/core"
 
-const obs = fobx.map([["a", 1]])
+const obs = fobx.observableMap([["a", 1]])
 const plain = new Map([["a", 1]])
 
 if (!fobx.isObservableMap(obs)) throw new Error("expected observable map")
-if (fobx.isObservableMap(plain)) throw new Error("plain map should return false")
+if (fobx.isObservableMap(plain)) {
+  throw new Error("plain map should return false")
+}
 ```
 
 ### `isObservableSet(value)`
@@ -177,11 +190,13 @@ if (fobx.isObservableMap(plain)) throw new Error("plain map should return false"
 ```ts
 import * as fobx from "@fobx/core"
 
-const obs = fobx.set([1, 2, 3])
+const obs = fobx.observableSet([1, 2, 3])
 const plain = new Set([1, 2, 3])
 
 if (!fobx.isObservableSet(obs)) throw new Error("expected observable set")
-if (fobx.isObservableSet(plain)) throw new Error("plain set should return false")
+if (fobx.isObservableSet(plain)) {
+  throw new Error("plain set should return false")
+}
 ```
 
 ### `isObservableBox(value)`
@@ -189,7 +204,7 @@ if (fobx.isObservableSet(plain)) throw new Error("plain set should return false"
 ```ts
 import * as fobx from "@fobx/core"
 
-const obs = fobx.box(42)
+const obs = fobx.observableBox(42)
 
 if (!fobx.isObservableBox(obs)) throw new Error("expected observable box")
 if (fobx.isObservableBox(42)) throw new Error("primitive should return false")
@@ -202,15 +217,23 @@ Returns `true` for observable arrays, maps, or sets:
 ```ts
 import * as fobx from "@fobx/core"
 
-const arr = fobx.array([1])
-const map = fobx.map([["a", 1]])
-const set = fobx.set([1])
-const box = fobx.box(1)
+const arr = fobx.observableArray([1])
+const map = fobx.observableMap([["a", 1]])
+const set = fobx.observableSet([1])
+const box = fobx.observableBox(1)
 
-if (!fobx.isObservableCollection(arr)) throw new Error("array should be collection")
-if (!fobx.isObservableCollection(map)) throw new Error("map should be collection")
-if (!fobx.isObservableCollection(set)) throw new Error("set should be collection")
-if (fobx.isObservableCollection(box)) throw new Error("box should NOT be collection")
+if (!fobx.isObservableCollection(arr)) {
+  throw new Error("array should be collection")
+}
+if (!fobx.isObservableCollection(map)) {
+  throw new Error("map should be collection")
+}
+if (!fobx.isObservableCollection(set)) {
+  throw new Error("set should be collection")
+}
+if (fobx.isObservableCollection(box)) {
+  throw new Error("box should NOT be collection")
+}
 ```
 
 ### `isComputed(value, property?)`
@@ -226,9 +249,13 @@ if (!fobx.isComputed(c)) throw new Error("standalone computed")
 
 const obj = fobx.observable({
   x: 1,
-  get doubled() { return this.x * 2 },
+  get doubled() {
+    return this.x * 2
+  },
 })
-if (!fobx.isComputed(obj, "doubled")) throw new Error("object getter should be computed")
+if (!fobx.isComputed(obj, "doubled")) {
+  throw new Error("object getter should be computed")
+}
 if (fobx.isComputed(obj, "x")) throw new Error("data prop is not computed")
 ```
 
@@ -241,7 +268,9 @@ Returns `true` if `value` is a plain object (created via `{}` or
 import * as fobx from "@fobx/core"
 
 if (!fobx.isPlainObject({})) throw new Error("{} should be plain")
-if (!fobx.isPlainObject(Object.create(null))) throw new Error("null-proto should be plain")
+if (!fobx.isPlainObject(Object.create(null))) {
+  throw new Error("null-proto should be plain")
+}
 if (fobx.isPlainObject([])) throw new Error("array should not be plain")
 if (fobx.isPlainObject(new Map())) throw new Error("Map should not be plain")
 if (fobx.isPlainObject(42)) throw new Error("number should not be plain")
@@ -257,8 +286,12 @@ import * as fobx from "@fobx/core"
 const plain = () => {}
 const wrapped = fobx.transaction(plain)
 
-if (fobx.isTransaction(plain)) throw new Error("plain function is not a transaction")
-if (!fobx.isTransaction(wrapped)) throw new Error("wrapped should be a transaction")
+if (fobx.isTransaction(plain)) {
+  throw new Error("plain function is not a transaction")
+}
+if (!fobx.isTransaction(wrapped)) {
+  throw new Error("wrapped should be a transaction")
+}
 ```
 
 ---
@@ -268,6 +301,7 @@ if (!fobx.isTransaction(wrapped)) throw new Error("wrapped should be a transacti
 FobX exports runtime-facing TypeScript types for all primitives and options:
 
 **Primitives and options**
+
 - `BoxOptions`, `ObservableBox`
 - `Computed`, `ComputedOptions`
 - `AutorunOptions`
@@ -275,33 +309,41 @@ FobX exports runtime-facing TypeScript types for all primitives and options:
 - `WhenOptions`, `WhenPromise`
 - `Dispose`
 
+**Reactions and selectors**
+
+- `Selector`
+- `UNDEFINED` — sentinel symbol for the initial `previousValue` in `reaction`
+
 **Collections and options**
+
 - `ArrayOptions`, `ObservableArray`
 - `MapOptions`, `ObservableMap`
 - `SetOptions`, `ObservableSet`
 
 **Object model**
+
 - `AnnotationsMap`, `AnnotationString`, `AnnotationValue`
 - `MakeObservableOptions`, `ObservableOptions`, `ObservableObjectAdmin`
 
 **Runtime and config**
+
 - `ConfigureOptions`
 - `EqualityChecker`, `EqualityComparison`
-- `FobxAdmin`, `ObservableAdmin`, `ReactionAdmin`, `ComputedAdmin`
 
 ## `$fobx` symbol
 
-The `$fobx` symbol is exported for advanced tooling. It is the key under which
-FobX attaches administration data to reactive objects and collections.
+The `$fobx` symbol is exported from `@fobx/core/internals` for advanced tooling.
+It is the key under which FobX attaches administration data to reactive objects
+and collections.
 
-Application code should prefer the predicate helpers above rather than
-accessing the admin directly:
+Application code should prefer the predicate helpers above rather than accessing
+the admin directly:
 
 ```ts
 import * as fobx from "@fobx/core"
-import { $fobx } from "@fobx/core"
+import { $fobx } from "@fobx/core/internals"
 
-const b = fobx.box(42)
+const b = fobx.observableBox(42)
 
 // Predicate (preferred):
 if (!fobx.isObservableBox(b)) throw new Error("should be observable box")

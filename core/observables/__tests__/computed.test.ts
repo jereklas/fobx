@@ -1569,3 +1569,43 @@ test("ObservableArray.splice", () => {
   expect(ar.length).toEqual(MAX_SPLICE_SIZE + 10)
   expect(del.length).toEqual(MAX_SPLICE_SIZE + 1)
 })
+
+describe("warns when setting computed value outside of a transaction", () => {
+  beforeEach(() => {
+    fobx.configure({ enforceActions: true })
+  })
+
+  test("computed setter warns when observed", () => {
+    const box = fobx.observableBox(1)
+    const c = fobx.computed(() => box.get() * 2, {
+      set: (v: number) => box.set(v / 2),
+    })
+    const d = fobx.autorun(() => c.get())
+    expect(
+      grabConsole(() => c.set(10)),
+    ).toMatch(
+      /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Computed@.*\) outside of a transaction is discouraged/,
+    )
+    d()
+  })
+
+  test("computed setter does not warn when unobserved", () => {
+    const box = fobx.observableBox(1)
+    const c = fobx.computed(() => box.get() * 2, {
+      set: (v: number) => box.set(v / 2),
+    })
+    expect(grabConsole(() => c.set(10))).toBe("")
+  })
+
+  test("computed setter does not warn inside a transaction", () => {
+    const box = fobx.observableBox(1)
+    const c = fobx.computed(() => box.get() * 2, {
+      set: (v: number) => box.set(v / 2),
+    })
+    const d = fobx.autorun(() => c.get())
+    expect(
+      grabConsole(() => fobx.runInTransaction(() => c.set(10))),
+    ).toBe("")
+    d()
+  })
+})

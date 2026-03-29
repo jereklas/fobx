@@ -1,0 +1,155 @@
+name: Publish packages and docs
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_npm:
+        description: Publish npm packages
+        required: true
+        default: true
+        type: boolean
+      deploy_docs:
+        description: Build and deploy static docs
+        required: true
+        default: true
+        type: boolean
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+jobs:
+  publish-npm:
+    name: Publish npm packages
+    if: ${{ github.event_name == 'release' || inputs.publish_npm == true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Use supported npm CLI
+        run: |
+          npm install --global npm@^11.5.1
+          node --version
+          npm --version
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.2.12
+
+      - name: Build and publish packages
+        run: |
+          set -euo pipefail
+
+          npm config delete always-auth || true
+
+          publish_if_needed() {
+            local pkg_dir="$1"
+            local pkg_name
+            local pkg_version
+            local dist_tag
+
+            pkg_name="$(node -p "require('./${pkg_dir}/dist/package.json').name")"
+            pkg_version="$(node -p "require('./${pkg_dir}/dist/package.json').version")"
+            dist_tag="$(node -p "const version = require('./${pkg_dir}/dist/package.json').version; const prerelease = version.split('-')[1]; prerelease ? prerelease.split('.')[0] : 'latest'")"
+
+            if npm view "${pkg_name}@${pkg_version}" version >/dev/null 2>&1; then
+              echo "Skipping ${pkg_name}@${pkg_version}; it is already published."
+              return 0
+            fi
+
+            echo "Publishing ${pkg_name}@${pkg_version} with tag ${dist_tag}"
+            (
+              cd "${pkg_dir}/dist"
+              npm publish --access public --provenance --tag "${dist_tag}"
+            )
+          }
+
+          for pkg in core react preact; do
+            echo "::group::Build ${pkg}"
+            (
+              cd "$pkg"
+              deno task build
+            )
+            echo "::endgroup::"
+
+            echo "::group::Publish ${pkg}"
+            publish_if_needed "$pkg"
+            echo "::endgroup::"
+          done
+
+  build-docs:
+    name: Build static docs
+    if: ${{ github.event_name == 'release' || inputs.deploy_docs == true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.2.12
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Determine docs base path
+        id: docs-base
+        env:
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          owner="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          repo="$(printf '%s' "$REPOSITORY_NAME" | tr '[:upper:]' '[:lower:]')"
+
+          if [[ "$repo" == "$owner.github.io" ]]; then
+            echo "value=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=/$REPOSITORY_NAME/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build docs site
+        working-directory: static-docs
+        env:
+          DOCS_BASE_PATH: ${{ steps.docs-base.outputs.value }}
+        run: deno task build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: static-docs/dist
+
+  deploy-docs:
+    name: Deploy static docs
+    if: ${{ github.event_name == 'release' || inputs.deploy_docs == true }}
+    runs-on: ubuntu-latest
+    needs:
+      - build-docs
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

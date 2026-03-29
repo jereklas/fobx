@@ -1,6 +1,9 @@
 import { parse } from "@std/jsonc"
+import { fromFileUrl, join } from "@std/path"
 export * from "./file-server.ts"
 export * from "./file-crawler.ts"
+
+const REPO_ROOT = fromFileUrl(new URL("../", import.meta.url))
 
 function getDeclarationCompilerOptions() {
   const globalTypesPath = new URL("../global.d.ts", import.meta.url).pathname
@@ -190,7 +193,7 @@ export async function generatePackageJson(outDir: string, exports: any) {
   contents.homepage = "https://jereklas.github.io/fobx"
   contents.repository = {
     "type": "git",
-    "url": "git+https://github.com/jereklas/fobx.git",
+    "url": "https://github.com/jereklas/fobx",
   }
   contents.bugs = {
     "url": "https://github.com/jereklas/fobx/issues",
@@ -203,9 +206,9 @@ export async function generatePackageJson(outDir: string, exports: any) {
 }
 
 export async function copyCommonFiles(outDir: string) {
-  await Deno.copyFile("/fobx/LICENSE", `${outDir}/LICENSE`)
+  await Deno.copyFile(join(REPO_ROOT, "LICENSE"), `${outDir}/LICENSE`)
 
-  for (const readmePath of ["./README.md", "/fobx/README.md"]) {
+  for (const readmePath of ["./README.md", join(REPO_ROOT, "README.md")]) {
     try {
       await Deno.copyFile(readmePath, `${outDir}/README.md`)
       return

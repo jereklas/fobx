@@ -10,7 +10,6 @@
     "./core",
     "./dom",
     "./jsx",
-    "./benchmark",
     "./playground"
   ],
   "fmt": {
@@ -35,6 +34,5 @@
     "types": ["./global.d.ts"]
   },
   "nodeModulesDir": "auto",
-  "npmRegistry": "https://registry.npmjs.org",
-  "nodeModulesDirPath": "/fobx"
+  "npmRegistry": "https://registry.npmjs.org"
 }

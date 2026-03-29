@@ -46,8 +46,8 @@ export function defaultComparer(a: unknown, b: unknown): boolean {
 
 // ─── Symbols & Sentinels ─────────────────────────────────────────────────────
 
-export const $fobx = Symbol("fobx-admin")
-export const NOT_CACHED = Symbol("not-cached")
+export const $fobx = Symbol.for("fobx-admin")
+export const NOT_CACHED = Symbol.for("fobx-not-cached")
 
 // ─── Admin Interfaces ────────────────────────────────────────────────────────
 

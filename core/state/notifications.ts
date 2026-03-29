@@ -26,24 +26,13 @@ import { $instance } from "./instance.ts"
 // Forward declaration — set by batch.ts to break circular dep
 let _runPendingReactions: () => void = () => {}
 
-type DenoEnvLike = {
-  env?: {
-    get?: (key: string) => string | undefined
-  }
-}
-
 export function setRunPendingReactions(fn: () => void): void {
   _runPendingReactions = fn
 }
 
-// Cache dev mode check at module level (supports both Deno and Node)
-const denoNodeEnv = (globalThis as typeof globalThis & { Deno?: DenoEnvLike })
-  .Deno?.env?.get?.("NODE_ENV")
-
 const isNotProduction =
-  (denoNodeEnv !== undefined && denoNodeEnv !== "production") ||
   // deno-lint-ignore no-process-global no-process-global
-  (typeof process !== "undefined" && process.env?.NODE_ENV !== "production")
+  typeof process !== "undefined" && process.env?.NODE_ENV !== "production"
 
 /**
  * Process a single observer notification — extracted to avoid duplication

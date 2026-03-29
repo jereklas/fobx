@@ -17,7 +17,13 @@ const bundle = (format: "esm" | "cjs") => {
 
 async function build() {
   await utils.rm("dist")
-  await utils.generateTypeDefinitions("dist")
+  await utils.generateTypeDefinitions("dist", {
+    baseUrl: ".",
+    paths: {
+      "@fobx/core": ["../core/index.ts"],
+      "@fobx/core/*": ["../core/*"],
+    },
+  })
   await utils.generatePackageJson("dist", {
     ".": {
       "import": "./index.js",

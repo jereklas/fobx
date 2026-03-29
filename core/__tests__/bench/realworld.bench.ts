@@ -13,15 +13,18 @@
  */
 
 import * as mobx from "mobx"
-import { observableBox } from "../../observables/observableBox.ts"
-import { computed } from "../../observables/computed.ts"
-import { autorun } from "../../reactions/autorun.ts"
-import { reaction } from "../../reactions/reaction.ts"
-import { runInTransaction } from "../../transactions/batch.ts"
-import { observable } from "../../observables/object.ts"
-import { observableArray } from "../../observables/observableArray.ts"
-import { observableMap } from "../../observables/observableMap.ts"
-import { observableSet } from "../../observables/observableSet.ts"
+// @deno-types="../../dist/index.d.ts"
+import {
+  autorun,
+  computed,
+  observable,
+  observableArray,
+  observableBox,
+  observableMap,
+  observableSet,
+  reaction,
+  runInTransaction,
+} from "../../dist/index.production.js"
 
 mobx.configure({ enforceActions: "never" })
 

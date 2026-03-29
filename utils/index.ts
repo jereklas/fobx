@@ -123,16 +123,21 @@ async function rewriteDeclarationImportExtensions(dir: string) {
  * Generates type definitions for the project.
  * @param outDir - The output directory for the generated type definitions.
  */
-export async function generateTypeDefinitions(outDir: string) {
+export async function generateTypeDefinitions(
+  outDir: string,
+  options?: {
+    paths?: Record<string, string[]>
+    baseUrl?: string
+  },
+) {
   const CONFIG_PATH = "./tsconfig.json"
 
   const tsconfig = JSON.stringify({
     compilerOptions: {
       ...getDeclarationCompilerOptions(),
       outDir,
-      // paths: {
-      //   "@fobx/core": ["/fobx/core/index.ts"],
-      // },
+      ...(options?.baseUrl ? { baseUrl: options.baseUrl } : {}),
+      ...(options?.paths ? { paths: options.paths } : {}),
     },
     exclude: [
       "convertImports.ts",

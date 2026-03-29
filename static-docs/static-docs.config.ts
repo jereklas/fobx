@@ -7,7 +7,7 @@ const config: DocsConfig = {
   rootDir: Deno.cwd(),
   inputDir: resolve(Deno.cwd(), "content"),
   outputDir: resolve(Deno.cwd(), "dist"),
-  siteTitle: "Fobx Docs",
+  siteTitle: "FobX",
   siteDescription: "Deno-powered static documentation site.",
   basePath,
   includeMdx: true,

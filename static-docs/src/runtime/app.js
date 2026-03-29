@@ -9,6 +9,9 @@ const boot = async () => {
   bindNavGroups()
   expandActiveNavGroups()
   bindScrollSpy()
+  bindHeadingAnchors()
+  bindTocScroll()
+  bindH1Observer()
   bindSpaNavigation()
   await setupSearch()
 }
@@ -50,13 +53,27 @@ const bindThemeToggle = () => {
 
   let current = document.documentElement.getAttribute("data-theme") ||
     resolveInitialTheme()
-  button.textContent = current === "dark" ? "Dark" : "Light"
+
+  const sunIcon =
+    `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`
+  const moonIcon =
+    `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+
+  const setIcon = (theme) => {
+    button.innerHTML = theme === "dark" ? sunIcon : moonIcon
+    button.setAttribute(
+      "aria-label",
+      theme === "dark" ? "Switch to light mode" : "Switch to dark mode",
+    )
+  }
+
+  setIcon(current)
 
   button.addEventListener("click", () => {
     const next = current === "dark" ? "light" : "dark"
     current = next
     applyTheme(next)
-    button.textContent = next === "dark" ? "Dark" : "Light"
+    setIcon(next)
   })
 }
 
@@ -121,7 +138,19 @@ const bindNavGroups = () => {
 
     const isCollapsed = section.classList.toggle("is-collapsed")
     toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true")
+    section.inert = isCollapsed
   })
+}
+
+let scrollSpyLocked = false
+let scrollSpyLockTimer = null
+
+const lockScrollSpy = (ms = 1000) => {
+  scrollSpyLocked = true
+  clearTimeout(scrollSpyLockTimer)
+  scrollSpyLockTimer = setTimeout(() => {
+    scrollSpyLocked = false
+  }, ms)
 }
 
 const bindScrollSpy = () => {
@@ -147,6 +176,10 @@ const bindScrollSpy = () => {
       )
 
     if (visible.length === 0) {
+      return
+    }
+
+    if (scrollSpyLocked) {
       return
     }
 
@@ -242,15 +275,15 @@ const navigateTo = async (
   bindScrollSpy()
 
   if (!options.preserveScroll) {
-    document.getElementById("main-content")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   if (options.push) {
     history.pushState({ route }, "", toPath(route))
   }
+
+  bindHeadingAnchors()
+  bindH1Observer()
 }
 
 const toPath = (route) =>
@@ -279,6 +312,10 @@ const getRoutePage = async (route) => {
 }
 
 const updateActiveNav = (route) => {
+  document.querySelectorAll("#left-nav .has-active-child").forEach((el) => {
+    el.classList.remove("has-active-child")
+  })
+
   const links = [...document.querySelectorAll("#left-nav a[data-route]")]
   for (const link of links) {
     if (!(link instanceof HTMLAnchorElement)) {
@@ -288,6 +325,11 @@ const updateActiveNav = (route) => {
     link.parentElement?.classList.toggle("is-active", active)
     if (active) {
       link.setAttribute("aria-current", "page")
+      let cursor = link.parentElement?.closest(".nav-group")
+      while (cursor instanceof HTMLElement) {
+        cursor.classList.add("has-active-child")
+        cursor = cursor.parentElement?.closest(".nav-group")
+      }
     } else {
       link.removeAttribute("aria-current")
     }
@@ -307,7 +349,7 @@ const expandActiveNavGroups = () => {
       break
     }
     const button = group.querySelector(":scope > [data-nav-toggle]")
-    const section = group.querySelector(":scope > .nav-group-children")
+    const section = group.querySelector(":scope > .nav-group-wrap")
     if (button instanceof HTMLButtonElement && section instanceof HTMLElement) {
       section.classList.remove("is-collapsed")
       button.setAttribute("aria-expanded", "true")
@@ -389,30 +431,64 @@ const setupSearch = async () => {
     }
 
     resultBox.hidden = false
-    resultBox.innerHTML = results.map((entry) => {
-      const section =
+    resultBox.innerHTML = results.flatMap((entry) => {
+      const pathLabel =
         Array.isArray(entry.sectionPath) && entry.sectionPath.length > 0
-          ? ` · ${escapeHtml(entry.sectionPath.join(" / "))}`
+          ? entry.sectionPath.join(" / ")
           : ""
-      return `<button type="button" data-result-route="${entry.routePath}">${
-        escapeHtml(entry.title)
-      }${section}</button>`
+      const matchingToc = Array.isArray(entry.toc)
+        ? entry.toc.filter((item) => item.text.toLowerCase().includes(query))
+        : []
+      if (matchingToc.length > 0) {
+        return matchingToc.map((item) =>
+          `<button type="button" data-result-route="${entry.routePath}" data-result-anchor="${item.id}">` +
+          `<span class="search-result-title">${
+            highlightTerm(entry.title, query)
+          }</span>` +
+          `<span class="search-result-section">\u00a7 ${
+            highlightTerm(item.text, query)
+          }</span>` +
+          (pathLabel
+            ? `<span class="search-result-path">${escapeHtml(pathLabel)}</span>`
+            : "") +
+          `</button>`
+        )
+      }
+      return [
+        `<button type="button" data-result-route="${entry.routePath}">` +
+        `<span class="search-result-title">${
+          highlightTerm(entry.title, query)
+        }</span>` +
+        (pathLabel
+          ? `<span class="search-result-path">${escapeHtml(pathLabel)}</span>`
+          : "") +
+        `</button>`,
+      ]
     }).join("")
   })
 
   resultBox.addEventListener("click", async (event) => {
     const target = event.target
-    if (!(target instanceof HTMLButtonElement)) {
+    if (!(target instanceof Element)) {
       return
     }
-    const route = target.dataset.resultRoute
+    const button = target.closest("button[data-result-route]")
+    if (!(button instanceof HTMLButtonElement)) {
+      return
+    }
+    const route = button.dataset.resultRoute
     if (!route) {
       return
     }
     search.value = ""
     resultBox.hidden = true
     resultBox.innerHTML = ""
+    const anchor = button.dataset.resultAnchor
     await navigateTo(toPath(route))
+    if (anchor) {
+      const el = document.getElementById(anchor)
+      if (el) el.scrollIntoView({ behavior: "smooth" })
+    }
   })
 
   document.addEventListener("click", (event) => {
@@ -430,17 +506,15 @@ const scoreSearch = (query, entry) => {
   const title = `${entry.title || ""} ${entry.navTitle || ""}`.toLowerCase()
   const description = `${entry.description || ""}`.toLowerCase()
   const text = `${entry.text || ""}`.toLowerCase()
+  const tocText = Array.isArray(entry.toc)
+    ? entry.toc.map((t) => t.text).join(" ").toLowerCase()
+    : ""
 
   let score = 0
-  if (title.includes(query)) {
-    score += 12
-  }
-  if (description.includes(query)) {
-    score += 6
-  }
-  if (text.includes(query)) {
-    score += 3
-  }
+  if (title.includes(query)) score += 12
+  if (description.includes(query)) score += 6
+  if (tocText.includes(query)) score += 8
+  if (text.includes(query)) score += 3
   return score
 }
 
@@ -451,5 +525,97 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
+
+const highlightTerm = (text, query) => {
+  const escaped = escapeHtml(text)
+  if (!query) return escaped
+  const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return escaped.replace(
+    new RegExp(`(${escapedQuery})`, "gi"),
+    `<mark class="search-match">$1</mark>`,
+  )
+}
+
+const bindHeadingAnchors = () => {
+  const linkIcon =
+    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`
+
+  document.querySelectorAll(
+    "main article h2[id], main article h3[id], main article h4[id]",
+  ).forEach((heading) => {
+    if (!(heading instanceof HTMLElement)) return
+    if (heading.querySelector(".heading-anchor")) return
+    const id = heading.id
+    const link = document.createElement("a")
+    link.className = "heading-anchor"
+    link.href = `#${id}`
+    link.setAttribute("aria-label", `Link to "${heading.textContent?.trim()}"`)
+    link.innerHTML = linkIcon
+    link.addEventListener("click", (e) => {
+      e.preventDefault()
+      history.pushState(null, "", `#${id}`)
+    })
+    heading.append(link)
+  })
+}
+
+const bindTocScroll = () => {
+  document.addEventListener("click", (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const link = target.closest(".toc-list a")
+    if (!(link instanceof HTMLAnchorElement)) return
+    const href = link.getAttribute("href")
+    if (!href || !href.startsWith("#")) return
+    const id = href.slice(1)
+    const el = document.getElementById(id)
+    if (!el) return
+    event.preventDefault()
+    // immediately mark this link active and suppress scroll spy
+    document.querySelectorAll("[data-toc-link]").forEach((a) => {
+      a.classList.toggle(
+        "is-active",
+        a instanceof HTMLAnchorElement && a.dataset.tocLink === id,
+      )
+    })
+    lockScrollSpy(1000)
+    el.scrollIntoView({ behavior: "smooth" })
+    history.pushState(null, "", href)
+  })
+}
+
+let h1Observer = null
+
+const bindH1Observer = () => {
+  if (h1Observer) {
+    h1Observer.disconnect()
+    h1Observer = null
+  }
+
+  const subtitle = document.querySelector(".site-subtitle")
+  if (!(subtitle instanceof HTMLElement)) return
+
+  const h1 = document.querySelector("main article h1")
+  if (!(h1 instanceof HTMLElement)) return
+
+  const pageTitle = h1.textContent?.trim() ?? ""
+  subtitle.textContent = `— ${pageTitle}`
+
+  h1Observer = new IntersectionObserver(
+    ([entry]) => {
+      subtitle.classList.toggle("is-visible", !entry.isIntersecting)
+    },
+    {
+      rootMargin: `-${
+        Math.round(
+          parseFloat(getComputedStyle(document.documentElement).fontSize) * 3.6,
+        )
+      }px 0px 0px 0px`,
+      threshold: 0,
+    },
+  )
+
+  h1Observer.observe(h1)
+}
 
 await boot()

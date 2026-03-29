@@ -42,6 +42,27 @@ test("when reaction does nothing when disposed before condition is met", () => {
   expect(runs).toBe(0)
 })
 
+test("when callback form aborts when AbortSignal aborts", () => {
+  const a = fobx.observableBox(0)
+  const controller = new AbortController()
+  const onError = fn()
+  let runs = 0
+
+  fobx.when(
+    () => a.get() === 1,
+    () => {
+      runs += 1
+    },
+    { signal: controller.signal, onError },
+  )
+
+  controller.abort()
+  expect(onError).toHaveBeenCalledWith(Error("When reaction was aborted"))
+
+  a.set(1)
+  expect(runs).toBe(0)
+})
+
 test("when reaction throws timeout error if timeout was hit", () => {
   using time = new FakeTime()
   const a = fobx.observableBox(0)

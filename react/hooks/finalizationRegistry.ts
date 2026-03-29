@@ -63,7 +63,6 @@ class TimerBasedFinalizationRegistry {
 
 class NativeFinalizationRegistryAdapter {
   private registry: FinalizationRegistry<Tracker>
-  private tokens = new Map<object, object>()
 
   constructor() {
     this.registry = new FinalizationRegistry((tracker: Tracker) => {
@@ -73,12 +72,10 @@ class NativeFinalizationRegistryAdapter {
 
   register(token: object, tracker: Tracker): void {
     this.registry.register(token, tracker, token)
-    this.tokens.set(token, token)
   }
 
   unregister(token: object): void {
     this.registry.unregister(token)
-    this.tokens.delete(token)
   }
 }
 

@@ -1,10 +1,32 @@
 import MarkdownIt from "markdown-it"
+import hljs from "highlight.js"
 import type { DocsDocument, DocsTocItem } from "./types.ts"
+
+const escapeHtml = (str: string): string =>
+  str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 
 const markdownEngine = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
+  highlight: (str: string, lang: string): string => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const value = hljs.highlight(str, {
+          language: lang,
+          ignoreIllegals: true,
+        }).value
+        return `<pre><code class="hljs">${value}</code></pre>`
+      } catch (_) {
+        // fall through to default
+      }
+    }
+    return `<pre><code class="hljs">${escapeHtml(str)}</code></pre>`
+  },
 })
 
 const headingOpen = markdownEngine.renderer.rules.heading_open

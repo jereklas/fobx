@@ -72,11 +72,15 @@ function createWhen(
 ): Dispose {
   let isDisposed = false
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+  let abortHandler: (() => void) | undefined
 
   const dispose: Dispose = () => {
     if (isDisposed) return
     isDisposed = true
     if (timeoutHandle !== undefined) clearTimeout(timeoutHandle)
+    if (abortHandler) {
+      options?.signal?.removeEventListener("abort", abortHandler)
+    }
     removeFromAllDeps(admin)
   }
 
@@ -137,6 +141,21 @@ function createWhen(
     },
   }
 
+  if (options?.signal) {
+    abortHandler = () => {
+      if (isDisposed) return
+      dispose()
+      options.onError?.(new Error(ERR_ABORT))
+    }
+
+    if (options.signal.aborted) {
+      abortHandler()
+      return dispose
+    }
+
+    options.signal.addEventListener("abort", abortHandler)
+  }
+
   if ($scheduler.batchDepth > 0) {
     pushPending(admin)
   } else {
@@ -151,7 +170,6 @@ function createWhenPromise(
   options?: WhenOptions,
 ): WhenPromise {
   let cancel!: () => void
-  let abort!: () => void
   const promise = new Promise<void>((resolve, reject) => {
     const dispose = createWhen(predicate, resolve, {
       ...options,
@@ -161,14 +179,7 @@ function createWhenPromise(
       dispose()
       reject(new Error(ERR_CANCEL))
     }
-    abort = () => {
-      dispose()
-      reject(new Error(ERR_ABORT))
-    }
-    options?.signal?.addEventListener("abort", abort)
-  }).finally(() =>
-    options?.signal?.removeEventListener("abort", abort)
-  ) as WhenPromise
+  }) as WhenPromise
   promise.cancel = cancel
 
   return promise

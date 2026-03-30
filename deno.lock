@@ -36,6 +36,8 @@
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/streams@^1.0.17": "1.0.17",
     "jsr:@std/testing@^1.0.9": "1.0.9",
+    "npm:@fobx/core@*": "0.10.2",
+    "npm:@fobx/react@*": "0.9.1_@fobx+core@0.10.2_react@18.3.1",
     "npm:@markdoc/language-server@^0.0.13": "0.0.13",
     "npm:@markdoc/markdoc@0.5.2": "0.5.2_@types+react@18.3.20_react@18.3.1",
     "npm:@markdoc/markdoc@~0.5.2": "0.5.2_@types+react@18.3.20_react@18.3.1",
@@ -58,8 +60,10 @@
     "npm:playwright@^1.53.2": "1.58.2",
     "npm:preact-render-to-string@^6.5.13": "6.5.13_preact@10.26.8",
     "npm:preact@^10.26.8": "10.26.8",
+    "npm:react-dom@*": "18.3.1_react@18.3.1",
     "npm:react-dom@18": "18.3.1_react@18.3.1",
     "npm:react-dom@^19.1.0": "19.1.0_react@18.3.1",
+    "npm:react@*": "18.3.1",
     "npm:react@18": "18.3.1",
     "npm:react@^19.1.0": "19.1.0",
     "npm:solid-js@*": "1.9.11_seroval@1.5.0",
@@ -351,6 +355,16 @@
     },
     "@esbuild/win32-x64@0.25.5": {
       "integrity": "sha512-TXv6YnJ8ZMVdX+SXWVBo/0p8LTcrUYngpWjvm91TMjjBQii7Oz11Lw5lbDV5Y0TzuhSJHwiH4hEtC1I42mMS0g=="
+    },
+    "@fobx/core@0.10.2": {
+      "integrity": "sha512-entg+0T4NW2H6GpIVMRCX/FtEK1QNPS1nKYaJ2SQG5bXssdZKX77lFdwbIONNThF3UMSXTJGKMRsm+L6AM8jBA=="
+    },
+    "@fobx/react@0.9.1_@fobx+core@0.10.2_react@18.3.1": {
+      "integrity": "sha512-dhXKqMFcvLcU3qI4zTL3i+xVPgZRJqn/isRxRDXllo8FrcE7clNPLxHKhlmkG2LyIJ8aK3YNUEjjotgi0TLk6A==",
+      "dependencies": [
+        "@fobx/core",
+        "react@18.3.1"
+      ]
     },
     "@markdoc/language-server@0.0.13": {
       "integrity": "sha512-HZS6mP/bakhLygdBzfftpj9D3ugd2ECi1UajrWevKwN9SMdCMmq4k+JxsdWU8HRJAYXIauQbpxKJRFKuOxOqmg=="

@@ -85,6 +85,61 @@ test("observable(this) called in both super and base class does not incorrectly 
   expect(fobx.isComputed(vm, "_props")).toBe(false)
 })
 
+test("subclass observable(this) cannot override base annotations", () => {
+  class Base {
+    ref = { value: 1 }
+
+    constructor() {
+      fobx.observable(this, {
+        annotations: {
+          ref: "observable.ref",
+          value: "computed",
+          update: "none",
+        },
+      })
+    }
+
+    get value() {
+      return this.ref.value
+    }
+
+    update() {
+      return this.value
+    }
+  }
+
+  class Child extends Base {
+    childValue = 2
+
+    constructor() {
+      super()
+      fobx.observable(this, {
+        annotations: {
+          ref: "observable",
+          value: "none",
+          update: "transaction",
+          childValue: "observable",
+          childComputed: "computed",
+        },
+      })
+    }
+
+    get childComputed() {
+      return this.childValue * 2
+    }
+  }
+
+  const child = new Child()
+
+  expect(fobx.isObservable(child.ref, "value")).toBe(false)
+  expect(fobx.isComputed(child, "value")).toBe(true)
+  expect(fobx.isTransaction(child.update)).toBe(false)
+  expect(fobx.isObservable(child, "childValue")).toBe(true)
+  expect(fobx.isComputed(child, "childComputed")).toBe(true)
+  expect(child.value).toBe(1)
+  expect(child.childComputed).toBe(4)
+})
+
 test("observable API for arrays successfully constructs arrays", () => {
   const o = fobx.observable({ a: 0 })
   expect(o).toEqual({ a: 0 })
@@ -209,6 +264,31 @@ describe("observableObject", () => {
     expect(obj.c).toBe(12)
   })
 
+  test("methods can be reassigned on observable plain objects", () => {
+    const obj = fobx.observable({
+      count: 0,
+      increment() {
+        this.count++
+        return this.count
+      },
+    })
+
+    expect(fobx.isTransaction(obj.increment)).toBe(true)
+
+    let calls = 0
+    const replacement = () => {
+      calls++
+      return 42
+    }
+
+    expect(() => {
+      ;(obj as { increment: () => number }).increment = replacement
+    }).not.toThrow()
+
+    expect(obj.increment()).toBe(42)
+    expect(calls).toBe(1)
+  })
+
   // TODO: this test isn't valid in deno since it only runs in strict mode js
   // test("'this' argument inside plain object observable functions is treated identically to plain object", () => {
   //   const plain = {
@@ -273,6 +353,37 @@ describe("observableObject", () => {
     expect(wAction.test()).toBe(1)
     const { test: classWithActionTest } = wAction
     expect(() => classWithActionTest()).toThrow()
+  })
+
+  test("methods can be reassigned on observable class instances", () => {
+    class Vm {
+      count = 0
+
+      constructor() {
+        fobx.observable(this)
+      }
+
+      increment() {
+        this.count++
+        return this.count
+      }
+    }
+
+    const vm = new Vm()
+    expect(fobx.isTransaction(vm.increment)).toBe(true)
+
+    let calls = 0
+    const replacement = () => {
+      calls++
+      return 7
+    }
+
+    expect(() => {
+      ;(vm as { increment: () => number }).increment = replacement
+    }).not.toThrow()
+
+    expect(vm.increment()).toBe(7)
+    expect(calls).toBe(1)
   })
 
   test("$fobx symbol is not writable, configurable, or enumerable", () => {

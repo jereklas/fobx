@@ -61,9 +61,108 @@ async function reactAct(fn: () => void | Promise<void>): Promise<void> {
   await act(fn)
 }
 
+async function captureConsoleErrors(
+  fn: () => void | Promise<void>,
+): Promise<string[]> {
+  const originalError = console.error
+  const messages: string[] = []
+
+  console.error = (...args: unknown[]) => {
+    messages.push(args.map((arg) => String(arg)).join(" "))
+  }
+
+  try {
+    await fn()
+  } finally {
+    console.error = originalError
+  }
+
+  return messages
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("useViewModel - instance lifecycle", () => {
+  test("allows replacing methods on observable ViewModel instances", () => {
+    class Vm extends ViewModel {
+      constructor() {
+        super()
+        fobx.observable(this)
+      }
+
+      save() {
+        return "original"
+      }
+    }
+
+    const vm = new Vm()
+    expect(fobx.isTransaction(vm.save)).toBe(true)
+
+    let calls = 0
+    const replacement = () => {
+      calls++
+      return "mocked"
+    }
+
+    expect(() => {
+      vm.save = replacement as typeof vm.save
+    }).not.toThrow()
+
+    expect(vm.save()).toBe("mocked")
+    expect(calls).toBe(1)
+  })
+
+  test("refs assigned through setRef stay reference-only on observable ViewModels", () => {
+    class Vm extends ViewModel<object> {
+      constructor() {
+        super()
+        fobx.observable(this)
+      }
+    }
+
+    const vm = new Vm()
+    const ref: Record<string, unknown> = {}
+    ref.self = ref
+    ref.current = ref
+
+    expect(() => {
+      vm.setRef(ref as unknown as HTMLElement)
+    }).not.toThrow()
+
+    expect(vm.ref).toBe(ref)
+    expect(fobx.isObservableObject(vm.ref)).toBe(false)
+  })
+
+  test("base update stays plain when subclasses call observable(this)", () => {
+    class Vm extends ViewModel<{ value: number }> {
+      constructor(props: { value: number }) {
+        super(props)
+        fobx.observable(this)
+      }
+
+      override update(props: { value: number }) {
+        super.update(props)
+      }
+    }
+
+    const vm = new Vm({ value: 1 })
+
+    expect(fobx.isTransaction(vm.update)).toBe(false)
+  })
+
+  test("base props getter stays computed when subclasses call observable(this)", () => {
+    class Vm extends ViewModel<{ value: number }> {
+      constructor(props: { value: number }) {
+        super(props)
+        fobx.observable(this)
+      }
+    }
+
+    const vm = new Vm({ value: 1 })
+
+    expect(fobx.isComputed(vm, "props")).toBe(true)
+  })
+
   test("creates VM exactly once across multiple renders", async () => {
     const constructorSpy = fn()
     const counter = fobx.observableBox(0)
@@ -327,13 +426,18 @@ describe("useViewModel - ViewModel base class", () => {
     await reactAct(() => root.render(React.createElement(Parent)))
     expect(renderCount).toBe(1)
 
-    await reactAct(() => {
-      setExternal(42)
-    })
+    const errors = await captureConsoleErrors(() =>
+      reactAct(() => {
+        setExternal(42)
+      })
+    )
 
     expect(container.querySelector("span")?.textContent).toBe("42")
     // Child re-rendered because vm.props.value changed (it's observable)
     expect(renderCount).toBeGreaterThan(1)
+    expect(errors).not.toContain(
+      expect.stringContaining("Cannot update a component"),
+    )
   })
 
   test("default update() syncs all props", () => {
@@ -410,19 +514,30 @@ describe("useViewModel - nested VMs", () => {
     expect(childRenders).toHaveBeenCalledTimes(1)
 
     // Change child's prop — only child should update
-    await reactAct(() => {
-      setChildProp(5)
-    })
+    const childUpdateErrors = await captureConsoleErrors(() =>
+      reactAct(() => {
+        setChildProp(5)
+      })
+    )
 
     expect(container.querySelector(".child")?.textContent).toBe("5")
     // Child should have re-rendered (its React state changed)
     expect(childRenders).toHaveBeenCalledTimes(2)
+    expect(childUpdateErrors).not.toContain(
+      expect.stringContaining("Cannot update a component"),
+    )
 
     // Change parent's prop
-    await reactAct(() => {
-      setParentProp(10)
-    })
+    const parentUpdateErrors = await captureConsoleErrors(() =>
+      reactAct(() => {
+        setParentProp(10)
+      })
+    )
+
     expect(container.querySelector(".parent")?.textContent).toBe("10")
+    expect(parentUpdateErrors).not.toContain(
+      expect.stringContaining("Cannot update a component"),
+    )
   })
 })
 
@@ -670,29 +785,29 @@ describe("useViewModel - StrictMode", () => {
 
     // In StrictMode, each reactive update causes the render body to be double-invoked.
     // Parent state change + observable prop update → ObservedChild renders, doubled by StrictMode.
-    await reactAct(() => {
-      setExternal(7)
-    })
+    const errors = await captureConsoleErrors(() =>
+      reactAct(() => {
+        setExternal(7)
+      })
+    )
+
     expect(container.querySelector("span")?.textContent).toBe("7")
     expect(renderCount).toBe(2) // StrictMode double-invoke of the 1 actual render
+    expect(errors).not.toContain(
+      expect.stringContaining("Cannot update a component"),
+    )
   })
 })
 
 // ─── update() dependency tracking ────────────────────────────────────────────
 //
 // update() runs during tracker.track(render), so any observables it reads
-// become reactive dependencies of the component — but ONLY when update()
-// is a plain method.
-//
-// If the user calls observable(this) in their VM constructor, fobx annotates
-// all class methods as actions. Action calls wrap their body in
-// runWithoutTracking, which clears $scheduler.tracking for the duration of
-// the call. Reads inside an action are intentionally not tracked.
+// become reactive dependencies of the component when update() remains a plain
+// method. The base ViewModel explicitly pins update() as "none", so subclass
+// calls to observable(this) do not re-wrap the inherited update hook.
 //
 // startBatch/endBatch (used by useViewModel) preserves tracking, making
-// the correct tracking available to any plain update() method. The tests
-// below use VMs that do NOT call observable(this) so that update() remains
-// a plain method and tracking is fully preserved.
+// the correct tracking available to any plain update() method.
 
 describe("useViewModel - update() dependency tracking", () => {
   test(
@@ -734,6 +849,45 @@ describe("useViewModel - update() dependency tracking", () => {
 
       // Change mode only — no React prop/state change.
       // Component re-renders because mode was tracked inside update().
+      await reactAct(() => mode.set("bang"))
+      expect(container.querySelector("span")?.textContent).toBe("hello!")
+    },
+  )
+
+  test(
+    "update() stays trackable even when a ViewModel subclass calls observable(this)",
+    async () => {
+      const mode = fobx.observableBox<"wrap" | "bang">("wrap")
+      const display = fobx.observableBox("")
+      let setValueExternal!: (v: string) => void
+
+      class TrackingVm extends ViewModel<{ value: string }> {
+        constructor(props: { value: string }) {
+          super(props)
+          fobx.observable(this)
+        }
+
+        override update(props: { value: string }) {
+          super.update(props)
+          display.set(
+            mode.get() === "wrap" ? `[${props.value}]` : `${props.value}!`,
+          )
+        }
+      }
+
+      const Comp = observer(function Comp() {
+        const [value, setValue] = React.useState("")
+        setValueExternal = setValue
+        useViewModel(TrackingVm, { value })
+        return React.createElement("span", null, display.get())
+      })
+
+      await reactAct(() => root.render(React.createElement(Comp)))
+      expect(container.querySelector("span")?.textContent).toBe("")
+
+      await reactAct(() => setValueExternal("hello"))
+      expect(container.querySelector("span")?.textContent).toBe("[hello]")
+
       await reactAct(() => mode.set("bang"))
       expect(container.querySelector("span")?.textContent).toBe("hello!")
     },

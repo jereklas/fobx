@@ -413,6 +413,36 @@ describe("makeObservable", () => {
       increment()
       expect(obj.x).toBe(2)
     })
+
+    test("allows explicitly annotated methods to be reassigned", () => {
+      const obj = fobx.makeObservable({
+        x: 1,
+        increment() {
+          this.x++
+          return this.x
+        },
+      }, {
+        annotations: {
+          x: "observable",
+          increment: "transaction",
+        },
+      })
+
+      expect(fobx.isTransaction(obj.increment)).toBe(true)
+
+      let calls = 0
+      const replacement = () => {
+        calls++
+        return 10
+      }
+
+      expect(() => {
+        ;(obj as { increment: () => number }).increment = replacement
+      }).not.toThrow()
+
+      expect(obj.increment()).toBe(10)
+      expect(calls).toBe(1)
+    })
   })
 
   describe("flow", () => {
@@ -431,6 +461,38 @@ describe("makeObservable", () => {
       })
 
       expect(fobx.isFlow(obj.process)).toBe(true)
+    })
+
+    test("allows flow methods to be reassigned", async () => {
+      const obj = fobx.makeObservable({
+        x: 1,
+        *process() {
+          yield Promise.resolve()
+          this.x++
+          return this.x
+        },
+      }, {
+        annotations: {
+          x: "observable",
+          process: "flow",
+        },
+      })
+
+      expect(fobx.isFlow(obj.process)).toBe(true)
+
+      let calls = 0
+      const replacement = () => {
+        calls++
+        return Promise.resolve(99)
+      }
+
+      expect(() => {
+        ;(obj as unknown as { process: () => Promise<number> }).process =
+          replacement
+      }).not.toThrow()
+
+      expect(await obj.process()).toBe(99)
+      expect(calls).toBe(1)
     })
 
     test("throws when non-generator is marked as flow", () => {
@@ -603,6 +665,70 @@ describe("makeObservable", () => {
 
       d.derivedValue = 10
       expect(computedValues).toEqual([25, 30])
+    })
+
+    test("derived makeObservable cannot override base annotations", () => {
+      class Base {
+        ref = { value: 1 }
+
+        constructor() {
+          fobx.makeObservable(this, {
+            annotations: {
+              ref: "observable.ref",
+              value: "computed",
+              update: "none",
+            },
+          })
+        }
+
+        get value() {
+          return this.ref.value
+        }
+
+        update() {
+          return this.value
+        }
+      }
+
+      class Derived extends Base {
+        derivedValue = 2
+
+        constructor() {
+          super()
+          fobx.makeObservable(this, {
+            annotations: {
+              ref: "observable",
+              value: "none",
+              update: "transaction",
+              derivedValue: "observable",
+              derivedComputed: "computed",
+            },
+          })
+        }
+
+        get derivedComputed() {
+          return this.derivedValue * 2
+        }
+      }
+
+      const first = new Derived()
+      const second = new Derived()
+
+      expect(fobx.isObservable(first.ref, "value")).toBe(false)
+      expect(fobx.isComputed(first, "value")).toBe(true)
+      expect(fobx.isTransaction(first.update)).toBe(false)
+      expect(fobx.isObservable(first, "derivedValue")).toBe(true)
+      expect(fobx.isComputed(first, "derivedComputed")).toBe(true)
+      expect(first.value).toBe(1)
+      expect(first.derivedComputed).toBe(4)
+
+      expect(fobx.isObservable(second.ref, "value")).toBe(false)
+      expect(fobx.isComputed(second, "value")).toBe(true)
+      expect(fobx.isTransaction(second.update)).toBe(false)
+      expect(fobx.isObservable(second, "derivedValue")).toBe(true)
+      expect(fobx.isComputed(second, "derivedComputed")).toBe(true)
+      expect(second.value).toBe(1)
+      expect(second.derivedComputed).toBe(4)
     })
 
     test("makeObservable installs inherited members on prototype by default", () => {

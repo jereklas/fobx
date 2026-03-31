@@ -8,8 +8,27 @@
 
 // @ts-ignore - to suppress tsc false error
 import { useEffect, useRef, useState } from "react"
-import { observable } from "@fobx/core"
+import {
+  type AnnotationsMap,
+  type AnnotationValue,
+  observable,
+} from "@fobx/core"
 import { endBatch, startBatch } from "@fobx/core/internals"
+import { runInRenderPhase } from "./renderPhase.ts"
+
+type ViewModelAnnotationTarget<T extends object, E extends Element> =
+  & ViewModel<T, E>
+  & { _props: T }
+
+const viewModelBaseAnnotations = {
+  _props: "observable.ref",
+  props: "computed",
+  ref: "observable.ref",
+  setRef: "transaction",
+  update: "none",
+  onConnect: "none",
+  onDisconnect: "none",
+} satisfies Record<string, AnnotationValue>
 
 // ─── ViewModel protocol ───────────────────────────────────────────────────────
 
@@ -78,6 +97,13 @@ export class ViewModel<
       enumerable: true,
       configurable: true,
     })
+
+    // Pin the base ViewModel semantics before any subclass calls observable(this).
+    observable(this, {
+      annotations: viewModelBaseAnnotations as unknown as Partial<
+        AnnotationsMap<ViewModelAnnotationTarget<T, E>>
+      >,
+    })
   }
 
   /** Read-access to observable props. Reads are tracked. */
@@ -99,7 +125,12 @@ export class ViewModel<
 
   /** Syncs new props into the observable props object. */
   update(props: Partial<T>): void {
-    Object.assign(this._props, props)
+    startBatch()
+    try {
+      Object.assign(this._props, props)
+    } finally {
+      endBatch()
+    }
   }
 }
 
@@ -127,12 +158,14 @@ export function useViewModel<T extends new (...args: any[]) => any>(
   const [vm] = useState(() => new ctor(...args))
 
   if (!isFirstRender.current && typeof vm.update === "function") {
-    startBatch()
-    try {
-      vm.update(...args)
-    } finally {
-      endBatch()
-    }
+    runInRenderPhase(() => {
+      startBatch()
+      try {
+        vm.update(...args)
+      } finally {
+        endBatch()
+      }
+    })
   }
   isFirstRender.current = false
 

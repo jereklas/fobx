@@ -24,6 +24,10 @@ import {
   observableBox,
   setBoxValue,
 } from "./observableBox.ts"
+import {
+  rememberConvertedValue,
+  withConversionContext,
+} from "./conversionContext.ts"
 
 // Forward declaration — set after object.ts is loaded
 let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
@@ -65,6 +69,10 @@ class ObservableSet<T = unknown> implements Set<T> {
       comparer: defaultComparer,
       _epoch: 0,
       changes: 0,
+    }
+
+    if (values != null && typeof values === "object") {
+      rememberConvertedValue(values, this)
     }
 
     if (values != null) {
@@ -337,7 +345,7 @@ export function observableSet<T = unknown>(
   values?: Iterable<T> | null,
   options: SetOptions = {},
 ): ObservableSet<T> {
-  return new ObservableSet(values, options)
+  return withConversionContext(() => new ObservableSet(values, options))
 }
 
 export type { ObservableSet }

@@ -53,6 +53,37 @@ test("class with non-extensible field causes console warning", () => {
   )
 })
 
+test("observable preserves circular and shared references during deep conversion", () => {
+  const shared = { id: 1 }
+  const root: Any = {
+    sharedA: shared,
+    sharedB: shared,
+    list: [] as Any[],
+    map: new Map<string, Any>(),
+    set: new Set<Any>(),
+  }
+
+  root.self = root
+  root.list.push(root)
+  root.list.push(shared)
+  root.map.set("self", root)
+  root.map.set("shared", shared)
+  root.set.add(root)
+  root.set.add(shared)
+
+  const observed = fobx.observable(root)
+
+  expect(fobx.isObservableObject(observed)).toBe(true)
+  expect(observed.self).toBe(observed)
+  expect(observed.sharedA).toBe(observed.sharedB)
+  expect(observed.list[0]).toBe(observed)
+  expect(observed.list[1]).toBe(observed.sharedA)
+  expect(observed.map.get("self")).toBe(observed)
+  expect(observed.map.get("shared")).toBe(observed.sharedA)
+  expect(Array.from(observed.set)).toContain(observed)
+  expect(Array.from(observed.set)).toContain(observed.sharedA)
+})
+
 test("classes with populated map injected into constructor get initialize correctly", () => {
   class M {
     map: Map<string, string>

@@ -41,6 +41,10 @@ In React 18 StrictMode development, initial mount work is intentionally
 replayed. Keep constructors, custom `update()` implementations, `onConnect()`,
 and `onDisconnect()` idempotent.
 
+`update()` intentionally stays a plain method on `ViewModel` subclasses. That
+means reads inside a custom `update()` remain trackable by the surrounding
+component render instead of being hidden behind an action wrapper.
+
 ### Basic usage
 
 ```tsx
@@ -168,6 +172,19 @@ const FilterList = observer((props: FilterProps) => {
    into the existing observable props — this fires reactions tracking those
    props.
 4. The update is wrapped in a batch, so all prop changes are atomic.
+
+### Inherited annotations on `ViewModel`
+
+The base `ViewModel` constructor locks in the semantics of its inherited hooks
+before your subclass runs `observable(this)`:
+
+- `_props` and `ref` use `observable.ref`
+- `props` stays `computed`
+- `update()`, `onConnect()`, and `onDisconnect()` stay `none`
+
+So calling `observable(this)` in a subclass is safe: it auto-infers your own
+fields, getters, and methods, but it does not re-wrap the inherited `ViewModel`
+API.
 
 ### Props are `observable.ref`
 

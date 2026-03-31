@@ -30,6 +30,10 @@ import {
   setBoxValue,
 } from "./observableBox.ts"
 import { trackAccess } from "../reactions/tracking.ts"
+import {
+  rememberConvertedValue,
+  withConversionContext,
+} from "./conversionContext.ts"
 
 // Forward declaration — set after object.ts is loaded
 let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
@@ -98,6 +102,10 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       _epoch: 0,
     }
     this[$fobx] = this.collectionAdmin
+
+    if (entries != null && typeof entries === "object") {
+      rememberConvertedValue(entries, this)
+    }
 
     if (entries != null) {
       this._init(entries)
@@ -494,7 +502,7 @@ export function observableMap<K = Any, V = Any>(
   entries?: Iterable<readonly [K, V]> | Record<string, V> | null,
   options: MapOptions = {},
 ): ObservableMap<K, V> {
-  return new ObservableMap(entries, options)
+  return withConversionContext(() => new ObservableMap(entries, options))
 }
 
 export type { ObservableMap }

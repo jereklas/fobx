@@ -177,6 +177,7 @@ a:focus-visible {
   max-width: 88rem;
   margin: 0 auto;
   width: 100%;
+  min-width: 0;
 }
 
 .left-rail {
@@ -204,12 +205,14 @@ a:focus-visible {
   height: auto;
   overflow: visible;
   padding: 1.1rem 0 2.6rem;
+  min-width: 0;
 }
 
 .content article {
   max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 0.4rem;
+  min-width: 0;
 }
 
 .content h1 {
@@ -299,6 +302,45 @@ a:focus-visible {
   padding: 0;
   font-size: inherit;
   color: var(--text);
+}
+
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1.25rem 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap thead th {
+  background: color-mix(in oklab, var(--surface-2) 90%, white 10%);
+  color: var(--text);
+}
+
+.table-wrap tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-wrap :is(code, a) {
+  overflow-wrap: anywhere;
 }
 
 /* ── syntax highlighting ─────────────────────────────────────── */
@@ -619,5 +661,14 @@ mark.search-match {
 
   .content article {
     padding: 0;
+  }
+
+  .table-wrap {
+    margin: 1rem 0;
+  }
+
+  .table-wrap th,
+  .table-wrap td {
+    padding: 0.6rem 0.7rem;
   }
 }

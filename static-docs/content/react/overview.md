@@ -114,6 +114,10 @@ class FormVM extends ViewModel<{ onSubmit: (value: string) => void }> {
   text = ""
 
   constructor(props: { onSubmit: (value: string) => void }) {
+
+Calling `observable(this)` inside a `ViewModel` subclass only annotates the
+subclass members. The base class keeps `props` computed, stores prop values by
+reference, and leaves `update()` as a plain trackable method.
     super(props)
     observable(this)
   }

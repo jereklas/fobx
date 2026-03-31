@@ -236,16 +236,26 @@ class Derived extends Base {
 
 Prototype members are annotated once per prototype and reused across instances.
 
+When multiple constructors in the same chain annotate the same instance, base
+class explicit annotations stay authoritative by property name. A subclass can
+add new reactive members, but it cannot reinterpret a base key from `"computed"`
+to `"none"`, or from `"none"` to `"transaction"`, unless the base class itself
+left that key unclaimed.
+
+This applies to both `makeObservable(this)` and `observable(this)` on class
+instances, which is what keeps hooks like `ViewModel.update()` plain even when a
+subclass later calls `observable(this)`.
+
 ---
 
 ## `observable()` vs `makeObservable()`
 
-| Feature           | `observable()`                                                            | `makeObservable()`                           |
-| ----------------- | ------------------------------------------------------------------------- | -------------------------------------------- |
-| Input             | Plain object or class instance                                            | Any non-collection object                    |
-| Returns           | New plain-object copy by default; class instances keep the same reference | Same instance                                |
-| Auto-inference    | Yes                                                                       | No — explicit annotations required           |
-| Prototype methods | Supported (class instances)                                               | Supported                                    |
-| Inheritance       | Supported (class instances)                                               | Supported                                    |
-| `inPlace` option  | Yes                                                                       | N/A (always in-place)                        |
-| Best for          | Simple stores, configuration                                              | Classes or objects with explicit annotations |
+| Feature           | `observable()`                                                            | `makeObservable()`                                      |
+| ----------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Input             | Plain object or class instance                                            | Any non-collection object                               |
+| Returns           | New plain-object copy by default; class instances keep the same reference | Same instance                                           |
+| Auto-inference    | Yes                                                                       | No — explicit annotations required                      |
+| Prototype methods | Supported (class instances)                                               | Supported                                               |
+| Inheritance       | Supported (class instances); base explicit annotations stay authoritative | Supported; base explicit annotations stay authoritative |
+| `inPlace` option  | Yes                                                                       | N/A (always in-place)                                   |
+| Best for          | Simple stores, configuration                                              | Classes or objects with explicit annotations            |

@@ -9,20 +9,24 @@
 import { useRef, useSyncExternalStore } from "react"
 import { createTracker, type Tracker } from "@fobx/core/internals"
 import { observerFinalizationRegistry } from "./finalizationRegistry.ts"
+import { notifyAfterRender, runInRenderPhase } from "./renderPhase.ts"
 
 interface ObserverAdministration {
   tracker: Tracker | null
   /** Incremented on every invalidation; useSyncExternalStore uses this to detect changes. */
   stateVersion: symbol
+  lastRenderedVersion: symbol
   onStoreChange: (() => void) | null
+  notifyChanged: () => void
+  flushPendingChange: () => void
   subscribe: (onStoreChange: () => void) => () => void
   getSnapshot: () => symbol
 }
 
 function createTrackerForAdm(adm: ObserverAdministration): Tracker {
   return createTracker(() => {
-    adm.stateVersion = Symbol()
-    adm.onStoreChange?.()
+    adm.notifyChanged()
+    notifyAfterRender(adm.flushPendingChange)
   }, `ReactObserver`)
 }
 
@@ -38,7 +42,15 @@ export function useObserver<T>(
     const adm: ObserverAdministration = {
       tracker: null,
       stateVersion: Symbol(),
+      lastRenderedVersion: Symbol(),
       onStoreChange: null,
+      notifyChanged() {
+        adm.stateVersion = Symbol()
+      },
+      flushPendingChange() {
+        if (adm.lastRenderedVersion === adm.stateVersion) return
+        adm.onStoreChange?.()
+      },
 
       subscribe(onStoreChange: () => void) {
         observerFinalizationRegistry.unregister(adm)
@@ -84,12 +96,15 @@ export function useObserver<T>(
   let renderResult!: T
   let exception: unknown
 
-  adm.tracker!.track(() => {
-    try {
-      renderResult = render()
-    } catch (e) {
-      exception = e
-    }
+  runInRenderPhase(() => {
+    adm.tracker!.track(() => {
+      try {
+        renderResult = render()
+      } catch (e) {
+        exception = e
+      }
+    })
+    adm.lastRenderedVersion = adm.stateVersion
   })
 
   if (exception) {

@@ -2,6 +2,28 @@ import MarkdownIt from "markdown-it"
 import hljs from "highlight.js"
 import type { DocsDocument, DocsTocItem } from "./types.ts"
 
+interface MarkdownToken {
+  tag: string
+  content?: string
+  attrSet(name: string, value: string): void
+}
+
+interface MarkdownRendererContext {
+  renderToken(
+    tokens: readonly MarkdownToken[],
+    idx: number,
+    options: unknown,
+  ): string
+}
+
+type MarkdownRule = (
+  tokens: readonly MarkdownToken[],
+  idx: number,
+  options: unknown,
+  env: unknown,
+  self: MarkdownRendererContext,
+) => string
+
 const escapeHtml = (str: string): string =>
   str
     .replace(/&/g, "&amp;")
@@ -29,7 +51,44 @@ const markdownEngine = new MarkdownIt({
   },
 })
 
-const headingOpen = markdownEngine.renderer.rules.heading_open
+const headingOpen = markdownEngine.renderer.rules.heading_open as
+  | MarkdownRule
+  | undefined
+const tableOpen = markdownEngine.renderer.rules.table_open as
+  | MarkdownRule
+  | undefined
+const tableClose = markdownEngine.renderer.rules.table_close as
+  | MarkdownRule
+  | undefined
+
+const renderTableOpen: MarkdownRule = (
+  tokens,
+  idx,
+  options,
+  env,
+  self,
+) => {
+  const rendered = tableOpen
+    ? tableOpen(tokens, idx, options, env, self)
+    : self.renderToken(tokens, idx, options)
+  return `<div class="table-wrap">${rendered}`
+}
+
+const renderTableClose: MarkdownRule = (
+  tokens,
+  idx,
+  options,
+  env,
+  self,
+) => {
+  const rendered = tableClose
+    ? tableClose(tokens, idx, options, env, self)
+    : self.renderToken(tokens, idx, options)
+  return `${rendered}</div>`
+}
+
+markdownEngine.renderer.rules.table_open = renderTableOpen
+markdownEngine.renderer.rules.table_close = renderTableClose
 
 export const renderDocument = (doc: DocsDocument): {
   html: string
@@ -39,12 +98,12 @@ export const renderDocument = (doc: DocsDocument): {
   const toc: DocsTocItem[] = []
   const seenIds = new Map<string, number>()
 
-  markdownEngine.renderer.rules.heading_open = (
-    tokens: any,
-    idx: any,
-    options: any,
-    env: any,
-    self: any,
+  const renderHeadingOpen: MarkdownRule = (
+    tokens,
+    idx,
+    options,
+    env,
+    self,
   ) => {
     const token = tokens[idx]
     const inline = tokens[idx + 1]
@@ -62,6 +121,8 @@ export const renderDocument = (doc: DocsDocument): {
     }
     return self.renderToken(tokens, idx, options)
   }
+
+  markdownEngine.renderer.rules.heading_open = renderHeadingOpen
 
   const markdownBody = doc.extension === ".mdx"
     ? preprocessMdx(doc.markdownBody)

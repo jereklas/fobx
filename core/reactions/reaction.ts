@@ -34,6 +34,11 @@ import { hasFobxAdmin } from "../utils/utils.ts"
 
 export const UNDEFINED = Symbol.for("fobx-undefined")
 
+export interface ReactionEffectContext {
+  dispose: Dispose
+  hasPrevious: boolean
+}
+
 export interface ReactionOptions<T> {
   name?: string
   fireImmediately?: boolean
@@ -42,7 +47,11 @@ export interface ReactionOptions<T> {
 
 interface ReactionRunAdmin extends ReactionAdmin {
   _expression: (dispose: Dispose) => Any
-  _effect: (value: Any, previousValue: Any, dispose: Dispose) => void
+  _effect: (
+    value: Any,
+    previousValue: Any,
+    context: ReactionEffectContext,
+  ) => void
   _comparer: EqualityChecker
   _isDisposed: boolean
   _isFirst: boolean
@@ -87,8 +96,10 @@ function _runReaction(this: ReactionRunAdmin): void {
   }
 
   // Check if value changed
+  const hasPrevious = this._previousValue !== UNDEFINED
+
   let valueChanged: boolean
-  if (this._previousValue === UNDEFINED) {
+  if (!hasPrevious) {
     valueChanged = true
   } else if (
     currentChanges !== undefined && this._previousChanges !== undefined
@@ -105,7 +116,14 @@ function _runReaction(this: ReactionRunAdmin): void {
     const prevTrack = $scheduler.tracking
     setTracking(null)
     try {
-      this._effect(newValue, this._previousValue, this._dispose)
+      this._effect(
+        newValue,
+        hasPrevious ? this._previousValue : undefined,
+        {
+          dispose: this._dispose,
+          hasPrevious,
+        },
+      )
     } finally {
       setTracking(prevTrack)
     }
@@ -120,8 +138,8 @@ export function reaction<T>(
   expression: (dispose: Dispose) => T,
   effect: (
     value: T,
-    previousValue: T | typeof UNDEFINED,
-    dispose: Dispose,
+    previousValue: T | undefined,
+    context: ReactionEffectContext,
   ) => void,
   options?: ReactionOptions<T>,
 ): Dispose {
@@ -150,7 +168,7 @@ export function reaction<T>(
     _effect: effect as (
       value: Any,
       previousValue: Any,
-      dispose: Dispose,
+      context: ReactionEffectContext,
     ) => void,
     _comparer: comparer,
     _isDisposed: false,

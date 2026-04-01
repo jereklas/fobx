@@ -22,6 +22,7 @@ Deno.test("buildSite generates html, nav, and search assets", async () => {
     inputDir: input,
     outputDir: output,
     siteTitle: "Test Docs",
+    githubUrl: "https://github.com/example/test-docs",
   })
 
   assertEquals(result.pages.length, 2)
@@ -39,6 +40,7 @@ Deno.test("buildSite generates html, nav, and search assets", async () => {
   )
 
   assertStringIncludes(homeHtml, "Test Docs")
+  assertStringIncludes(homeHtml, 'href="https://github.com/example/test-docs"')
   assertStringIncludes(guideHtml, "Custom Nav")
   assertStringIncludes(searchJson, "Custom")
 

@@ -82,6 +82,15 @@ When no annotations are provided, `observable()` infers them:
 | `inPlace`           | `boolean`          | `false`        | Mutate the source object instead of copying          |
 | `ownPropertiesOnly` | `boolean`          | `false`        | Install all descriptors on instance (skip prototype) |
 
+If you explicitly set `defaultAnnotation` to a data annotation (`"observable"`,
+`"observable.ref"`, `"observable.shallow"`, or `"none"`), that override still
+applies to own fields, including function-valued callback properties stored
+directly on the object.
+
+The fix in this area was narrower: it prevents that data default from leaking
+onto inherited prototype methods. Class methods and generators still infer to
+`"transaction"` or `"flow"` unless you annotate them explicitly.
+
 ### `inPlace` mode
 
 By default, `observable()` returns a new observable copy when you pass a plain

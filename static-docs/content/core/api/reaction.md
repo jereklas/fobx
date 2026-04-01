@@ -12,12 +12,17 @@ value, and an **effect** that runs (untracked) whenever that value changes.
 ## Signature
 
 ```ts
+interface ReactionEffectContext {
+  dispose(): void
+  hasPrevious: boolean
+}
+
 function reaction<T>(
   expression: (dispose: Dispose) => T,
   effect: (
     value: T,
-    previousValue: T | typeof UNDEFINED,
-    dispose: Dispose,
+    previousValue: T | undefined,
+    context: ReactionEffectContext,
   ) => void,
   options?: ReactionOptions<T>,
 ): Dispose
@@ -31,16 +36,23 @@ interface ReactionOptions<T> {
 
 ## Parameters
 
-| Parameter                 | Type                             | Description                                                              |
-| ------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
-| `expression`              | `(dispose) => T`                 | Tracked function — its return value is compared across runs              |
-| `effect`                  | `(value, prev, dispose) => void` | Side-effect — runs untracked when the expression value changes           |
-| `options.name`            | `string`                         | Debug name                                                               |
-| `options.fireImmediately` | `boolean`                        | Run the effect once immediately with the initial value (default `false`) |
-| `options.comparer`        | `EqualityComparison`             | Custom equality check for the expression result                          |
+| Parameter                 | Type                              | Description                                                              |
+| ------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| `expression`              | `(dispose) => T`                  | Tracked function — its return value is compared across runs              |
+| `effect`                  | `(value, prev, context) => void`  | Side-effect — runs untracked when the expression value changes           |
+| `options.name`            | `string`                          | Debug name                                                               |
+| `options.fireImmediately` | `boolean`                         | Run the effect once immediately with the initial value (default `false`) |
+| `options.comparer`        | `EqualityComparison`              | Custom equality check for the expression result                          |
 
-When `fireImmediately` is `true`, the first callback receives `UNDEFINED` as
-`previousValue`.
+The effect `context` includes:
+
+| Field         | Type      | Description                                                |
+| ------------- | --------- | ---------------------------------------------------------- |
+| `dispose`     | `Dispose` | Stops this reaction                                        |
+| `hasPrevious` | `boolean` | `false` only on the first `fireImmediately` callback run   |
+
+When `fireImmediately` is `true`, the first callback receives `undefined` as
+`previousValue` and `context.hasPrevious === false`.
 
 **Returns** a `Dispose` function.
 
@@ -80,8 +92,8 @@ const stop = reaction(
 // prints: temperature: 20 (immediately)
 ```
 
-On that first `fireImmediately` run, `previousValue` is the exported `UNDEFINED`
-sentinel.
+On that first `fireImmediately` run, `previousValue` is `undefined` and
+`context.hasPrevious` is `false`.
 
 ## Custom comparer
 
@@ -154,7 +166,8 @@ stop()
 
 ## Self-disposing
 
-Both the expression and effect receive a `dispose` callback:
+The expression receives a `dispose` callback, and the effect receives it on the
+context object:
 
 ```ts
 const stop = reaction(
@@ -163,7 +176,10 @@ const stop = reaction(
     if (v > 100) dispose() // stop if temperature exceeds 100
     return v
   },
-  (value) => console.log("temp:", value),
+  (value, _previousValue, { dispose }) => {
+    if (value < 0) dispose()
+    console.log("temp:", value)
+  },
 )
 ```
 

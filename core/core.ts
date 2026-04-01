@@ -10,7 +10,7 @@ export { makeObservable, observable } from "./observables/object.ts"
 
 export { flow } from "./reactions/flow.ts"
 export { autorun } from "./reactions/autorun.ts"
-export { reaction, UNDEFINED } from "./reactions/reaction.ts"
+export { reaction } from "./reactions/reaction.ts"
 export { when } from "./reactions/when.ts"
 export { createSelector } from "./reactions/selector.ts"
 
@@ -43,7 +43,10 @@ export type { FlowOptions } from "./reactions/flow.ts"
 export type { BoxOptions, ObservableBox } from "./observables/observableBox.ts"
 export type { Computed, ComputedOptions } from "./observables/computed.ts"
 export type { AutorunOptions } from "./reactions/autorun.ts"
-export type { ReactionOptions } from "./reactions/reaction.ts"
+export type {
+  ReactionEffectContext,
+  ReactionOptions,
+} from "./reactions/reaction.ts"
 export type { Selector } from "./reactions/selector.ts"
 export type { WhenOptions, WhenPromise } from "./reactions/when.ts"
 export type { MapOptions, ObservableMap } from "./observables/observableMap.ts"

@@ -18,10 +18,14 @@ const bundle = (format: "esm" | "cjs") => {
 async function build() {
   await utils.rm("dist")
   await utils.generateTypeDefinitions("dist", {
-    baseUrl: ".",
-    paths: {
-      "@fobx/core": ["../core/index.ts"],
-      "@fobx/core/*": ["../core/*"],
+    externalTypePackages: {
+      "@fobx/core": {
+        sourceDir: "../core",
+        exports: {
+          ".": "index.ts",
+          "./internals": "internals.ts",
+        },
+      },
     },
   })
   await utils.generatePackageJson("dist", {

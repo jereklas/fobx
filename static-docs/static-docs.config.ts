@@ -9,6 +9,7 @@ const config: DocsConfig = {
   outputDir: resolve(Deno.cwd(), "dist"),
   siteTitle: "FobX",
   siteDescription: "Deno-powered static documentation site.",
+  githubUrl: "https://github.com/jereklas/fobx",
   basePath,
   includeMdx: true,
   cleanOutput: true,

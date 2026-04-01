@@ -78,9 +78,3 @@ and link to its full documentation.
 | [`isTransaction`](/core/api/type-predicates/)          | Check if a function was wrapped by `transaction()`            |
 | [`isFlow`](/core/api/type-predicates/)                 | Check if a function was wrapped by `flow()`                   |
 | [`isPlainObject`](/core/api/type-predicates/)          | Check if a value is a plain `{}` object                       |
-
-## Constants
-
-| Export      | Description                                                                     |
-| ----------- | ------------------------------------------------------------------------------- |
-| `UNDEFINED` | Sentinel used internally — indicates "no value yet" for reactions and selectors |

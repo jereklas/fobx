@@ -5,6 +5,7 @@ export interface DocsConfig {
   assetsDir?: string
   siteTitle?: string
   siteDescription?: string
+  githubUrl?: string
   basePath?: string
   includeMdx?: boolean
   cleanOutput?: boolean

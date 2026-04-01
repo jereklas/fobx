@@ -4,7 +4,6 @@ import { expect, test } from "@fobx/testing"
 
 test("library has expected exports", () => {
   expect(Object.keys(fobx).sort()).toEqual([
-    "UNDEFINED",
     "autorun",
     "computed",
     "configure",

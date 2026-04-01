@@ -557,7 +557,9 @@ function applyAnnotatedPrototypeMeta(
   }
 
   if (meta.type === "data" && meta.annotation) {
-    const initialValue = descriptor.value
+    const initialValue = Object.hasOwn(meta, "originalValue")
+      ? meta.originalValue
+      : descriptor.value
     let boxValue = initialValue
     const comparer = meta.equalityOptions?.comparer as
       | EqualityComparison
@@ -598,6 +600,16 @@ function restoreAnnotatedPrototypeProperty(
     return
   }
 
+  if (meta.type === "data" && Object.hasOwn(meta, "originalValue")) {
+    Object.defineProperty(prototype, key, {
+      value: meta.originalValue,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    })
+    return
+  }
+
   if ((meta.type === "action" || meta.type === "flow") && meta.originalValue) {
     Object.defineProperty(prototype, key, {
       value: meta.originalValue,
@@ -616,6 +628,15 @@ function resolveAnnotatedPrototypeDescriptor(
     return {
       get: meta.originalGetter,
       set: meta.originalSetter,
+      enumerable: descriptor.enumerable ?? true,
+      configurable: descriptor.configurable ?? true,
+    }
+  }
+
+  if (meta.type === "data" && Object.hasOwn(meta, "originalValue")) {
+    return {
+      value: meta.originalValue,
+      writable: true,
       enumerable: descriptor.enumerable ?? true,
       configurable: descriptor.configurable ?? true,
     }
@@ -649,79 +670,79 @@ function getInstallTarget(
   return ownPropertiesOnly ? target : (prototype ?? target)
 }
 
+function getOwnFunctionDefaultAnnotation(
+  prototype: object | null,
+  explicitDefaultAnnotation: AnnotationString | undefined,
+): AnnotationString | undefined {
+  if (prototype !== null) return undefined
+
+  if (
+    explicitDefaultAnnotation === "observable" ||
+    explicitDefaultAnnotation === "observable.ref" ||
+    explicitDefaultAnnotation === "observable.shallow" ||
+    explicitDefaultAnnotation === "none"
+  ) {
+    return explicitDefaultAnnotation
+  }
+
+  return undefined
+}
+
+function inferAutoAnnotation(
+  descriptor: PropertyDescriptor,
+  prototype: object | null,
+  explicitDefaultAnnotation: AnnotationString | undefined,
+  defaultAnnotation: AnnotationString,
+): AnnotationString | undefined {
+  if (descriptor.get) {
+    return "computed"
+  }
+
+  if (typeof descriptor.value === "function") {
+    const ownFunctionDefaultAnnotation = getOwnFunctionDefaultAnnotation(
+      prototype,
+      explicitDefaultAnnotation,
+    )
+
+    if (ownFunctionDefaultAnnotation) {
+      return ownFunctionDefaultAnnotation
+    }
+
+    const isAlreadyFlow = (descriptor.value as Any)[$fobx] === "flow"
+    const isGenerator = !isAlreadyFlow &&
+      descriptor.value.constructor.name === "GeneratorFunction"
+
+    return isAlreadyFlow || isGenerator ? "flow" : "transaction"
+  }
+
+  return defaultAnnotation
+}
+
 function autoInferProperty(
   admin: ObservableObjectAdmin,
   key: PropertyKey,
   descriptor: PropertyDescriptor,
+  prototype: object | null,
   installTarget: object,
   explicitDefaultAnnotation: AnnotationString | undefined,
   defaultAnnotation: AnnotationString,
 ): AnnotatedPropertyMeta | undefined {
-  if (descriptor.get && !descriptor.set) {
-    return processProperty(
-      admin,
-      key,
-      descriptor,
-      "computed",
-      installTarget,
-    )
-  }
+  const annotation = inferAutoAnnotation(
+    descriptor,
+    prototype,
+    explicitDefaultAnnotation,
+    defaultAnnotation,
+  )
 
-  if (descriptor.get && descriptor.set) {
-    installComputedProperty(
-      admin,
-      key,
-      descriptor.get,
-      installTarget,
-      undefined,
-      descriptor.set,
-    )
-    return {
-      type: "computed",
-      originalGetter: descriptor.get,
-      originalSetter: descriptor.set,
-    }
-  }
+  if (annotation === undefined) return undefined
 
-  if (typeof descriptor.value === "function") {
-    // When `defaultAnnotation` opts for reference storage (observable*) or
-    // to skip the property ("none"), respect that intent for functions too.
-    // Without this, `observable({cb: fn}, {defaultAnnotation:"observable.ref"})`
-    // would wrap the callback in a transaction instead of storing it by reference.
-    const explicitDefault = explicitDefaultAnnotation
-    const isObservableDefault = explicitDefault &&
-      (explicitDefault === "observable" ||
-        explicitDefault === "observable.ref" ||
-        explicitDefault === "observable.shallow" ||
-        explicitDefault === "none")
-    const isAlreadyFlow = !isObservableDefault &&
-      (descriptor.value as Any)[$fobx] === "flow"
-    const isGenerator = !isObservableDefault && !isAlreadyFlow &&
-      descriptor.value.constructor.name === "GeneratorFunction"
-    const effectiveAnnotation = isObservableDefault
-      ? explicitDefault
-      : isAlreadyFlow || isGenerator
-      ? "flow"
-      : "transaction"
-
-    return processProperty(
-      admin,
-      key,
-      descriptor,
-      effectiveAnnotation,
-      installTarget,
-    )
-  }
-
-  if (!descriptor.get) {
-    return processProperty(
-      admin,
-      key,
-      descriptor,
-      defaultAnnotation,
-      installTarget,
-    )
-  }
+  return processProperty(
+    admin,
+    key,
+    descriptor,
+    annotation,
+    installTarget,
+  )
 }
 
 function resolveExplicitAnnotationDescriptor(
@@ -929,6 +950,7 @@ function applyClassAnnotations<T extends object>(
           admin,
           key,
           descriptor,
+          prototype,
           getInstallTarget(target, prototype, ownPropertiesOnly),
           explicitDefaultAnnotation,
           defaultAnnotation,
@@ -962,6 +984,7 @@ function applyClassAnnotations<T extends object>(
           admin,
           key,
           descriptor,
+          prototype,
           getInstallTarget(target, prototype, ownPropertiesOnly),
           explicitDefaultAnnotation,
           defaultAnnotation,
@@ -1021,13 +1044,28 @@ function applyPlainObjectAnnotations<T extends object>(
       if (annotationValue !== undefined) {
         processProperty(admin, key, descriptor, annotationValue, target)
       } else if (!options.explicitOnly) {
-        autoInferProperty(
+        const inferredAnnotation = inferAutoAnnotation(
+          descriptor,
+          null,
+          options.defaultAnnotation,
+          defaultAnnotation,
+        )
+
+        if (inferredAnnotation === undefined) {
+          continue
+        }
+
+        if (inferredAnnotation === "none") {
+          Object.defineProperty(target, key, descriptor)
+          continue
+        }
+
+        processProperty(
           admin,
           key,
           descriptor,
+          inferredAnnotation,
           target,
-          options.defaultAnnotation,
-          defaultAnnotation,
         )
       } else {
         continue
@@ -1085,7 +1123,12 @@ function processProperty(
         baseAnnotation,
         equalityOptions,
       )
-      return { type: "data", annotation: baseAnnotation, equalityOptions }
+      return {
+        type: "data",
+        annotation: baseAnnotation,
+        equalityOptions,
+        originalValue: descriptor.value,
+      }
 
     case "computed":
       if (!descriptor.get) {

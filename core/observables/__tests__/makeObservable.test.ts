@@ -844,6 +844,42 @@ describe("makeObservable", () => {
     expect(obj.y()).toBe(2)
   })
 
+  test("re-entrant makeObservable preserves explicitly data-annotated prototype methods", () => {
+    class Store {
+      value = 1
+
+      constructor() {
+        fobx.makeObservable(this, {
+          annotations: {
+            value: "observable",
+            method: "observable.ref",
+          },
+        })
+      }
+
+      method() {
+        return this.value + 1
+      }
+    }
+
+    const first = new Store()
+    expect(fobx.isObservable(first, "method")).toBe(true)
+    expect(fobx.isTransaction(first.method)).toBe(false)
+    expect(first.method()).toBe(2)
+
+    const second = new Store()
+    fobx.makeObservable(second, {
+      annotations: {
+        value: "observable",
+        method: "observable.ref",
+      },
+    })
+
+    expect(fobx.isObservable(second, "method")).toBe(true)
+    expect(fobx.isTransaction(second.method)).toBe(false)
+    expect(second.method()).toBe(2)
+  })
+
   describe("error cases", () => {
     test("throws when using observable annotation on getter/setter", () => {
       expect(() => {

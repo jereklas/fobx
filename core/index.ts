@@ -25,7 +25,6 @@ export {
   runInTransaction,
   runWithoutTracking,
   transaction,
-  UNDEFINED,
   when,
 } from "./core.ts"
 
@@ -33,7 +32,7 @@ export type { FlowOptions } from "./core.ts"
 export type { BoxOptions, ObservableBox } from "./core.ts"
 export type { Computed, ComputedOptions } from "./core.ts"
 export type { AutorunOptions } from "./core.ts"
-export type { ReactionOptions } from "./core.ts"
+export type { ReactionEffectContext, ReactionOptions } from "./core.ts"
 export type { Selector } from "./core.ts"
 export type { WhenOptions, WhenPromise } from "./core.ts"
 export type { MapOptions, ObservableMap } from "./core.ts"

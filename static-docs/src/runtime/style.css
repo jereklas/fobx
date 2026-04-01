@@ -110,12 +110,19 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.header-actions {
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
 .site-title {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text);
+  white-space: nowrap;
 }
 
 .site-subtitle {
@@ -135,18 +142,44 @@ a:focus-visible {
 }
 
 .menu-button,
-.theme-button {
+.theme-button,
+.github-link {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   border-radius: 0.5rem;
   padding: 0.45rem 0.7rem;
   font: inherit;
+}
+
+.menu-button,
+.theme-button {
   cursor: pointer;
 }
 
 .menu-button {
   display: none;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  flex-shrink: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
+.github-link:hover,
+.github-link:focus-visible {
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.github-link svg {
+  flex-shrink: 0;
 }
 
 .theme-button {
@@ -157,6 +190,7 @@ a:focus-visible {
 }
 
 .search-wrap {
+  flex: 0 1 18rem;
   min-width: 18rem;
 }
 
@@ -625,9 +659,14 @@ mark.search-match {
     display: inline-flex;
   }
 
+  .header-actions {
+    gap: 0.5rem;
+  }
+
   .search-wrap {
     min-width: 0;
-    width: 9rem;
+    flex: 0 1 min(9rem, 38vw);
+    width: auto;
   }
 
   .site-shell {

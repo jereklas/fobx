@@ -8,7 +8,7 @@ SPA-like navigation.
 
 - Static output (`index.html` per route) for easy hosting
 - Left navigation + right table of contents
-- Header with title, theme toggle, and client-side search
+- Header with title, client-side search, GitHub link, and theme toggle
 - Frontmatter navigation overrides
 - Responsive and keyboard-accessible layout
 - Unique default color theme with high contrast
@@ -57,4 +57,11 @@ DOCS_BASE_PATH=/ deno task build
 
 # Project pages (repo subpath)
 DOCS_BASE_PATH=/your-repo-name/ deno task build
+```
+
+Set `githubUrl` in `static-docs.config.ts` to show a repository button in the
+header:
+
+```ts
+githubUrl: "https://github.com/jereklas/fobx"
 ```

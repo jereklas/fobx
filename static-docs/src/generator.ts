@@ -49,6 +49,7 @@ export const buildSite = async (
     const html = renderPageHtml(page, {
       siteTitle: resolved.siteTitle,
       siteDescription: resolved.siteDescription,
+      githubUrl: resolved.githubUrl,
       nav,
       pages,
       basePath: resolved.basePath,

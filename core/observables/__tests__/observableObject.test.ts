@@ -386,6 +386,100 @@ describe("observableObject", () => {
     expect(calls).toBe(1)
   })
 
+  test("defaultAnnotation only changes own function fields, not prototype methods", () => {
+    const storedCallback = () => 42
+    const defaultAnnotations = [
+      "observable",
+      "observable.ref",
+      "observable.shallow",
+      "none",
+    ] as const
+    const dataLikeDefaults = defaultAnnotations.filter((annotation) => {
+      return annotation !== "none"
+    })
+
+    for (const defaultAnnotation of dataLikeDefaults) {
+      const plain = fobx.observable({ callback: storedCallback }, {
+        defaultAnnotation,
+      })
+
+      expect(plain.callback).toBe(storedCallback)
+      expect(fobx.isObservable(plain, "callback")).toBe(true)
+      expect(fobx.isTransaction(plain.callback)).toBe(false)
+    }
+
+    for (const defaultAnnotation of defaultAnnotations) {
+      class A {
+        count = 0
+        callback = storedCallback
+
+        constructor() {
+          fobx.observable(this, { defaultAnnotation })
+        }
+
+        fn() {
+          this.count++
+          return this.count
+        }
+
+        *gen() {
+          yield this.count
+        }
+      }
+
+      const a = new A()
+      expect(fobx.isTransaction(a.fn)).toBe(true)
+      expect(fobx.isObservable(a, "fn")).toBe(false)
+      expect(fobx.isFlow(a.gen)).toBe(true)
+      expect(a.callback).toBe(storedCallback)
+      expect(fobx.isObservable(a, "callback")).toBe(
+        defaultAnnotation !== "none",
+      )
+      expect(fobx.isTransaction(a.callback)).toBe(false)
+      expect(a.fn()).toBe(1)
+
+      const b = fobx.observable(new A(), { defaultAnnotation })
+      expect(fobx.isTransaction(b.fn)).toBe(true)
+      expect(fobx.isObservable(b, "fn")).toBe(false)
+      expect(fobx.isFlow(b.gen)).toBe(true)
+      expect(b.callback).toBe(storedCallback)
+      expect(fobx.isObservable(b, "callback")).toBe(
+        defaultAnnotation !== "none",
+      )
+      expect(b.fn()).toBe(1)
+    }
+  })
+
+  test("plain-object defaultAnnotation none preserves own function-valued fields", () => {
+    for (const inPlace of [false, true]) {
+      const callback = () => 42
+      const source = {
+        value: 1,
+        callback,
+        *load() {
+          yield this.value
+        },
+      }
+
+      const observed = fobx.observable(source, {
+        defaultAnnotation: "none",
+        inPlace,
+      })
+
+      expect(observed === source).toBe(inPlace)
+      expect(Object.keys(observed)).toEqual(["value", "callback", "load"])
+      expect(observed.value).toBe(1)
+      expect(observed.callback).toBe(callback)
+      expect(observed.load).toBe(source.load)
+      expect(fobx.isObservable(observed, "value")).toBe(false)
+      expect(fobx.isObservable(observed, "callback")).toBe(false)
+      expect(fobx.isObservable(observed, "load")).toBe(false)
+      expect(fobx.isTransaction(observed.callback)).toBe(false)
+      expect(fobx.isFlow(observed.load)).toBe(false)
+      expect(Array.from(observed.load())).toEqual([1])
+    }
+  })
+
   test("$fobx symbol is not writable, configurable, or enumerable", () => {
     const obj = fobx.observable({ a: "a" })
     expect(Object.getOwnPropertyDescriptor(obj, $fobx)).toEqual(
@@ -542,14 +636,20 @@ describe("observableObject", () => {
     expect(reactionFn).toHaveBeenCalledWith(
       [1, 2, 3, 4],
       [1, 2, 3, 4],
-      expect.any(Function),
+      expect.objectContaining({
+        dispose: expect.any(Function),
+        hasPrevious: true,
+      }),
     )
     o.a[0] = 5
     expect(reactionFn).toHaveBeenCalledTimes(2)
     expect(reactionFn).toHaveBeenCalledWith(
       [5, 2, 3, 4],
       [5, 2, 3, 4],
-      expect.any(Function),
+      expect.objectContaining({
+        dispose: expect.any(Function),
+        hasPrevious: true,
+      }),
     )
 
     const firstArray = o.a as ObservableArray<number>
@@ -566,13 +666,23 @@ describe("observableObject", () => {
     expect(reactionFn).toHaveBeenCalledWith(
       [],
       [5, 2, 3, 4],
-      expect.any(Function),
+      expect.objectContaining({
+        dispose: expect.any(Function),
+        hasPrevious: true,
+      }),
     )
 
     o.a.push(1)
     expect(o.a).toEqual([1])
     expect(reactionFn).toHaveBeenCalledTimes(4)
-    expect(reactionFn).toHaveBeenCalledWith([1], [1], expect.any(Function))
+    expect(reactionFn).toHaveBeenCalledWith(
+      [1],
+      [1],
+      expect.objectContaining({
+        dispose: expect.any(Function),
+        hasPrevious: true,
+      }),
+    )
   })
 
   test("createAutoObservable deeply observes the object", () => {

@@ -3,6 +3,7 @@ import type { DocsNavItem, DocsPage } from "./types.ts"
 interface TemplateOptions {
   siteTitle: string
   siteDescription: string
+  githubUrl: string
   basePath: string
   nav: DocsNavItem[]
   pages: DocsPage[]
@@ -53,6 +54,7 @@ export const renderPageHtml = (
           <span class="sr-only">Search docs</span>
           <input id="site-search" type="search" autocomplete="off" placeholder="Search documentation" />
         </label>
+        ${renderGithubLink(options.githubUrl)}
         <button class="theme-button" id="theme-toggle" aria-label="Toggle color theme"></button>
       </div>
     </header>
@@ -178,6 +180,16 @@ const renderToc = (toc: DocsPage["toc"]): string => {
 
 const assetUrl = (basePath: string, fileName: string): string =>
   `${basePath}assets/${fileName}`
+
+const renderGithubLink = (githubUrl: string): string => {
+  if (!githubUrl) {
+    return ""
+  }
+
+  return `<a class="github-link" href="${
+    escapeHtml(githubUrl)
+  }" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5C6.201 1.5 1.5 6.201 1.5 12c0 4.64 3.01 8.576 7.188 9.965.525.096.712-.228.712-.506 0-.25-.009-.912-.014-1.79-2.922.635-3.54-1.408-3.54-1.408-.479-1.216-1.169-1.539-.955-1.547.781-.016 1.191.727 1.191.727 1.04 1.782 2.728 1.267 3.392.969.106-.754.407-1.267.741-1.558-2.333-.265-4.786-1.166-4.786-5.19 0-1.146.409-2.083 1.08-2.817-.108-.266-.468-1.335.103-2.784 0 0 .881-.282 2.886 1.076A10.03 10.03 0 0 1 12 6.577c.893.004 1.792.121 2.633.356 2.003-1.358 2.883-1.076 2.883-1.076.573 1.449.213 2.518.105 2.784.673.734 1.079 1.671 1.079 2.817 0 4.034-2.457 4.922-4.796 5.182.418.361.79 1.071.79 2.159 0 1.559-.014 2.817-.014 3.2 0 .281.185.607.719.504A10.503 10.503 0 0 0 22.5 12c0-5.799-4.701-10.5-10.5-10.5Z"/></svg></a>`
+}
 
 const pageHref = (basePath: string, routePath: string): string => {
   if (routePath === "/") {

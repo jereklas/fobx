@@ -3,7 +3,6 @@ import { $fobx } from "../../state/global.ts"
 import type { ObservableAdmin } from "../../state/global.ts"
 import { observerCount } from "../../state/global.ts"
 import * as fobx from "../../index.ts"
-import { UNDEFINED } from "../reaction.ts"
 import {
   beforeEach,
   describe,
@@ -223,13 +222,14 @@ test("passes Reaction as an argument to expression function", () => {
   expect(values).toEqual([1, 2, "pleaseDispose"])
 })
 
-test("passes Reaction as an argument to effect function", () => {
+test("passes effect context as an argument to effect function", () => {
   const a = fobx.observableBox<number | string>(1)
   const values: (number | string)[] = []
 
   fobx.reaction(
     () => a.get(),
-    (newValue, _oldValue, dispose) => {
+    (newValue, _oldValue, context) => {
+      const { dispose } = context
       if (a.get() === "pleaseDispose") dispose()
       values.push(newValue)
     },
@@ -252,9 +252,9 @@ test("can dispose reaction on first run", () => {
   const valuesExpr1st: any[][] = []
   fobx.reaction(
     () => a.get(),
-    (newValue, oldValue, dispose) => {
-      dispose()
-      valuesExpr1st.push([newValue, oldValue])
+    (newValue, oldValue, context) => {
+      context.dispose()
+      valuesExpr1st.push([newValue, oldValue, context.hasPrevious])
     },
     { fireImmediately: true },
   )
@@ -276,9 +276,9 @@ test("can dispose reaction on first run", () => {
   const valuesExpr: any[][] = []
   fobx.reaction(
     () => a.get(),
-    (newValue, oldValue, dispose) => {
-      dispose()
-      valuesExpr.push([newValue, oldValue])
+    (newValue, oldValue, context) => {
+      context.dispose()
+      valuesExpr.push([newValue, oldValue, context.hasPrevious])
     },
   )
 
@@ -297,10 +297,36 @@ test("can dispose reaction on first run", () => {
   a.set(2)
   a.set(3)
 
-  expect(valuesExpr1st).toEqual([[1, UNDEFINED]])
-  expect(valuesEffect1st).toEqual([[1, UNDEFINED]])
-  expect(valuesExpr).toEqual([[2, 1]])
+  expect(valuesExpr1st).toEqual([[1, undefined, false]])
+  expect(valuesEffect1st).toEqual([[1, undefined]])
+  expect(valuesExpr).toEqual([[2, 1, true]])
   expect(valuesEffect).toEqual([])
+})
+
+test("fireImmediately exposes hasPrevious without a public sentinel", () => {
+  const value = fobx.observableBox<string | undefined>(undefined)
+  const values: Array<[string | undefined, string | undefined, boolean]> = []
+
+  const dispose = fobx.reaction(
+    () => value.get(),
+    (currentValue, previousValue, context) => {
+      values.push([currentValue, previousValue, context.hasPrevious])
+    },
+    { fireImmediately: true },
+  )
+
+  value.set("alpha")
+  value.set(undefined)
+  value.set("beta")
+
+  dispose()
+
+  expect(values).toEqual([
+    [undefined, undefined, false],
+    ["alpha", undefined, true],
+    [undefined, "alpha", true],
+    ["beta", undefined, true],
+  ])
 })
 
 test("do not rerun if expr output doesn't change", () => {

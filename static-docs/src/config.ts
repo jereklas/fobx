@@ -9,6 +9,7 @@ export const resolveConfig = (
   const outputDir = normalize(config.outputDir ?? join(rootDir, "dist"))
   const assetsDir = normalize(config.assetsDir ?? join(outputDir, "assets"))
   const basePath = normalizeBasePath(config.basePath)
+  const githubUrl = normalizeExternalUrl(config.githubUrl)
 
   return {
     rootDir,
@@ -17,6 +18,7 @@ export const resolveConfig = (
     assetsDir,
     siteTitle: config.siteTitle ?? "Documentation",
     siteDescription: config.siteDescription ?? "Technical documentation",
+    githubUrl,
     basePath,
     includeMdx: config.includeMdx ?? true,
     cleanOutput: config.cleanOutput ?? true,
@@ -36,4 +38,8 @@ const normalizeBasePath = (value: string | undefined): string => {
     basePath = `${basePath}/`
   }
   return basePath
+}
+
+const normalizeExternalUrl = (value: string | undefined): string => {
+  return value?.trim() ?? ""
 }

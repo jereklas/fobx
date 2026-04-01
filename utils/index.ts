@@ -1,9 +1,19 @@
 import { parse } from "@std/jsonc"
-import { fromFileUrl, join } from "@std/path"
+import { fromFileUrl, join, resolve } from "@std/path"
 export * from "./file-server.ts"
 export * from "./file-crawler.ts"
 
 const REPO_ROOT = fromFileUrl(new URL("../", import.meta.url))
+
+type ExternalTypePackageConfig = {
+  sourceDir: string
+  exports: Record<string, string>
+}
+
+type ExternalTypePackageCleanup = {
+  packageDir: string
+  backupDir?: string
+}
 
 function getDeclarationCompilerOptions() {
   const globalTypesPath = new URL("../global.d.ts", import.meta.url).pathname
@@ -122,6 +132,79 @@ async function rewriteDeclarationImportExtensions(dir: string) {
   }
 }
 
+async function createExternalTypePackages(
+  packages?: Record<string, ExternalTypePackageConfig>,
+) {
+  if (!packages) return [] as ExternalTypePackageCleanup[]
+
+  const cleanups: ExternalTypePackageCleanup[] = []
+
+  for (const [packageName, config] of Object.entries(packages)) {
+    const packageDir = join("node_modules", packageName)
+    const existing = await Deno.lstat(packageDir).catch((error) => {
+      if (error instanceof Deno.errors.NotFound) {
+        return null
+      }
+
+      throw error
+    })
+
+    const cleanup: ExternalTypePackageCleanup = { packageDir }
+
+    if (existing) {
+      cleanup.backupDir =
+        `${packageDir}.__fobx_typegen_backup_${crypto.randomUUID()}`
+      await Deno.rename(packageDir, cleanup.backupDir)
+    }
+
+    cleanups.push(cleanup)
+
+    await Deno.mkdir(packageDir, { recursive: true })
+    await Deno.symlink(
+      resolve(config.sourceDir),
+      join(packageDir, "source"),
+      { type: "dir" },
+    )
+
+    const rootTypes = config.exports["."]
+    if (!rootTypes) {
+      throw new Error(
+        `External type package '${packageName}' must define a '.' export.`,
+      )
+    }
+
+    const packageJson = {
+      name: packageName,
+      private: true,
+      types: `./source/${rootTypes}`,
+      exports: Object.fromEntries(
+        Object.entries(config.exports).map(([specifier, target]) => {
+          return [specifier, { types: `./source/${target}` }]
+        }),
+      ),
+    }
+
+    await Deno.writeTextFile(
+      join(packageDir, "package.json"),
+      JSON.stringify(packageJson, null, 2),
+    )
+  }
+
+  return cleanups
+}
+
+async function cleanupExternalTypePackages(
+  cleanups: ExternalTypePackageCleanup[],
+) {
+  for (const cleanup of cleanups.reverse()) {
+    await rm(cleanup.packageDir)
+
+    if (cleanup.backupDir) {
+      await Deno.rename(cleanup.backupDir, cleanup.packageDir)
+    }
+  }
+}
+
 /**
  * Generates type definitions for the project.
  * @param outDir - The output directory for the generated type definitions.
@@ -131,9 +214,13 @@ export async function generateTypeDefinitions(
   options?: {
     paths?: Record<string, string[]>
     baseUrl?: string
+    externalTypePackages?: Record<string, ExternalTypePackageConfig>
   },
 ) {
   const CONFIG_PATH = "./tsconfig.json"
+  const externalTypePackages = await createExternalTypePackages(
+    options?.externalTypePackages,
+  )
 
   const tsconfig = JSON.stringify({
     compilerOptions: {
@@ -164,6 +251,7 @@ export async function generateTypeDefinitions(
     ;({ code } = await command.output())
   } finally {
     await rm(CONFIG_PATH)
+    await cleanupExternalTypePackages(externalTypePackages)
   }
 
   if (code !== 0) {

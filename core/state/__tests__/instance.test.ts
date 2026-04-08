@@ -33,3 +33,18 @@ test("enforceActions is true by default, but can be set to false", () => {
 
   expect($instance.enforceActions).toBe(false)
 })
+
+test("warnOnDependentlessComputeds is false by default, but can be configured", () => {
+  const prev = $instance.warnOnDependentlessComputeds
+
+  try {
+    $instance.warnOnDependentlessComputeds = false
+    expect($instance.warnOnDependentlessComputeds).toBe(false)
+
+    fobx.configure({ warnOnDependentlessComputeds: true })
+
+    expect($instance.warnOnDependentlessComputeds).toBe(true)
+  } finally {
+    $instance.warnOnDependentlessComputeds = prev
+  }
+})

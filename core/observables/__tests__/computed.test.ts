@@ -22,7 +22,10 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({
+    enforceActions: false,
+    warnOnDependentlessComputeds: false,
+  })
 })
 
 describe("Computed", () => {
@@ -1607,5 +1610,84 @@ describe("warns when setting computed value outside of a transaction", () => {
       grabConsole(() => fobx.runInTransaction(() => c.set(10))),
     ).toBe("")
     d()
+  })
+})
+
+describe("warnOnDependentlessComputeds", () => {
+  const warnPattern =
+    /\[@fobx\/core\] Computed value \(Computed@.*\) was evaluated without any observable dependencies/
+
+  test("does not warn by default", () => {
+    const c = fobx.computed(() => 1)
+
+    expect(grabConsole(() => {
+      const dispose = fobx.autorun(() => c.get())
+      dispose()
+    })).toBe("")
+  })
+
+  test("warns for observed computeds without dependencies when enabled", () => {
+    fobx.configure({ warnOnDependentlessComputeds: true })
+
+    try {
+      const c = fobx.computed(() => 1)
+
+      expect(grabConsole(() => {
+        const dispose = fobx.autorun(() => c.get())
+        dispose()
+      })).toMatch(warnPattern)
+    } finally {
+      fobx.configure({ warnOnDependentlessComputeds: false })
+    }
+  })
+
+  test("warns for batched computeds without dependencies when enabled", () => {
+    fobx.configure({ warnOnDependentlessComputeds: true })
+
+    try {
+      const c = fobx.computed(() => 1)
+
+      expect(grabConsole(() => {
+        fobx.runInTransaction(() => c.get())
+      })).toMatch(warnPattern)
+    } finally {
+      fobx.configure({ warnOnDependentlessComputeds: false })
+    }
+  })
+
+  test("warns only once per computed", () => {
+    fobx.configure({ warnOnDependentlessComputeds: true })
+
+    try {
+      const c = fobx.computed(() => 1)
+
+      expect(grabConsole(() => {
+        const dispose = fobx.autorun(() => c.get())
+        dispose()
+      })).toMatch(warnPattern)
+
+      expect(grabConsole(() => {
+        const dispose = fobx.autorun(() => c.get())
+        dispose()
+      })).toBe("")
+    } finally {
+      fobx.configure({ warnOnDependentlessComputeds: false })
+    }
+  })
+
+  test("does not warn for computeds with dependencies", () => {
+    fobx.configure({ warnOnDependentlessComputeds: true })
+
+    try {
+      const box = fobx.observableBox(1)
+      const c = fobx.computed(() => box.get() + 1)
+
+      expect(grabConsole(() => {
+        const dispose = fobx.autorun(() => c.get())
+        dispose()
+      })).toBe("")
+    } finally {
+      fobx.configure({ warnOnDependentlessComputeds: false })
+    }
   })
 })

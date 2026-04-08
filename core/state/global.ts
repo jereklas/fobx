@@ -156,6 +156,7 @@ export interface ReactionAdmin {
 export interface ComputedAdmin<T = unknown>
   extends ReactionAdmin, ObservableAdmin<T> {
   isInsideSetter?: boolean
+  didWarnNoDependencies?: boolean
   batchToken?: ReactionAdmin[]
   /** The computation function — stored here so `run` can be a shared function. */
   _fn: () => T

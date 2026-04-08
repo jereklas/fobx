@@ -21,6 +21,7 @@ import {
   STALE,
   UP_TO_DATE,
 } from "./global.ts"
+import { debug } from "../utils/debug.ts"
 import { $instance } from "./instance.ts"
 
 // Forward declaration — set by batch.ts to break circular dep
@@ -137,7 +138,7 @@ export function warnIfObservedWriteOutsideTransaction(
     $scheduler.batchDepth === 0 &&
     _hasObservers(admin)
   ) {
-    console.warn(
+    debug.warn(
       `[@fobx/core] Changing tracked ${label} (${admin.name}) outside of a transaction is discouraged as reactions run more frequently than necessary.`,
     )
   }

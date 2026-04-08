@@ -18,7 +18,7 @@ import {
   STALE,
   UP_TO_DATE,
 } from "../state/global.ts"
-import { resolveComparer } from "../state/instance.ts"
+import { $instance, resolveComparer } from "../state/instance.ts"
 import {
   cleanupGraph,
   getOldDeps,
@@ -34,6 +34,7 @@ import {
   notifyObservers,
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
+import { debug } from "../utils/debug.ts"
 
 export interface Computed<T> {
   get(): T
@@ -98,6 +99,14 @@ function _suspendIfNeeded(admin: ObservableAdmin): void {
   computed.state = STALE
   computed.batchToken = undefined
   removeFromAllDeps(computed)
+}
+
+function warnIfComputedHasNoDependencies(admin: ComputedAdmin): void {
+  if (admin.deps.length !== 0 || admin.didWarnNoDependencies) return
+  admin.didWarnNoDependencies = true
+  debug.warn(
+    `[@fobx/core] Computed value (${admin.name}) was evaluated without any observable dependencies. This computed will never update, so a plain function or value is usually more appropriate.`,
+  )
 }
 
 function getComputedValue<T>(
@@ -188,6 +197,10 @@ function _runComputed(this: ComputedAdmin): void {
   } finally {
     stopTracking(prevTracking)
     cleanupGraph(admin, oldDeps)
+  }
+
+  if (isNotProduction && $instance.warnOnDependentlessComputeds) {
+    warnIfComputedHasNoDependencies(admin)
   }
 
   // Notify observers if value changed (skip on first computation)

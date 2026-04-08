@@ -15,6 +15,29 @@ Deno.test("bug: 1", () => {
   expect(read()).toBe("content-box")
 })
 
+Deno.test("computed with no dependencies is not observable", () => {
+  // This observable object does not have a 'type' key defined at the point of creation so
+  // there are no fields that are actually observable. This is showcasing a potential user error.
+  const options = fobx.observable({}) as { type?: string }
+
+  // At face value, this look like it would re-run when 'type' is changed, but due to the "error"
+  // in how the object was made observable, this doesn't actually have any dependencies and will
+  // never act as "observable"
+  const type = fobx.computed(() => options.type ?? "border-box")
+
+  const values: string[] = []
+  fobx.autorun(() => {
+    values.push(type.get())
+  })
+
+  // If the object was constructed as `observable({type: undefined})`, this update to the type
+  // field would cause the computeds to re-run as expected, but since this is actually adding 'type'
+  // to the observable for the first time, nothing happens.
+  options.type = "content-box"
+
+  expect(values).toEqual(["border-box"])
+})
+
 Deno.test("bug: 2", () => {
   const value = fobx.observableBox(0)
 

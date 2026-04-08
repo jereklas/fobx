@@ -94,23 +94,46 @@ export function computed<T>(
 function _suspendIfNeeded(admin: ObservableAdmin): void {
   if (hasObservers(admin)) return
   admin.value = NOT_CACHED
-  ;(admin as ComputedAdmin).state = STALE
-  removeFromAllDeps(admin as ComputedAdmin)
+  const computed = admin as ComputedAdmin
+  computed.state = STALE
+  computed.batchToken = undefined
+  removeFromAllDeps(computed)
 }
 
 function getComputedValue<T>(
   admin: ComputedAdmin<T>,
 ): T {
-  const shouldCache = $scheduler.batchDepth > 0 || hasObservers(admin)
+  const isTrackingRead = $scheduler.tracking !== null
+  const observed = hasObservers(admin) || isTrackingRead
+  const isInBatch = $scheduler.batchDepth > 0
+  const batchToken = $scheduler.pending
 
   // SUSPENDED: Pure function mode — compute without tracking
-  if (!shouldCache) {
+  if (!observed && !isInBatch) {
     return admin._bind ? admin._fn.call(admin._bind) : admin._fn()
   }
 
+  const canReuseBatchCache = !observed && admin.batchToken === batchToken
+  const shouldUseCachedMode = observed || canReuseBatchCache
+
   // CACHED MODE: recompute if stale
-  if (admin.state !== UP_TO_DATE || admin.value === NOT_CACHED) {
+  if (
+    shouldUseCachedMode &&
+    (admin.state !== UP_TO_DATE || admin.value === NOT_CACHED)
+  ) {
     safeRunReaction(admin)
+  }
+
+  if (!shouldUseCachedMode) {
+    safeRunReaction(admin)
+
+    if (admin.deps.length === 0 && !isTrackingRead) {
+      const value = admin.value
+      _suspendIfNeeded(admin)
+      return value
+    }
+
+    admin.batchToken = batchToken
   }
 
   trackAccess(admin)

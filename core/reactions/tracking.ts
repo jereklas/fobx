@@ -1,8 +1,10 @@
 /**
  * Dependency tracking with epoch-based duplicate detection.
  *
- * Each ObservableAdmin is stamped with the current epoch when tracked.
- * If it already matches, the dep is skipped (O(1) duplicate check).
+ * Each ObservableAdmin is stamped with the current epoch and tracking reaction
+ * when tracked. Matching repeated reads are skipped in O(1). When nested
+ * tracking clobbers the stamp, we fall back to checking the current reaction's
+ * deps array so outer computations still retain their full dependency graph.
  */
 
 import {
@@ -28,9 +30,21 @@ export function trackAccess(admin: ObservableAdmin): void {
   const t = $scheduler.tracking
   if (t === null) return
 
-  // O(1) duplicate check: if this admin was already tracked this epoch, skip
-  if (admin._epoch === $scheduler.epoch) return
+  // O(1) duplicate check for the common case: repeated reads by the same
+  // reaction within the same tracking pass.
+  if (admin._epoch === $scheduler.epoch && admin._tracker === t) return
+
+  // Nested tracking can overwrite the admin stamp with a child reaction's
+  // epoch/tracker. Fall back to the current deps list so outer reactions keep
+  // their direct dependencies even when child computeds read the same admin.
+  if (t.deps.indexOf(admin) !== -1) {
+    admin._epoch = $scheduler.epoch
+    admin._tracker = t
+    return
+  }
+
   admin._epoch = $scheduler.epoch
+  admin._tracker = t
 
   // Add bidirectional links
   t.deps.push(admin)

@@ -69,6 +69,8 @@ export interface ObservableAdmin<T = unknown> {
   comparer: EqualityChecker
   /** Epoch-based tracking: last epoch this admin was added as a dep */
   _epoch: number
+  /** Last reaction that tracked this admin in the current dedup fast-path. */
+  _tracker?: ReactionAdmin
   /** Optional: called when losing an observer (enables computed suspension) */
   onLoseObserver?: (admin: ObservableAdmin) => void
   /** Collection mutation counter (used by array/map/set admins) */
@@ -154,6 +156,7 @@ export interface ReactionAdmin {
 export interface ComputedAdmin<T = unknown>
   extends ReactionAdmin, ObservableAdmin<T> {
   isInsideSetter?: boolean
+  batchToken?: ReactionAdmin[]
   /** The computation function — stored here so `run` can be a shared function. */
   _fn: () => T
   /** Optional bind context for the computation function. */
@@ -220,7 +223,7 @@ interface SchedulerState {
 function getSchedulerState(): SchedulerState {
   const g = globalThis as Any
   if (g[$fobxScheduler] !== undefined) {
-    return g[$fobxScheduler]
+    return g[$fobxScheduler] as SchedulerState
   }
   const state: SchedulerState = {
     tracking: null,
@@ -248,6 +251,10 @@ export function setTracking(v: ReactionAdmin | null): void {
   $scheduler.tracking = v
 }
 export function incBatch(): void {
+  if ($scheduler.batchDepth === 0) {
+    // Fresh queue identity doubles as the outer-batch token for computed reuse.
+    $scheduler.pending = []
+  }
   $scheduler.batchDepth++
 }
 export function decBatch(): void {

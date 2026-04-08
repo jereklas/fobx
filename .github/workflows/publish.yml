@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Check out repository
         if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -68,8 +68,34 @@ jobs:
             git diff --unified=0 "$before" "$after" -- "$file" | grep -qE '^[+-][[:space:]]*"version"[[:space:]]*:'
           }
 
+          package_version() {
+            local file="$1"
+            sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | head -n1
+          }
+
+          version_unpublished() {
+            local file="$1"
+            local pkg_name="$2"
+            local pkg_version
+
+            pkg_version="$(package_version "$file")"
+            if [[ -z "$pkg_version" ]]; then
+              echo "Unable to determine version from $file" >&2
+              return 1
+            fi
+
+            if npm view "${pkg_name}@${pkg_version}" version >/dev/null 2>&1; then
+              return 1
+            fi
+
+            echo "Detected unpublished package version: ${pkg_name}@${pkg_version}"
+            return 0
+          }
+
           publish_npm=false
-          if version_changed core/deno.jsonc || version_changed react/deno.jsonc; then
+          if version_changed core/deno.jsonc || version_changed react/deno.jsonc || \
+             version_unpublished core/deno.jsonc @fobx/core || \
+             version_unpublished react/deno.jsonc @fobx/react; then
             publish_npm=true
           fi
 
@@ -92,19 +118,28 @@ jobs:
       id-token: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
+          check-latest: true
           registry-url: https://registry.npmjs.org
 
-      - name: Use supported npm CLI
+      - name: Verify bundled Node and npm versions
         run: |
-          npm install --global npm@^11.5.1
+          set -euo pipefail
+          min_npm_version="11.5.1"
+          npm_version="$(npm --version)"
+
           node --version
-          npm --version
+          echo "$npm_version"
+
+          if [[ "$(printf '%s\n%s\n' "$min_npm_version" "$npm_version" | sort -V | head -n1)" != "$min_npm_version" ]]; then
+            echo "Bundled npm $npm_version is older than $min_npm_version" >&2
+            exit 1
+          fi
 
       - name: Set up Deno
         uses: denoland/setup-deno@v2
@@ -164,7 +199,7 @@ jobs:
       id-token: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Deno
         uses: denoland/setup-deno@v2
@@ -172,7 +207,7 @@ jobs:
           deno-version: v2.2.12
 
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Determine docs base path
         id: docs-base
@@ -197,7 +232,7 @@ jobs:
         run: deno task build
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: static-docs/dist
 
@@ -217,4 +252,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

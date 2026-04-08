@@ -292,10 +292,83 @@ test("runInTransaction", () => {
   d()
 })
 
+test("transaction does not retain cache for unobserved computed across calls", () => {
+  let value = 1
+  let calls = 0
+
+  const derived = computed(() => {
+    calls++
+    return value
+  })
+  const read = transaction(() => derived.get())
+
+  expect(read()).toBe(1)
+  expect(calls).toBe(1)
+
+  value = 2
+
+  expect(read()).toBe(2)
+  expect(calls).toBe(2)
+})
+
+test("transaction does not cache unobserved computed with no reactive deps", () => {
+  let plainValue = 1
+  let calls = 0
+
+  const derived = computed(() => {
+    calls++
+    return plainValue
+  })
+
+  const result = transaction(() => {
+    const first = derived.get()
+    plainValue = 2
+    const second = derived.get()
+    return [first, second]
+  })()
+
+  expect(result).toEqual([1, 2])
+  expect(calls).toBe(2)
+})
+
 test("transaction in autorun does not keep / make computed values alive", () => {
   let calls = 0
   const c = computed(() => {
     calls++
+  })
+  const callComputedTwice = () => {
+    c.get()
+    c.get()
+  }
+
+  const runWithMemoizing = (fun: () => void) => {
+    autorun(fun)()
+  }
+
+  callComputedTwice()
+  expect(calls).toBe(2)
+
+  runWithMemoizing(callComputedTwice)
+  expect(calls).toBe(3)
+
+  callComputedTwice()
+  expect(calls).toBe(5)
+
+  runWithMemoizing(() => {
+    runInTransaction(callComputedTwice)
+  })
+  expect(calls).toBe(7)
+
+  callComputedTwice()
+  expect(calls).toBe(9)
+})
+
+test("transaction in autorun preserves memoization for computed with reactive deps", () => {
+  let calls = 0
+  const source = observableBox(1)
+  const c = computed(() => {
+    calls++
+    return source.get()
   })
   const callComputedTwice = () => {
     c.get()

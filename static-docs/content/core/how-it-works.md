@@ -369,4 +369,4 @@ fobx.runInTransaction(() => {
 })
 ```
 
-This behavior can be toggled via `configure({ enforceActions: false })`.
+This behavior can be toggled via `configure({ enforceTransactions: false })`.

@@ -125,3 +125,28 @@ Deno.test("bug: 3", () => {
     dispose()
   }
 })
+
+Deno.test("bug: 4", () => {
+  class Base {
+    x = 0
+
+    constructor() {
+      fobx.observable(this)
+    }
+
+    get ready() {
+      return this.x !== 0
+    }
+  }
+
+  class Sibling extends Base {}
+
+  class Child extends Base {
+    override get ready(): boolean {
+      return super.ready
+    }
+  }
+
+  new Sibling() // if this doesn't happen, bug doesn't manifest
+  expect(() => new Child().ready).not.toThrow(RangeError)
+})

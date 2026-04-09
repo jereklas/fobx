@@ -11,7 +11,7 @@ type ObservableSetWithAdmin = fobx.ObservableSet<string> & {
 }
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 test("observable API for sets successfully constructs sets", () => {
@@ -567,7 +567,7 @@ describe("warns when mutating observed set outside of a transaction", () => {
     /<STDOUT> \[@fobx\/core\] Changing tracked observable value \(Set@.*\) outside of a transaction is discouraged/
 
   beforeEach(() => {
-    fobx.configure({ enforceActions: true })
+    fobx.configure({ enforceTransactions: true })
   })
 
   test("add", () => {

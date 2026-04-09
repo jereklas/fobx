@@ -134,7 +134,7 @@ export function warnIfObservedWriteOutsideTransaction(
   label: "observable value" | "observable values" = "observable value",
 ): void {
   if (
-    $instance.enforceActions &&
+    $instance.enforceTransactions &&
     $scheduler.batchDepth === 0 &&
     _hasObservers(admin)
   ) {

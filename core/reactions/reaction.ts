@@ -54,7 +54,6 @@ interface ReactionRunAdmin extends ReactionAdmin {
   ) => void
   _comparer: EqualityChecker
   _isDisposed: boolean
-  _isFirst: boolean
   _previousValue: Any
   _previousChanges: number | undefined
   _dispose: Dispose
@@ -109,7 +108,7 @@ function _runReaction(this: ReactionRunAdmin): void {
     valueChanged = !this._comparer(this._previousValue, newValue)
   }
 
-  const shouldRun = this._isFirst ? this._fireImmediately : valueChanged
+  const shouldRun = !hasPrevious ? this._fireImmediately : valueChanged
 
   if (shouldRun) {
     // Inlined withoutTracking — avoids closure allocation
@@ -131,7 +130,6 @@ function _runReaction(this: ReactionRunAdmin): void {
 
   this._previousValue = newValue
   this._previousChanges = currentChanges
-  this._isFirst = false
 }
 
 export function reaction<T>(
@@ -172,7 +170,6 @@ export function reaction<T>(
     ) => void,
     _comparer: comparer,
     _isDisposed: false,
-    _isFirst: true,
     _previousValue: UNDEFINED,
     _previousChanges: undefined,
     _dispose: dispose,

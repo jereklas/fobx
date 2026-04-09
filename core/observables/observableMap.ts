@@ -29,7 +29,7 @@ import {
   observableBox,
   setBoxValue,
 } from "./observableBox.ts"
-import { trackAccess } from "../reactions/tracking.ts"
+import { trackAccess, trackAccessKnownTracked } from "../reactions/tracking.ts"
 import {
   rememberConvertedValue,
   withConversionContext,
@@ -56,7 +56,7 @@ export interface MapOptions {
 
 class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   private data: Map<K, ObservableAdmin<V>>
-  private hasMap: Map<K, ObservableBox<boolean>>
+  private hasMap: Map<K, ObservableBox<boolean>> | undefined
   private keysAdmin: KeysAdmin
   private collectionAdmin: KeysAdmin
   private _comparer: EqualityChecker
@@ -65,7 +65,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
   constructor(
     entries?: Iterable<readonly [K, V]> | Record<string, V> | null,
-    options: MapOptions = {},
+    options?: MapOptions,
   ) {
     if (entries instanceof Map && entries.constructor !== Map) {
       const className = entries.constructor.name
@@ -75,12 +75,14 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     }
 
     const id = getNextId()
-    const name = options.name || `Map@${id}`
+    const name = options?.name || `Map@${id}`
+    const comparer = options?.comparer
 
     this.data = new Map()
-    this.hasMap = new Map()
-    this._comparer = resolveComparer(options.comparer)
-    this._shallow = options.shallow ?? false
+    this._comparer = comparer === undefined
+      ? defaultComparer
+      : resolveComparer(comparer)
+    this._shallow = options?.shallow ?? false
     this.keysAdmin = {
       kind: KIND_COLLECTION,
       id,
@@ -160,7 +162,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
   private _warnIfObservedWriteOutsideTransaction(key?: K): void {
     const valueAdmin = key !== undefined ? this.data.get(key) : undefined
-    const hasBox = key !== undefined ? this.hasMap.get(key) : undefined
+    const hasBox = key !== undefined ? this.hasMap?.get(key) : undefined
     const observedAdmin = this.collectionAdmin.observers !== null
       ? this.collectionAdmin
       : this.keysAdmin.observers !== null
@@ -177,16 +179,22 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   }
 
   has(key: K): boolean {
-    if ($scheduler.tracking === null) return this.data.has(key)
+    const tracking = $scheduler.tracking
+    if (tracking === null) return this.data.has(key)
 
-    let hasBox = this.hasMap.get(key)
+    let hasMap = this.hasMap
+    let hasBox = hasMap?.get(key)
     if (!hasBox) {
       hasBox = observableBox(this.data.has(key), {
         name: `${this.keysAdmin.name}.has(${String(key)})`,
       })
-      this.hasMap.set(key, hasBox)
+      if (!hasMap) {
+        hasMap = new Map()
+        this.hasMap = hasMap
+      }
+      hasMap.set(key, hasBox)
 
-      const hmRef = this.hasMap
+      const hmRef = hasMap
       const keyRef = key
       hasBox[$fobx].onLoseObserver = () => {
         if (!hasObservers(hasBox![$fobx])) {
@@ -195,17 +203,20 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       }
     }
 
-    return hasBox.get()
+    const hasAdmin = hasBox[$fobx]
+    trackAccessKnownTracked(hasAdmin, tracking)
+    return hasAdmin.value
   }
 
   get(key: K): V | undefined {
-    if ($scheduler.tracking === null) {
+    const tracking = $scheduler.tracking
+    if (tracking === null) {
       const admin = this.data.get(key)
       return admin !== undefined ? admin.value : undefined
     }
     if (this.has(key)) {
       const admin = this.data.get(key)!
-      trackAccess(admin)
+      trackAccessKnownTracked(admin, tracking)
       return admin.value
     }
     return undefined
@@ -229,7 +240,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     } else {
       this.data.set(key, this._newAdmin(key, processedValue))
 
-      const hasBox = this.hasMap.get(key)
+      const hasBox = this.hasMap?.get(key)
       if (hasBox) setBoxValue(hasBox[$fobx], true)
 
       this.keysAdmin.changes++
@@ -255,7 +266,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
     this.data.delete(key)
 
-    const hasBox = this.hasMap.get(key)
+    const hasBox = this.hasMap?.get(key)
     if (hasBox) setBoxValue(hasBox[$fobx], false)
 
     this.keysAdmin.changes++
@@ -281,7 +292,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
         }
       })
 
-      this.hasMap.forEach((hasBox) => {
+      this.hasMap?.forEach((hasBox) => {
         setBoxValue(hasBox[$fobx], false)
       })
       // NOTE: Do NOT clear hasMap — reactions may still be tracking those hasBox references.
@@ -405,7 +416,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
         if (hasObservers(admin)) {
           notifyObservers(admin, NOTIFY_CHANGED)
         }
-        const hasBox = this.hasMap.get(key)
+        const hasBox = this.hasMap?.get(key)
         if (hasBox) setBoxValue(hasBox[$fobx], false)
       })
 
@@ -420,7 +431,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
         } else {
           this.data.set(key, this._newAdmin(key, processedValue))
 
-          const hasBox = this.hasMap.get(key)
+          const hasBox = this.hasMap?.get(key)
           if (hasBox) setBoxValue(hasBox[$fobx], true)
         }
       })
@@ -459,7 +470,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
         } else {
           this.data.set(key, this._newAdmin(key, processedValue))
 
-          const hasBox = this.hasMap.get(key)
+          const hasBox = this.hasMap?.get(key)
           if (hasBox) setBoxValue(hasBox[$fobx], true)
 
           hasStructuralChanges = true
@@ -500,7 +511,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
 
 export function observableMap<K = Any, V = Any>(
   entries?: Iterable<readonly [K, V]> | Record<string, V> | null,
-  options: MapOptions = {},
+  options?: MapOptions,
 ): ObservableMap<K, V> {
   return withConversionContext(() => new ObservableMap(entries, options))
 }

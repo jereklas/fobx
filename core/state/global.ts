@@ -150,6 +150,8 @@ export interface ReactionAdmin {
   name: string
   state: number
   deps: ObservableAdmin[]
+  /** Tracking pass epoch assigned by startTracking for dedup within this run. */
+  _trackingEpoch?: number
   run: () => void
 }
 
@@ -157,11 +159,8 @@ export interface ComputedAdmin<T = unknown>
   extends ReactionAdmin, ObservableAdmin<T> {
   isInsideSetter?: boolean
   didWarnNoDependencies?: boolean
-  batchToken?: ReactionAdmin[]
   /** The computation function — stored here so `run` can be a shared function. */
   _fn: () => T
-  /** Optional bind context for the computation function. */
-  _bind?: unknown
 }
 
 export type Dispose = () => void
@@ -252,10 +251,6 @@ export function setTracking(v: ReactionAdmin | null): void {
   $scheduler.tracking = v
 }
 export function incBatch(): void {
-  if ($scheduler.batchDepth === 0) {
-    // Fresh queue identity doubles as the outer-batch token for computed reuse.
-    $scheduler.pending = []
-  }
   $scheduler.batchDepth++
 }
 export function decBatch(): void {

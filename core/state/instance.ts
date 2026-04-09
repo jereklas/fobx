@@ -16,7 +16,7 @@ import {
  */
 export const $instance = {
   structuralCompare: null as EqualityChecker | null,
-  enforceActions: true,
+  enforceTransactions: true,
   warnOnDependentlessComputeds: false,
   onReactionError: undefined as
     | ((error: Any, reaction: Any) => void)
@@ -24,7 +24,7 @@ export const $instance = {
 }
 
 export interface ConfigureOptions {
-  enforceActions?: boolean
+  enforceTransactions?: boolean
   warnOnDependentlessComputeds?: boolean
   comparer?: {
     structural?: EqualityChecker
@@ -33,8 +33,8 @@ export interface ConfigureOptions {
 }
 
 export function configure(options: ConfigureOptions): void {
-  if (options.enforceActions !== undefined) {
-    $instance.enforceActions = options.enforceActions
+  if (options.enforceTransactions !== undefined) {
+    $instance.enforceTransactions = options.enforceTransactions
   }
   if (options.warnOnDependentlessComputeds !== undefined) {
     $instance.warnOnDependentlessComputeds =

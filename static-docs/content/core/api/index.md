@@ -61,7 +61,7 @@ and link to its full documentation.
 
 | Export                              | Description                                                                 |
 | ----------------------------------- | --------------------------------------------------------------------------- |
-| [`configure`](/core/api/configure/) | Set global options: `enforceActions`, `onReactionError`, equality comparers |
+| [`configure`](/core/api/configure/) | Set global options: `enforceTransactions`, `warnOnDependentlessComputeds`, `onReactionError`, equality comparers |
 
 ## Type Predicates
 

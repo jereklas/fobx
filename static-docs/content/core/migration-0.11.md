@@ -377,13 +377,13 @@ That API is no longer part of the supported surface.
 
 ---
 
-## `configure()` does not need migration for 0.10.2
+## `configure()` transaction warning key was renamed
 
-`configure()` already used the current shape in `0.10.2`:
+The transaction-warning boolean now uses `enforceTransactions`:
 
 ```ts
 configure({
-  enforceActions: true,
+  enforceTransactions: true,
   comparer: { structural: myDeepEqual },
   onReactionError: (error, reaction) => {
     console.error(error, reaction)
@@ -391,9 +391,9 @@ configure({
 })
 ```
 
-If your `0.10.2` code already used `boolean` `enforceActions`,
-`comparer.structural`, or `onReactionError`, you do not need to change those
-calls for `0.11.x`.
+If your `0.10.2` code used `boolean` `enforceActions`, rename that key to
+`enforceTransactions`. `comparer.structural` and `onReactionError` do not need
+changes.
 
 ---
 

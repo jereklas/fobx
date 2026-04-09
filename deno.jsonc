@@ -1,11 +1,9 @@
 {
   "workspace": [
-    "./core_old",
     "./react",
     "./preact",
     "./utils",
     "./testing",
-    "./doc-site",
     "./static-docs",
     "./core",
     "./dom",

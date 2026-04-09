@@ -4,7 +4,7 @@ import { deepEqual } from "fast-equals"
 
 beforeEach(() => {
   fobx.configure({
-    enforceActions: false,
+    enforceTransactions: false,
     comparer: { structural: deepEqual },
   })
 })
@@ -814,6 +814,106 @@ describe("makeObservable", () => {
 
       expect(Object.hasOwn(counter, "inc")).toBe(true)
       expect(fobx.isTransaction(counter.inc)).toBe(true)
+    })
+
+    test("makeObservable supports prototype install followed by ownPropertiesOnly on another instance", () => {
+      class Counter {
+        value = 1
+
+        get doubled() {
+          return this.value * 2
+        }
+
+        inc() {
+          this.value++
+          return this.value
+        }
+      }
+
+      const first = new Counter()
+      fobx.makeObservable(first, {
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      const second = new Counter()
+      fobx.makeObservable(second, {
+        ownPropertiesOnly: true,
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      expect(Object.hasOwn(first, "doubled")).toBe(false)
+      expect(Object.hasOwn(first, "inc")).toBe(false)
+      expect(Object.hasOwn(second, "doubled")).toBe(true)
+      expect(Object.hasOwn(second, "inc")).toBe(true)
+      expect(fobx.isComputed(first, "doubled")).toBe(true)
+      expect(fobx.isComputed(second, "doubled")).toBe(true)
+      expect(fobx.isTransaction(first.inc)).toBe(true)
+      expect(fobx.isTransaction(second.inc)).toBe(true)
+
+      const secondValues: number[] = []
+      fobx.reaction(() => second.doubled, (value) => secondValues.push(value))
+
+      expect(second.inc()).toBe(2)
+      expect(second.doubled).toBe(4)
+      expect(secondValues).toEqual([4])
+    })
+
+    test("makeObservable supports ownPropertiesOnly install followed by prototype install on another instance", () => {
+      class Counter {
+        value = 1
+
+        get doubled() {
+          return this.value * 2
+        }
+
+        inc() {
+          this.value++
+          return this.value
+        }
+      }
+
+      const first = new Counter()
+      fobx.makeObservable(first, {
+        ownPropertiesOnly: true,
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      const second = new Counter()
+      fobx.makeObservable(second, {
+        annotations: {
+          value: "observable",
+          doubled: "computed",
+          inc: "transaction",
+        },
+      })
+
+      expect(Object.hasOwn(first, "doubled")).toBe(true)
+      expect(Object.hasOwn(first, "inc")).toBe(true)
+      expect(Object.hasOwn(second, "doubled")).toBe(false)
+      expect(Object.hasOwn(second, "inc")).toBe(false)
+      expect(fobx.isComputed(first, "doubled")).toBe(true)
+      expect(fobx.isComputed(second, "doubled")).toBe(true)
+      expect(fobx.isTransaction(first.inc)).toBe(true)
+      expect(fobx.isTransaction(second.inc)).toBe(true)
+
+      const secondValues: number[] = []
+      fobx.reaction(() => second.doubled, (value) => secondValues.push(value))
+
+      expect(second.inc()).toBe(2)
+      expect(second.doubled).toBe(4)
+      expect(secondValues).toEqual([4])
     })
   })
 

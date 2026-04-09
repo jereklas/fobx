@@ -5,7 +5,7 @@ import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 describe("ObservableBox", () => {

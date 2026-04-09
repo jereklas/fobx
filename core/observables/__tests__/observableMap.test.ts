@@ -11,7 +11,7 @@ type ObservableMapWithAdmin = fobx.ObservableMap<string, string> & {
 }
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } })
+  fobx.configure({ enforceTransactions: false, comparer: { structural: deepEqual } })
 })
 
 test("observable map respects structural option", () => {
@@ -990,7 +990,7 @@ test("work with 'toString' key", () => {
 })
 
 test("should not be possible to change maps outside strict mode", () => {
-  fobx.configure({ enforceActions: true })
+  fobx.configure({ enforceTransactions: true })
 
   const m = fobx.observable(new Map())
   const d = fobx.autorun(() => Array.from(m.values()))

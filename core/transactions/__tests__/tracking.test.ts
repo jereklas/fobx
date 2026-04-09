@@ -1,7 +1,7 @@
 import * as fobx from "../../index.ts"
 import { expect, test } from "@fobx/testing"
 
-fobx.configure({ enforceActions: false })
+fobx.configure({ enforceTransactions: false })
 
 test("computed values correctly re-compute after a suspended state", () => {
   const o = fobx.observable({

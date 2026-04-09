@@ -26,12 +26,12 @@ describe("isDifferent", () => {
   })
 })
 
-test("enforceActions is true by default, but can be set to false", () => {
-  expect($instance.enforceActions).toBe(true)
+test("enforceTransactions is true by default, but can be set to false", () => {
+  expect($instance.enforceTransactions).toBe(true)
 
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 
-  expect($instance.enforceActions).toBe(false)
+  expect($instance.enforceTransactions).toBe(false)
 })
 
 test("warnOnDependentlessComputeds is false by default, but can be configured", () => {

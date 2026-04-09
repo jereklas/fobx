@@ -71,8 +71,7 @@ export function computed<T>(
     _epoch: 0,
     state: POSSIBLY_STALE,
     deps: [],
-    _fn: fn,
-    _bind: bindContext,
+    _fn: bindContext ? fn.bind(bindContext as object) : fn,
     run: _runComputed,
     onLoseObserver: _suspendIfNeeded,
   }
@@ -97,7 +96,6 @@ function _suspendIfNeeded(admin: ObservableAdmin): void {
   admin.value = NOT_CACHED
   const computed = admin as ComputedAdmin
   computed.state = STALE
-  computed.batchToken = undefined
   removeFromAllDeps(computed)
 }
 
@@ -115,34 +113,27 @@ function getComputedValue<T>(
   const isTrackingRead = $scheduler.tracking !== null
   const observed = hasObservers(admin) || isTrackingRead
   const isInBatch = $scheduler.batchDepth > 0
-  const batchToken = $scheduler.pending
 
   // SUSPENDED: Pure function mode — compute without tracking
   if (!observed && !isInBatch) {
-    return admin._bind ? admin._fn.call(admin._bind) : admin._fn()
+    return admin._fn()
   }
 
-  const canReuseBatchCache = !observed && admin.batchToken === batchToken
-  const shouldUseCachedMode = observed || canReuseBatchCache
-
-  // CACHED MODE: recompute if stale
-  if (
-    shouldUseCachedMode &&
-    (admin.state !== UP_TO_DATE || admin.value === NOT_CACHED)
-  ) {
+  // Recompute if stale or not yet cached. Unobserved computeds still recompute
+  // on each in-batch access so plain, non-observable reads cannot stick to a
+  // stale transactional cache.
+  if (admin.state !== UP_TO_DATE || admin.value === NOT_CACHED) {
     safeRunReaction(admin)
   }
 
-  if (!shouldUseCachedMode) {
-    safeRunReaction(admin)
-
+  // Unobserved in-batch: suspend if no deps were established
+  if (!observed) {
     if (admin.deps.length === 0 && !isTrackingRead) {
       const value = admin.value
       _suspendIfNeeded(admin)
       return value
     }
-
-    admin.batchToken = batchToken
+    return admin.value
   }
 
   trackAccess(admin)
@@ -189,7 +180,7 @@ function _runComputed(this: ComputedAdmin): void {
   const oldDeps = getOldDeps()
   const prevTracking = getPrevTracking()
   try {
-    admin.value = admin._bind ? admin._fn.call(admin._bind) : admin._fn()
+    admin.value = admin._fn()
     admin.state = UP_TO_DATE
   } catch (error) {
     admin.state = UP_TO_DATE

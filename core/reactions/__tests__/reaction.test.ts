@@ -15,7 +15,7 @@ import {
 
 beforeEach(() => {
   fobx.configure({
-    enforceActions: false,
+    enforceTransactions: false,
     comparer: { structural: deepEqual },
   })
 })
@@ -113,7 +113,7 @@ describe("reaction", () => {
 
 test("An exception thrown in the side effect gets logged to stderr", () => {
   const onReactionError = fn()
-  fobx.configure({ enforceActions: false, onReactionError })
+  fobx.configure({ enforceTransactions: false, onReactionError })
 
   const a = fobx.observableBox(0)
   fobx.reaction(

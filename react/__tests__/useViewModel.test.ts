@@ -36,7 +36,7 @@ let container: HTMLElement
 let root: ReturnType<typeof ReactDOM.createRoot>
 
 beforeAll(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
   const setup = setupDom()
   domCleanup = setup.cleanup
 })

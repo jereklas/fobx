@@ -2,7 +2,7 @@ import * as fobx from "../../index.ts"
 import { beforeEach, describe, expect, test } from "@fobx/testing"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 describe("createSelector", () => {

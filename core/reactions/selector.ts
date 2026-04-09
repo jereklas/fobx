@@ -27,7 +27,7 @@ import {
   NOTIFY_CHANGED,
   type ObservableAdmin,
 } from "../state/global.ts"
-import { trackAccess } from "./tracking.ts"
+import { trackAccessKnownTracked } from "./tracking.ts"
 import { notifyObservers } from "../state/notifications.ts"
 
 // deno-lint-ignore no-explicit-any
@@ -76,7 +76,8 @@ export function createSelector<T>(
    * only the admin for this specific key, not the source signal.
    */
   const isSelected = ((key: T): boolean => {
-    if ($scheduler.tracking === null) {
+    const tracking = $scheduler.tracking
+    if (tracking === null) {
       if (currentValue === UNDEFINED) return false
       return equals(currentValue, key)
     }
@@ -99,7 +100,7 @@ export function createSelector<T>(
       subs.set(key, admin)
     }
 
-    trackAccess(admin)
+    trackAccessKnownTracked(admin, tracking)
     return admin.value
   }) as Selector<T>
 

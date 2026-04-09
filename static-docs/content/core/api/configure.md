@@ -15,7 +15,8 @@ page.
 function configure(options: ConfigureOptions): void
 
 interface ConfigureOptions {
-  enforceActions?: boolean
+  enforceTransactions?: boolean
+  warnOnDependentlessComputeds?: boolean
   onReactionError?: (error: unknown, reaction: unknown) => void
   comparer?: {
     structural?: EqualityChecker
@@ -25,7 +26,7 @@ interface ConfigureOptions {
 
 ## Options
 
-### `enforceActions`
+### `enforceTransactions`
 
 When `true`, FobX warns (in development) when an observable that has active
 observers is mutated outside a transaction:
@@ -33,7 +34,7 @@ observers is mutated outside a transaction:
 ```ts
 import { autorun, configure, observableBox } from "@fobx/core"
 
-configure({ enforceActions: true })
+configure({ enforceTransactions: true })
 
 const x = observableBox(0)
 const stop = autorun(() => console.log(x.get()))
@@ -46,8 +47,35 @@ Default: `true`.
 Set to `false` to suppress warnings:
 
 ```ts
-configure({ enforceActions: false })
+configure({ enforceTransactions: false })
 ```
+
+### `warnOnDependentlessComputeds`
+
+When `true`, FobX warns in development when a computed is evaluated through the
+reactive runtime but ends up with no observable dependencies. That usually
+means the computed is reading only plain values, so it will never update:
+
+```ts
+import { autorun, computed, configure } from "@fobx/core"
+
+configure({ warnOnDependentlessComputeds: true })
+
+const settings = { locale: "en-US" } // plain object, not observable
+const label = computed(() => settings.locale.toUpperCase())
+
+const stop = autorun(() => {
+  console.log(label.get())
+})
+// ⚠️ console.warn: Computed value (...) was evaluated without any observable dependencies
+
+stop()
+```
+
+Default: `false`.
+
+FobX warns at most once per computed, and only when an observed or batched
+evaluation finds zero dependencies.
 
 ### `onReactionError`
 
@@ -92,7 +120,7 @@ Call `configure()` once at application startup:
 import { configure } from "@fobx/core"
 
 configure({
-  enforceActions: true,
+  enforceTransactions: true,
   onReactionError: (error) => {
     console.error("[FobX] Reaction error:", error)
   },
@@ -105,7 +133,8 @@ Each `configure()` call merges with the current configuration. You can call it
 multiple times to set different options:
 
 ```ts
-configure({ enforceActions: true })
+configure({ enforceTransactions: true })
+configure({ warnOnDependentlessComputeds: true })
 configure({ onReactionError: myHandler })
-// Both settings are now active
+// All settings are now active
 ```

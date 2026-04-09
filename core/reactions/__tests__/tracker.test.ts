@@ -3,7 +3,7 @@ import * as internals from "../../internals.ts"
 import { beforeAll, describe, expect, fn, test } from "@fobx/testing"
 
 beforeAll(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 describe("createTracker", () => {

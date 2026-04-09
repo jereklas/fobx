@@ -107,6 +107,35 @@ stop()
 // computed suspends: cache discarded
 ```
 
+## Warnings for missing dependencies
+
+A computed only reacts to observable reads that happen inside its derivation
+function. If it reads no observables, it has nothing to subscribe to and will
+never update:
+
+```ts
+const filters = { done: false } // plain object, not observable
+const label = computed(() => filters.done ? "done" : "open")
+
+const stop = autorun(() => {
+  console.log(label.get())
+})
+// prints once, but label has no observable dependencies
+
+stop()
+```
+
+To catch this during development, enable the global warning:
+
+```ts
+import { configure } from "@fobx/core"
+
+configure({ warnOnDependentlessComputeds: true })
+```
+
+When enabled, FobX warns once per computed the first time an observed or batched
+evaluation finds zero observable dependencies.
+
 ## Firewall effect
 
 If a computed recomputes but produces the **same** output (according to its

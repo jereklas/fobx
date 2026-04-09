@@ -1,10 +1,11 @@
 /**
- * Dependency tracking with epoch-based duplicate detection.
+ * Dependency tracking with per-reaction epoch-based duplicate detection.
  *
- * Each ObservableAdmin is stamped with the current epoch and tracking reaction
- * when tracked. Matching repeated reads are skipped in O(1). When nested
- * tracking clobbers the stamp, we fall back to checking the current reaction's
- * deps array so outer computations still retain their full dependency graph.
+ * Each ObservableAdmin is stamped with the current reaction's tracking epoch
+ * and reaction when tracked. Matching repeated reads are skipped in O(1).
+ * When nested tracking clobbers the stamp, we fall back to checking the
+ * current reaction's deps array so outer computations still retain their full
+ * dependency graph.
  */
 
 import {
@@ -27,28 +28,41 @@ let _oldDeps: ObservableAdmin[] = []
  * Called when an observable is read.
  */
 export function trackAccess(admin: ObservableAdmin): void {
-  const t = $scheduler.tracking
-  if (t === null) return
+  const tracking = $scheduler.tracking
+  if (tracking === null) return
+  trackAccessKnownTracked(admin, tracking)
+}
+
+/**
+ * Track access when the caller already knows a tracking reaction is active.
+ */
+export function trackAccessKnownTracked(
+  admin: ObservableAdmin,
+  tracking: ReactionAdmin,
+): void {
+  const epoch = tracking._trackingEpoch ?? $scheduler.epoch
 
   // O(1) duplicate check for the common case: repeated reads by the same
   // reaction within the same tracking pass.
-  if (admin._epoch === $scheduler.epoch && admin._tracker === t) return
+  if (admin._tracker === tracking && admin._epoch === epoch) return
+
+  const deps = tracking.deps
 
   // Nested tracking can overwrite the admin stamp with a child reaction's
   // epoch/tracker. Fall back to the current deps list so outer reactions keep
   // their direct dependencies even when child computeds read the same admin.
-  if (t.deps.indexOf(admin) !== -1) {
-    admin._epoch = $scheduler.epoch
-    admin._tracker = t
+  if (deps.length !== 0 && deps.indexOf(admin) !== -1) {
+    admin._epoch = epoch
+    admin._tracker = tracking
     return
   }
 
-  admin._epoch = $scheduler.epoch
-  admin._tracker = t
+  admin._epoch = epoch
+  admin._tracker = tracking
 
   // Add bidirectional links
-  t.deps.push(admin)
-  addObserver(admin, t)
+  deps.push(admin)
+  addObserver(admin, tracking)
 }
 
 /**
@@ -57,7 +71,7 @@ export function trackAccess(admin: ObservableAdmin): void {
  */
 export function startTracking(reaction: ReactionAdmin): void {
   // Increment epoch for this tracking pass (used by trackAccess dedup)
-  nextEpoch()
+  reaction._trackingEpoch = nextEpoch()
 
   // Stash current deps for cleanup
   _oldDeps = reaction.deps
@@ -107,8 +121,7 @@ function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
  * re-tracked deps keep their single Set entry.  We only need to remove
  * observer links for deps that were NOT re-tracked (stale deps).
  *
- * Uses the epoch stamp: deps re-tracked this pass have `_epoch === currentEpoch`.
- * Stale deps have an older epoch.
+ * Re-tracked deps remain in `reaction.deps`; stale deps are missing from it.
  */
 export function cleanupGraph(
   reaction: ReactionAdmin,

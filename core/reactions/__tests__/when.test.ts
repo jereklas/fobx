@@ -2,7 +2,7 @@ import * as fobx from "../../index.ts"
 import { beforeAll, expect, FakeTime, fn, test } from "@fobx/testing"
 
 beforeAll(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 test("when reaction disposes itself once condition is met", () => {

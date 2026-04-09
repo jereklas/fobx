@@ -23,7 +23,7 @@ import {
 } from "@fobx/testing"
 
 beforeEach(() => {
-  configure({ enforceActions: false })
+  configure({ enforceTransactions: false })
 })
 
 test("multiple state changes can occur within a transaction with only 1 side effect", () => {
@@ -175,7 +175,7 @@ test("should be able to change unobserved state in a transaction called from a c
 })
 
 test("should be able to change observed state in a transaction called from a computed", () => {
-  configure({ enforceActions: true })
+  configure({ enforceTransactions: true })
 
   const a = observableBox(2)
   const d = autorun(() => {
@@ -266,7 +266,7 @@ test("exceptions thrown inside of transaction should not effect global state", (
 
 test("runInTransaction", () => {
   expect.assertions(4)
-  configure({ enforceActions: true })
+  configure({ enforceTransactions: true })
   const values: number[] = []
 
   const obs = observableBox(0)

@@ -147,8 +147,8 @@ test("formatWarningMessage includes all external source info from the stack", ()
 })
 
 test("observable write warning includes stack information", () => {
-  const prevEnforceActions = $instance.enforceActions
-  fobx.configure({ enforceActions: true })
+  const prevEnforceTransactions = $instance.enforceTransactions
+  fobx.configure({ enforceTransactions: true })
 
   const box = fobx.observableBox(1)
   const dispose = fobx.autorun(() => box.get())
@@ -198,6 +198,6 @@ test("observable write warning includes stack information", () => {
   } finally {
     console.warn = originalWarn
     dispose()
-    fobx.configure({ enforceActions: prevEnforceActions })
+    fobx.configure({ enforceTransactions: prevEnforceTransactions })
   }
 })

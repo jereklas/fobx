@@ -19,7 +19,7 @@ import {
   notifyChanged,
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
-import { trackAccess } from "../reactions/tracking.ts"
+import { trackAccess, trackAccessKnownTracked } from "../reactions/tracking.ts"
 import {
   rememberConvertedValue,
   withConversionContext,
@@ -384,15 +384,17 @@ export function observableArray<T>(
     }
 
     const proxy = new Proxy(arr as Any, {
-      get(_target: Any, prop: string | symbol): Any {
-        // Numeric indices first (hottest path)
-        if (typeof prop === "string" && isNumericIndex(prop)) {
-          if ($scheduler.tracking !== null) trackAccess(admin)
-          return arr[prop as Any]
-        }
+      get(target: Any, prop: string | symbol): Any {
         if (prop === "length") {
-          if ($scheduler.tracking !== null) trackAccess(admin)
-          return arr.length
+          const tracking = $scheduler.tracking
+          if (tracking === null) return target.length
+          trackAccessKnownTracked(admin, tracking)
+          return target.length
+        }
+        if (typeof prop === "string" && isNumericIndex(prop)) {
+          const tracking = $scheduler.tracking
+          if (tracking !== null) trackAccessKnownTracked(admin, tracking)
+          return arr[prop as Any]
         }
         if (prop === $fobx) return admin
 

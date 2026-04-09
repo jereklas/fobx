@@ -10,7 +10,7 @@ import {
 } from "@fobx/testing"
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false })
+  fobx.configure({ enforceTransactions: false })
 })
 
 // ─── Subscription timing ──────────────────────────────────────────────────────

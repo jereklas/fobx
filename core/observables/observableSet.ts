@@ -18,7 +18,7 @@ import {
   notifyChanged,
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
-import { trackAccess } from "../reactions/tracking.ts"
+import { trackAccess, trackAccessKnownTracked } from "../reactions/tracking.ts"
 import {
   type ObservableBox,
   observableBox,
@@ -49,7 +49,6 @@ export interface SetAdmin extends ObservableAdmin<undefined> {
 
 class ObservableSet<T = unknown> implements Set<T> {
   private data: Set<T>
-  private options: SetOptions
   private shallow: boolean
   private hasMap: Map<T, ObservableBox<boolean>>;
   [$fobx]: SetAdmin
@@ -58,7 +57,6 @@ class ObservableSet<T = unknown> implements Set<T> {
     const id = getNextId()
     this.data = new Set()
     this.hasMap = new Map()
-    this.options = options
     this.shallow = options.shallow ?? false
     this[$fobx] = {
       kind: KIND_COLLECTION,
@@ -85,7 +83,8 @@ class ObservableSet<T = unknown> implements Set<T> {
   }
 
   has(value: T): boolean {
-    if ($scheduler.tracking === null) return this.data.has(value)
+    const tracking = $scheduler.tracking
+    if (tracking === null) return this.data.has(value)
 
     let hasBox = this.hasMap.get(value)
     if (!hasBox) {
@@ -104,7 +103,9 @@ class ObservableSet<T = unknown> implements Set<T> {
       }
     }
 
-    return hasBox.get()
+    const hasAdmin = hasBox[$fobx]
+    trackAccessKnownTracked(hasAdmin, tracking)
+    return hasAdmin.value
   }
 
   add(value: T): this {

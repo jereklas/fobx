@@ -291,7 +291,7 @@ test("observable with tuple annotation supports custom equality functions", () =
 test("observable with tuple annotation supports structural comparison", () => {
   fobx.configure({
     comparer: { structural: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
-    enforceActions: false,
+    enforceTransactions: false,
   })
 
   const observed = fobx.observable(
@@ -311,7 +311,7 @@ test("observable with tuple annotation supports structural comparison", () => {
   // Reset configuration
   fobx.configure({
     comparer: { structural: undefined },
-    enforceActions: false,
+    enforceTransactions: false,
   })
 })
 
@@ -463,4 +463,100 @@ test("observable inPlace + ownPropertiesOnly combination behaves correctly", () 
   expect(observed).toBe(counter)
   expect(Object.hasOwn(observed, "doubled")).toBe(true)
   expect(fobx.isComputed(observed, "doubled")).toBe(true)
+})
+
+test("observable supports prototype install followed by ownPropertiesOnly on another instance", () => {
+  class Counter {
+    value = 1
+
+    get doubled() {
+      return this.value * 2
+    }
+
+    inc() {
+      this.value++
+      return this.value
+    }
+  }
+
+  const first = fobx.observable(new Counter(), {
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+      inc: "transaction",
+    },
+  })
+
+  const second = fobx.observable(new Counter(), {
+    ownPropertiesOnly: true,
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+      inc: "transaction",
+    },
+  })
+
+  expect(Object.hasOwn(first, "doubled")).toBe(false)
+  expect(Object.hasOwn(first, "inc")).toBe(false)
+  expect(Object.hasOwn(second, "doubled")).toBe(true)
+  expect(Object.hasOwn(second, "inc")).toBe(true)
+  expect(fobx.isComputed(first, "doubled")).toBe(true)
+  expect(fobx.isComputed(second, "doubled")).toBe(true)
+  expect(fobx.isTransaction(first.inc)).toBe(true)
+  expect(fobx.isTransaction(second.inc)).toBe(true)
+
+  const secondValues: number[] = []
+  fobx.reaction(() => second.doubled, (value) => secondValues.push(value))
+
+  expect(second.inc()).toBe(2)
+  expect(second.doubled).toBe(4)
+  expect(secondValues).toEqual([4])
+})
+
+test("observable supports ownPropertiesOnly install followed by prototype install on another instance", () => {
+  class Counter {
+    value = 1
+
+    get doubled() {
+      return this.value * 2
+    }
+
+    inc() {
+      this.value++
+      return this.value
+    }
+  }
+
+  const first = fobx.observable(new Counter(), {
+    ownPropertiesOnly: true,
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+      inc: "transaction",
+    },
+  })
+
+  const second = fobx.observable(new Counter(), {
+    annotations: {
+      value: "observable",
+      doubled: "computed",
+      inc: "transaction",
+    },
+  })
+
+  expect(Object.hasOwn(first, "doubled")).toBe(true)
+  expect(Object.hasOwn(first, "inc")).toBe(true)
+  expect(Object.hasOwn(second, "doubled")).toBe(false)
+  expect(Object.hasOwn(second, "inc")).toBe(false)
+  expect(fobx.isComputed(first, "doubled")).toBe(true)
+  expect(fobx.isComputed(second, "doubled")).toBe(true)
+  expect(fobx.isTransaction(first.inc)).toBe(true)
+  expect(fobx.isTransaction(second.inc)).toBe(true)
+
+  const secondValues: number[] = []
+  fobx.reaction(() => second.doubled, (value) => secondValues.push(value))
+
+  expect(second.inc()).toBe(2)
+  expect(second.doubled).toBe(4)
+  expect(secondValues).toEqual([4])
 })

@@ -23,7 +23,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   fobx.configure({
-    enforceActions: false,
+    enforceTransactions: false,
     warnOnDependentlessComputeds: false,
   })
 })
@@ -1349,6 +1349,20 @@ test("#3747", () => {
   })
 })
 
+test("unobserved computed does not keep stale plain reads across transactions", () => {
+  const o = fobx.observable({}) as { missing?: number }
+  const c = fobx.computed(() => o.missing ?? 1)
+  const readInTransaction = () => fobx.runInTransaction(() => c.get())
+
+  expect(c.get()).toBe(1)
+  expect(readInTransaction()).toBe(1)
+
+  o.missing = 2
+
+  expect(c.get()).toBe(2)
+  expect(readInTransaction()).toBe(2)
+})
+
 test("change count optimization", function () {
   let bCalcs = 0
   let cCalcs = 0
@@ -1575,7 +1589,7 @@ test("ObservableArray.splice", () => {
 
 describe("warns when setting computed value outside of a transaction", () => {
   beforeEach(() => {
-    fobx.configure({ enforceActions: true })
+    fobx.configure({ enforceTransactions: true })
   })
 
   test("computed setter warns when observed", () => {

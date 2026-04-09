@@ -28,7 +28,7 @@ type ObservableArrayWithAdmin = fobx.ObservableArray<number> & {
 }
 
 beforeEach(() => {
-  fobx.configure({ enforceActions: false, comparer: { structural: deepEqual } })
+  fobx.configure({ enforceTransactions: false, comparer: { structural: deepEqual } })
 })
 
 test("observable array respects structural option", () => {
@@ -960,10 +960,10 @@ describe("warns when mutating observed array outside of a transaction", () => {
     /<STDOUT> \[@fobx\/core\] Changing tracked observable values \(Array@.*\) outside of a transaction is discouraged/
 
   beforeEach(() => {
-    fobx.configure({ enforceActions: true })
+    fobx.configure({ enforceTransactions: true })
   })
   afterAll(() => {
-    fobx.configure({ enforceActions: false })
+    fobx.configure({ enforceTransactions: false })
   })
 
   test("push", () => {

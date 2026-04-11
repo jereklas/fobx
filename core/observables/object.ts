@@ -259,7 +259,9 @@ function installTrackedAccessor<
   installTarget: object,
   value: T,
   storageKey: symbol | undefined,
-  createSharedValue: ((instanceAdmin: ObservableObjectAdmin, target: Any) => T) | undefined,
+  createSharedValue:
+    | ((instanceAdmin: ObservableObjectAdmin, target: Any) => T)
+    | undefined,
   normalizeInput: (value: Any) => Any = (value) => value,
 ): void {
   if (storageKey !== undefined) {
@@ -373,7 +375,8 @@ function installComputedProperty(
     storageKey,
     storageKey === undefined
       ? undefined
-      : (instanceAdmin, target) => createComputedValue(instanceAdmin.name, target),
+      : (instanceAdmin, target) =>
+        createComputedValue(instanceAdmin.name, target),
   )
 }
 
@@ -557,7 +560,7 @@ function installAnnotatedProperty(
   const resolved = resolveAnnotation(key, descriptor, annotationValue)
   const storageKey = prototypeStorageKey ?? (
     installTarget !== admin.target && prototype != null &&
-        (resolved.type === "data" || resolved.type === "computed")
+      (resolved.type === "data" || resolved.type === "computed")
       ? getOrCreatePrototypeStorageKey(prototype, key)
       : undefined
   )
@@ -906,7 +909,11 @@ function applyClassAnnotations<T extends object>(
               continue
             }
 
-            restoreAnnotatedPrototypeProperty(found.prototype, key, existingMeta)
+            restoreAnnotatedPrototypeProperty(
+              found.prototype,
+              key,
+              existingMeta,
+            )
             descriptor = { ...existingMeta.descriptor }
           }
         } else if (admin.values.has(key)) {

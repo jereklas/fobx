@@ -2,8 +2,10 @@
 title: observableMap
 description: Reactive Map with per-key dependency tracking.
 navTitle: observableMap
-navSection: ["@fobx/core", "API"]
-navOrder: 8
+navSection: ["@fobx/core", "API", "Observables"]
+navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
 `observableMap` creates a reactive `Map` implementation. It tracks reads at the
@@ -67,12 +69,14 @@ stop()
 
 ## Tracking granularity
 
-| Operation                                          | What is tracked                               |
-| -------------------------------------------------- | --------------------------------------------- |
-| `get(key)`                                         | That specific key's value                     |
-| `has(key)`                                         | That specific key (including absent keys)     |
-| `size`                                             | The keys collection (any add/delete triggers) |
-| `forEach`, `entries`, `values`, `keys`, `for...of` | The entire map                                |
+| Operation                                          | What is tracked                                 |
+| -------------------------------------------------- | ----------------------------------------------- |
+| `get(key)`                                         | That specific key's value                       |
+| `getOrInsert(key, defaultValue)`                   | That specific key's value after any miss insert |
+| `getOrInsertComputed(key, callback)`               | That specific key's value after any miss insert |
+| `has(key)`                                         | That specific key (including absent keys)       |
+| `size`                                             | The keys collection (any add/delete triggers)   |
+| `forEach`, `entries`, `values`, `keys`, `for...of` | The entire map                                  |
 
 ```ts
 const m = observableMap([["a", 1], ["b", 2]])
@@ -93,6 +97,42 @@ All standard `Map` methods are supported:
 - `forEach(callback)`, `entries()`, `values()`, `keys()`
 - `for...of` iteration
 - `Symbol.iterator`
+
+### `getOrInsert(key, defaultValue)`
+
+Returns the existing value for `key`. If the key is missing, it inserts
+`defaultValue` first and then returns the stored value through the same tracked
+read path as `get(key)`.
+
+In deep mode, the inserted value goes through the same conversion pipeline as
+`set()`, so the returned value may be an observable copy rather than the
+original input reference.
+
+```ts
+const users = observableMap<string, { visits: number }>()
+
+const user = users.getOrInsert("alice", { visits: 1 })
+console.log(user === users.get("alice")) // true
+```
+
+### `getOrInsertComputed(key, callback)`
+
+Like `getOrInsert`, but computes the default value lazily on misses. The
+callback receives the missing key, runs only when that key is absent, and runs
+without tracking so reads inside the callback do not create dependencies.
+
+If `callback` is not callable, the method throws a `TypeError`.
+
+```ts
+const users = observableMap<string, number>()
+
+const visits = users.getOrInsertComputed("alice", (key) => key.length)
+console.log(visits) // 5
+```
+
+Because misses perform insertion before the tracked read, calling either method
+inside a reaction mutates the map once on the first miss and then tracks the
+inserted key exactly like `get(key)`.
 
 ### `replace(entries)`
 

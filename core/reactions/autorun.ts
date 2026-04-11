@@ -15,14 +15,7 @@ import {
   STALE,
   UP_TO_DATE,
 } from "../state/global.ts"
-import {
-  cleanupGraph,
-  getOldDeps,
-  getPrevTracking,
-  removeFromAllDeps,
-  startTracking,
-  stopTracking,
-} from "./tracking.ts"
+import { removeFromAllDeps, runWithTrackingAdmin } from "./tracking.ts"
 import { safeRunReaction } from "../transactions/batch.ts"
 import { isTransaction } from "../utils/utils.ts"
 
@@ -36,15 +29,11 @@ interface AutorunAdmin extends ReactionAdmin {
 function _runAutorun(this: AutorunAdmin): void {
   if (this._isDisposed) return
   this.state = UP_TO_DATE
-  startTracking(this)
-  const oldDeps = getOldDeps()
-  const prevTracking = getPrevTracking()
-  try {
-    this._fn(this._dispose)
-  } finally {
-    stopTracking(prevTracking)
-    cleanupGraph(this, oldDeps)
-  }
+  runWithTrackingAdmin(this, _runTrackedAutorun)
+}
+
+function _runTrackedAutorun(admin: AutorunAdmin): void {
+  admin._fn(admin._dispose)
 }
 
 export interface AutorunOptions {

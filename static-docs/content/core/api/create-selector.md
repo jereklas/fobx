@@ -2,15 +2,22 @@
 title: createSelector
 description: Efficient selection primitive for one-of-many patterns.
 navTitle: createSelector
-navSection: ["@fobx/core", "API"]
-navOrder: 13
+navSection: ["@fobx/core", "API", "Observables"]
+navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
-`createSelector` creates a reactive selector function optimized for the
-"one-of-many" selection pattern common in lists. Instead of every row observing
-the selection signal (O(n) reactions per change), only the previously-selected
-and newly-selected items are notified. With the default equality comparer,
+`createSelector` creates an observable selector optimized for the "one-of-many"
+selection pattern common in lists. Instead of every row observing the selection
+signal (O(n) reactions per change), only the previously-selected and
+newly-selected items are notified. With the default equality comparer,
 selection changes stay O(1).
+
+> **Note:** `createSelector` belongs under Observables because it produces
+> observable boolean values per key. It is also reactive internally: it tracks
+> its source function and re-runs when the observables used by that source
+> change.
 
 ## Signature
 

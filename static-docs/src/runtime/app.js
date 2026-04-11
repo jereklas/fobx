@@ -352,6 +352,7 @@ const expandActiveNavGroups = () => {
     const section = group.querySelector(":scope > .nav-group-wrap")
     if (button instanceof HTMLButtonElement && section instanceof HTMLElement) {
       section.classList.remove("is-collapsed")
+      section.inert = false
       button.setAttribute("aria-expanded", "true")
     }
     cursor = group.parentElement?.closest(".nav-group") ?? null

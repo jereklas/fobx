@@ -16,18 +16,14 @@ import {
   KIND_REACTION,
   pushPending,
   type ReactionAdmin,
-  setTracking,
   STALE,
   UP_TO_DATE,
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
 import {
-  cleanupGraph,
-  getOldDeps,
-  getPrevTracking,
+  applyWithoutTracking,
   removeFromAllDeps,
-  startTracking,
-  stopTracking,
+  runWithTrackingAdmin,
 } from "./tracking.ts"
 import { safeRunReaction } from "../transactions/batch.ts"
 import { hasFobxAdmin } from "../utils/utils.ts"
@@ -66,16 +62,7 @@ function _runReaction(this: ReactionRunAdmin): void {
   this.state = UP_TO_DATE
 
   // Phase 1: Track dependencies (inlined withTracking — avoids closure)
-  startTracking(this)
-  const oldDeps = getOldDeps()
-  const prevTracking = getPrevTracking()
-  let newValue: Any
-  try {
-    newValue = this._expression(this._dispose)
-  } finally {
-    stopTracking(prevTracking)
-    cleanupGraph(this, oldDeps)
-  }
+  const newValue = runWithTrackingAdmin(this, _evaluateReactionExpression)
 
   // Check if result is an observable collection (array, map, or set)
   let currentChanges: number | undefined = undefined
@@ -111,25 +98,22 @@ function _runReaction(this: ReactionRunAdmin): void {
   const shouldRun = !hasPrevious ? this._fireImmediately : valueChanged
 
   if (shouldRun) {
-    // Inlined withoutTracking — avoids closure allocation
-    const prevTrack = $scheduler.tracking
-    setTracking(null)
-    try {
-      this._effect(
-        newValue,
-        hasPrevious ? this._previousValue : undefined,
-        {
-          dispose: this._dispose,
-          hasPrevious,
-        },
-      )
-    } finally {
-      setTracking(prevTrack)
-    }
+    applyWithoutTracking(this._effect, this, [
+      newValue,
+      hasPrevious ? this._previousValue : undefined,
+      {
+        dispose: this._dispose,
+        hasPrevious,
+      },
+    ])
   }
 
   this._previousValue = newValue
   this._previousChanges = currentChanges
+}
+
+function _evaluateReactionExpression(admin: ReactionRunAdmin): Any {
+  return admin._expression(admin._dispose)
 }
 
 export function reaction<T>(

@@ -11,7 +11,10 @@ type ObservableMapWithAdmin = fobx.ObservableMap<string, string> & {
 }
 
 beforeEach(() => {
-  fobx.configure({ enforceTransactions: false, comparer: { structural: deepEqual } })
+  fobx.configure({
+    enforceTransactions: false,
+    comparer: { structural: deepEqual },
+  })
 })
 
 test("observable map respects structural option", () => {
@@ -566,6 +569,87 @@ test("observe value", function () {
   a.replace({ y: "stuff", z: "zoef" })
   expect(valueY).toBe("stuff")
   expect(Array.from(a.keys())).toEqual(["y", "z"])
+})
+
+test("getOrInsert returns existing values and inserts missing values", () => {
+  const map = fobx.observable(new Map([["a", 1]]))
+
+  expect(map.getOrInsert("a", 2)).toBe(1)
+  expect(map.get("a")).toBe(1)
+
+  expect(map.getOrInsert("b", 3)).toBe(3)
+  expect(map.get("b")).toBe(3)
+})
+
+test("getOrInsert participates in reactions like get", () => {
+  const map = fobx.observable(new Map<string, number>())
+  const reactionFn = fn()
+
+  const dispose = fobx.reaction(() => map.getOrInsert("a", 1), reactionFn)
+
+  expect(map.get("a")).toBe(1)
+  expect(reactionFn).toHaveBeenCalledTimes(0)
+
+  map.set("b", 2)
+  expect(reactionFn).toHaveBeenCalledTimes(0)
+
+  map.set("a", 3)
+  expect(reactionFn).toHaveBeenCalledTimes(1)
+  expect(reactionFn).toHaveBeenCalledWith(3, 1, expect.anything())
+
+  dispose()
+})
+
+test("getOrInsert returns the stored processed value", () => {
+  const map = fobx.observable(new Map<string, { count: number }>())
+
+  const inserted = map.getOrInsert("a", { count: 1 })
+
+  expect(inserted).toBe(map.get("a"))
+  expect(fobx.isObservableObject(inserted)).toBe(true)
+  inserted.count = 2
+  expect(map.get("a")?.count).toBe(2)
+})
+
+test("getOrInsertComputed is lazy and receives the key", () => {
+  const map = fobx.observable(new Map([["a", "present"]]))
+  const callback = fn((key: string) => `value:${key}`)
+
+  expect(map.getOrInsertComputed("a", callback)).toBe("present")
+  expect(callback).toHaveBeenCalledTimes(0)
+
+  expect(map.getOrInsertComputed("b", callback)).toBe("value:b")
+  expect(callback).toHaveBeenCalledTimes(1)
+  expect(callback).toHaveBeenCalledWith("b")
+  expect(map.get("b")).toBe("value:b")
+})
+
+test("getOrInsertComputed callback runs without tracking", () => {
+  const map = fobx.observable(new Map<string, number>())
+  const source = fobx.observableBox(1)
+  let runs = -1
+
+  fobx.autorun(() => {
+    runs++
+    map.getOrInsertComputed("a", () => source.get())
+  })
+
+  expect(runs).toBe(0)
+
+  source.set(2)
+  expect(runs).toBe(0)
+
+  map.set("a", 3)
+  expect(runs).toBe(1)
+})
+
+test("getOrInsertComputed requires a callable callback", () => {
+  const map = fobx.observable(new Map<string, string>())
+
+  expect(() => {
+    // @ts-expect-error - validating runtime TypeError for invalid callback input
+    map.getOrInsertComputed("a", 123)
+  }).toThrow(TypeError)
 })
 
 test("observe collections", function () {

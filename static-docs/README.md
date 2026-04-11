@@ -24,6 +24,8 @@ Supported fields in each markdown file:
 - `navSection`: custom sidebar section path (`"Guides/Advanced"` or array)
 - `navSectionTitle`: rename the page's current section/folder in the sidebar
 - `navSectionOrder`: order value for the page's current section/folder
+- `navSectionExpanded`: expand the page's current section by default in the sidebar
+- `navSectionCollapsible`: when `false`, render the page's current section as a static heading instead of an expandable group
 - `navSectionTitles`: array of section titles by depth for full path overrides
 - `navSectionOrders`: array of section order values by depth for full path
   overrides

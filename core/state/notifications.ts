@@ -116,13 +116,22 @@ export function notifyObservers(
 }
 
 /**
+ * Notify observers of a direct CHANGED event without triggering an immediate
+ * pending-reaction flush. Useful for callers that batch or perform additional
+ * related notifications before the scheduler drains.
+ */
+export function notifyObserversChanged(observable: ObservableAdmin): void {
+  if (observable.observers !== null) {
+    notifyObservers(observable, NOTIFY_CHANGED)
+  }
+}
+
+/**
  * Single helper: notify observers that a value changed + run pending if not batching.
  * Centralizes the notify + runPending pattern to avoid per-call-site duplication.
  */
 export function notifyChanged(admin: ObservableAdmin): void {
-  if (admin.observers !== null) {
-    notifyObservers(admin, NOTIFY_CHANGED)
-  }
+  notifyObserversChanged(admin)
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).
   if ($scheduler.batchDepth === 0 && $scheduler.pending.length > 0) {
     _runPendingReactions()

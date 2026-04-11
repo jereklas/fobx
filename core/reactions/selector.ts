@@ -24,11 +24,10 @@ import {
   defaultComparer,
   hasObservers,
   KIND_BOX,
-  NOTIFY_CHANGED,
   type ObservableAdmin,
 } from "../state/global.ts"
 import { trackAccessKnownTracked } from "./tracking.ts"
-import { notifyObservers } from "../state/notifications.ts"
+import { notifyObserversChanged } from "../state/notifications.ts"
 
 // deno-lint-ignore no-explicit-any
 type Any = any
@@ -141,7 +140,7 @@ export function createSelector<T>(
       const admin = subs.get(value)
       if (admin && hasObservers(admin) && admin.value !== nextState) {
         admin.value = nextState
-        notifyObservers(admin, NOTIFY_CHANGED)
+        notifyObserversChanged(admin)
       }
       return
     }
@@ -150,7 +149,7 @@ export function createSelector<T>(
       if (!equals(value, key)) continue
       if (!hasObservers(admin) || admin.value === nextState) continue
       admin.value = nextState
-      notifyObservers(admin, NOTIFY_CHANGED)
+      notifyObserversChanged(admin)
     }
   }
 }

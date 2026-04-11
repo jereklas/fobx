@@ -41,7 +41,10 @@ Deno.test("buildSite generates html, nav, and search assets", async () => {
 
   assertStringIncludes(homeHtml, "Test Docs")
   assertStringIncludes(homeHtml, 'href="https://github.com/example/test-docs"')
+  assertStringIncludes(homeHtml, 'data-nav-toggle aria-expanded="false"')
+  assertStringIncludes(homeHtml, 'class="nav-group-wrap is-collapsed"')
   assertStringIncludes(guideHtml, "Custom Nav")
+  assertStringIncludes(guideHtml, 'data-nav-toggle aria-expanded="true"')
   assertStringIncludes(searchJson, "Custom")
 
   await Deno.remove(root, { recursive: true })

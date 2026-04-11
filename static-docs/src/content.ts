@@ -117,17 +117,26 @@ const resolveSectionPath = (doc: DocsDocument): string[] => {
 const resolveSectionMeta = (
   doc: DocsDocument,
   sectionPath: string[],
-): Array<{ title?: string; order?: number }> => {
+): Array<{
+  title?: string
+  order?: number
+  expanded?: boolean
+  collapsible?: boolean
+}> => {
   const titles = arrayOfStrings(doc.frontmatter.navSectionTitles)
   const orders = arrayOfNumbers(doc.frontmatter.navSectionOrders)
   const tailTitle = stringValue(doc.frontmatter.navSectionTitle)
   const tailOrder = numberValue(doc.frontmatter.navSectionOrder)
+  const tailExpanded = booleanValue(doc.frontmatter.navSectionExpanded)
+  const tailCollapsible = booleanValue(doc.frontmatter.navSectionCollapsible)
 
   return sectionPath.map((_, index) => {
     const isTail = index === sectionPath.length - 1
     return {
       title: titles[index] ?? (isTail ? tailTitle : undefined),
       order: orders[index] ?? (isTail ? tailOrder : undefined),
+      expanded: isTail ? tailExpanded : undefined,
+      collapsible: isTail ? tailCollapsible : undefined,
     }
   })
 }
@@ -143,6 +152,10 @@ const numberValue = (value: unknown): number | undefined => {
     return value
   }
   return undefined
+}
+
+const booleanValue = (value: unknown): boolean | undefined => {
+  return typeof value === "boolean" ? value : undefined
 }
 
 const arrayOfStrings = (value: unknown): string[] => {

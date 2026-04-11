@@ -2,8 +2,10 @@
 title: observableArray
 description: Reactive array that implements the full Array API with dependency tracking.
 navTitle: observableArray
-navSection: ["@fobx/core", "API"]
-navOrder: 7
+navSection: ["@fobx/core", "API", "Observables"]
+navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
 `observableArray` creates a reactive array. It implements the standard `Array`

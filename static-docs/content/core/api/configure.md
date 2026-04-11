@@ -3,7 +3,8 @@ title: configure
 description: Set global options for FobX behavior.
 navTitle: configure
 navSection: ["@fobx/core", "API"]
-navOrder: 14
+navOrder: 0
+navSectionOrders: [1, 5]
 ---
 
 `configure` sets global options that affect all FobX behavior in the current

@@ -2,8 +2,10 @@
 title: autorun
 description: Run a side-effect immediately and re-run it whenever its dependencies change.
 navTitle: autorun
-navSection: ["@fobx/core", "API"]
-navOrder: 3
+navSection: ["@fobx/core", "API", "Reactions"]
+navOrder: 1
+navSectionOrders: [1, 5, 2]
+navSectionCollapsible: false
 ---
 
 `autorun` runs a function immediately, tracks every observable it reads, and

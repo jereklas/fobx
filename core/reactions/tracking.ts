@@ -11,6 +11,7 @@
 import {
   $scheduler,
   addObserver,
+  type Any,
   deleteObserver,
   nextEpoch,
   type ObservableAdmin,
@@ -69,7 +70,7 @@ export function trackAccessKnownTracked(
  * Begin tracking dependencies for a reaction.
  * Uses module-level vars to avoid allocating a return object.
  */
-export function startTracking(reaction: ReactionAdmin): void {
+function startTracking(reaction: ReactionAdmin): void {
   // Increment epoch for this tracking pass (used by trackAccess dedup)
   reaction._trackingEpoch = nextEpoch()
 
@@ -83,25 +84,11 @@ export function startTracking(reaction: ReactionAdmin): void {
 }
 
 /**
- * Get the old deps saved by startTracking (for callers that need them).
- */
-export function getOldDeps(): ObservableAdmin[] {
-  return _oldDeps
-}
-
-/**
- * Get the previous tracking context saved by startTracking.
- */
-export function getPrevTracking(): ReactionAdmin | null {
-  return _prevTracking
-}
-
-/**
  * End tracking and restore previous context.
  * Takes the saved prevTracking value to correctly handle nested tracking
  * (module-level _prevTracking gets overwritten by inner startTracking calls).
  */
-export function stopTracking(prevTracking: ReactionAdmin | null): void {
+function stopTracking(prevTracking: ReactionAdmin | null): void {
   setTracking(prevTracking)
 }
 
@@ -123,7 +110,7 @@ function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
  *
  * Re-tracked deps remain in `reaction.deps`; stale deps are missing from it.
  */
-export function cleanupGraph(
+function cleanupGraph(
   reaction: ReactionAdmin,
   oldDeps: ObservableAdmin[],
 ): void {
@@ -183,6 +170,25 @@ export function runWithTracking<T>(reaction: ReactionAdmin, fn: () => T): T {
 }
 
 /**
+ * Shared tracked runner for hot paths that already use a shared function.
+ * Avoids allocating a per-run closure at the call site.
+ */
+export function runWithTrackingAdmin<A extends ReactionAdmin, T>(
+  reaction: A,
+  fn: (reaction: A) => T,
+): T {
+  startTracking(reaction)
+  const oldDeps = _oldDeps
+  const prevTracking = _prevTracking
+  try {
+    return fn(reaction)
+  } finally {
+    stopTracking(prevTracking)
+    cleanupGraph(reaction, oldDeps)
+  }
+}
+
+/**
  * Execute fn with dependency tracking disabled.
  */
 export function runWithoutTracking<T>(fn: () => T): T {
@@ -192,5 +198,23 @@ export function runWithoutTracking<T>(fn: () => T): T {
     return fn()
   } finally {
     setTracking(prev)
+  }
+}
+
+/**
+ * Execute a function with dependency tracking disabled without allocating a
+ * closure at the call site.
+ */
+export function applyWithoutTracking<TThis, TArgs extends Any[], TResult>(
+  fn: (this: TThis, ...args: TArgs) => TResult,
+  thisArg: TThis,
+  args: TArgs,
+): TResult {
+  const prevTracking = $scheduler.tracking
+  setTracking(null)
+  try {
+    return fn.apply(thisArg, args)
+  } finally {
+    setTracking(prevTracking)
   }
 }

@@ -5,6 +5,7 @@ navTitle: Introduction
 navSection: ["@fobx/core"]
 navOrder: 0
 navSectionOrder: 1
+navSectionExpanded: true
 ---
 
 ## What is @fobx/core?
@@ -115,4 +116,6 @@ stop() // clean up — reaction no longer runs
 - [Overview](/core/overview/) — a 5-minute tour of every feature
 - [How It Works](/core/how-it-works/) — deep dive on tracking, batching, and
   computed caching
-- [API Reference](/core/api/) — complete API documentation
+- [Performance](/core/performance/) — benchmark-based performance comparison
+  against MobX
+- API Reference — browse one page per public function in the API section

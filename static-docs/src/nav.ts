@@ -6,6 +6,8 @@ interface MutableNavNode {
   title: string
   href?: string
   order: number
+  defaultExpanded: boolean
+  collapsible: boolean
   isPage: boolean
   children: MutableNavNode[]
 }
@@ -15,6 +17,8 @@ export const buildNav = (pages: DocsPage[]): DocsNavItem[] => {
     id: "root",
     title: "root",
     order: -1,
+    defaultExpanded: false,
+    collapsible: true,
     isPage: false,
     children: [],
   }
@@ -34,6 +38,8 @@ export const buildNav = (pages: DocsPage[]): DocsNavItem[] => {
           id,
           title: normalizeTitle(part),
           order: Number.POSITIVE_INFINITY,
+          defaultExpanded: false,
+          collapsible: true,
           isPage: false,
           children: [],
         }
@@ -47,6 +53,12 @@ export const buildNav = (pages: DocsPage[]): DocsNavItem[] => {
       if (typeof sectionMeta?.order === "number") {
         section.order = sectionMeta.order
       }
+      if (sectionMeta?.expanded === true) {
+        section.defaultExpanded = true
+      }
+      if (sectionMeta?.collapsible === false) {
+        section.collapsible = false
+      }
 
       cursor = section
     }
@@ -56,6 +68,8 @@ export const buildNav = (pages: DocsPage[]): DocsNavItem[] => {
       title: page.navTitle,
       href: page.routePath,
       order: page.navOrder,
+      defaultExpanded: false,
+      collapsible: false,
       isPage: true,
       children: [],
     })
@@ -65,6 +79,10 @@ export const buildNav = (pages: DocsPage[]): DocsNavItem[] => {
 }
 
 const normalizeTitle = (value: string): string => {
+  if (value.startsWith("@")) {
+    return value
+  }
+
   return value
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (part) => part.toUpperCase())
@@ -91,6 +109,8 @@ const toPublicNodes = (nodes: MutableNavNode[]): DocsNavItem[] => {
     title: node.title,
     href: node.href,
     order: node.order,
+    defaultExpanded: node.defaultExpanded || undefined,
+    collapsible: node.isPage ? undefined : node.collapsible,
     isPage: node.isPage,
     children: node.children.length > 0
       ? toPublicNodes(node.children)

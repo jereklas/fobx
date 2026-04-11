@@ -8,7 +8,10 @@ import { beforeEach, describe, expect, fn, test } from "@fobx/testing"
 import { deepEqual } from "fast-equals"
 
 beforeEach(() => {
-  fobx.configure({ enforceTransactions: false, comparer: { structural: deepEqual } })
+  fobx.configure({
+    enforceTransactions: false,
+    comparer: { structural: deepEqual },
+  })
 })
 
 class TestViewModel {

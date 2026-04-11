@@ -2,8 +2,10 @@
 title: observableSet
 description: Reactive Set with dependency tracking.
 navTitle: observableSet
-navSection: ["@fobx/core", "API"]
-navOrder: 9
+navSection: ["@fobx/core", "API", "Observables"]
+navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
 `observableSet` creates a reactive `Set`. Reactions that iterate or check

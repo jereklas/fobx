@@ -11,22 +11,16 @@ navOrder: 1
 npm install @fobx/core
 ```
 
+## yarn
+
 ```sh
 yarn add @fobx/core
 ```
 
+## pnpm
+
 ```sh
 pnpm add @fobx/core
-```
-
-```ts
-import * as fobx from "@fobx/core"
-```
-
-## Deno
-
-```ts
-import * as fobx from "npm:@fobx/core"
 ```
 
 ---
@@ -55,4 +49,4 @@ See [configure](/core/api/configure/) for full option details.
 ## What's next
 
 - [Overview](/core/overview/) — a 5-minute tour of every feature
-- [API Reference](/core/api/) — complete API documentation
+- API Reference — browse one page per public function in the API section

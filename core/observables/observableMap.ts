@@ -13,7 +13,6 @@ import {
   hasObservers,
   KIND_BOX,
   KIND_COLLECTION,
-  NOTIFY_CHANGED,
   type ObservableAdmin,
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
@@ -21,7 +20,7 @@ import { endBatch, startBatch } from "../transactions/batch.ts"
 import {
   isNotProduction,
   notifyChanged,
-  notifyObservers,
+  notifyObserversChanged,
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
 import {
@@ -29,7 +28,11 @@ import {
   observableBox,
   setBoxValue,
 } from "./observableBox.ts"
-import { trackAccess, trackAccessKnownTracked } from "../reactions/tracking.ts"
+import {
+  applyWithoutTracking,
+  trackAccess,
+  trackAccessKnownTracked,
+} from "../reactions/tracking.ts"
 import {
   rememberConvertedValue,
   withConversionContext,
@@ -222,6 +225,30 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     return undefined
   }
 
+  getOrInsert(key: K, defaultValue: V): V {
+    if (this.data.has(key)) {
+      return this.get(key)!
+    }
+
+    this.set(key, defaultValue)
+    return this.get(key)!
+  }
+
+  getOrInsertComputed(key: K, callback: (key: K) => V): V {
+    if (this.data.has(key)) {
+      return this.get(key)!
+    }
+
+    if (typeof callback !== "function") {
+      throw new TypeError(
+        `[@fobx/core] ObservableMap.getOrInsertComputed requires a callback function.`,
+      )
+    }
+
+    this.set(key, applyWithoutTracking(callback, undefined, [key]))
+    return this.get(key)!
+  }
+
   set(key: K, value: V): this {
     const hadKey = this.data.has(key)
     const processedValue = _processValue(value, this._shallow)
@@ -260,9 +287,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     }
 
     const admin = this.data.get(key)!
-    if (hasObservers(admin)) {
-      notifyObservers(admin, NOTIFY_CHANGED)
-    }
+    notifyObserversChanged(admin)
 
     this.data.delete(key)
 
@@ -287,9 +312,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     startBatch()
     try {
       this.data.forEach((admin) => {
-        if (hasObservers(admin)) {
-          notifyObservers(admin, NOTIFY_CHANGED)
-        }
+        notifyObserversChanged(admin)
       })
 
       this.hasMap?.forEach((hasBox) => {
@@ -413,9 +436,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       toDelete.forEach((key) => {
         const admin = this.data.get(key)!
         this.data.delete(key)
-        if (hasObservers(admin)) {
-          notifyObservers(admin, NOTIFY_CHANGED)
-        }
+        notifyObserversChanged(admin)
         const hasBox = this.hasMap?.get(key)
         if (hasBox) setBoxValue(hasBox[$fobx], false)
       })

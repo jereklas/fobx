@@ -20,6 +20,8 @@ export interface DocsFrontmatter {
   navPath?: string | string[]
   navSectionTitle?: string
   navSectionOrder?: number
+  navSectionExpanded?: boolean
+  navSectionCollapsible?: boolean
   navSectionTitles?: string[]
   navSectionOrders?: number[]
   toc?: boolean
@@ -55,6 +57,8 @@ export interface DocsPage {
   sectionMeta: Array<{
     title?: string
     order?: number
+    expanded?: boolean
+    collapsible?: boolean
   }>
   html: string
   plainText: string
@@ -68,6 +72,8 @@ export interface DocsNavItem {
   href?: string
   children?: DocsNavItem[]
   order: number
+  defaultExpanded?: boolean
+  collapsible?: boolean
   isPage: boolean
 }
 

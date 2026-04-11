@@ -2,8 +2,10 @@
 title: runWithoutTracking
 description: Read observables without creating dependencies.
 navTitle: runWithoutTracking
-navSection: ["@fobx/core", "API"]
-navOrder: 11
+navSection: ["@fobx/core", "API", "Transactions"]
+navOrder: 1
+navSectionOrders: [1, 5, 3]
+navSectionCollapsible: false
 ---
 
 `runWithoutTracking` runs a function in an untracked context. Observable reads

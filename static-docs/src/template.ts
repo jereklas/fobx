@@ -140,18 +140,31 @@ const renderNavItem = (
   const className = [
     "nav-item",
     item.isPage ? "nav-page" : "nav-group",
+    !item.isPage && item.collapsible === false ? "nav-group-static" : "",
     active ? "is-active" : "",
     !item.isPage && hasActive ? "has-active-child" : "",
   ].filter(Boolean).join(" ")
+  const groupExpanded = !item.isPage &&
+    (item.collapsible === false || hasActive || item.defaultExpanded === true)
   const label = item.href
     ? `<a href="${pageHref(basePath, item.href)}" data-route="${item.href}" ${
       active ? 'aria-current="page"' : ""
     }>${escapeHtml(item.title)}</a>`
-    : `<button type="button" class="nav-group-toggle" data-nav-toggle aria-expanded="true" aria-controls="group-${item.id}"><span class="nav-group-title">${
+    : item.collapsible === false
+    ? `<div class="nav-group-heading"><span class="nav-group-title">${
+      escapeHtml(item.title)
+    }</span></div>`
+    : `<button type="button" class="nav-group-toggle" data-nav-toggle aria-expanded="${
+      groupExpanded ? "true" : "false"
+    }" aria-controls="group-${item.id}"><span class="nav-group-title">${
       escapeHtml(item.title)
     }</span><svg class="nav-group-caret" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>`
   const children = renderedChildren.length
-    ? `<div class="nav-group-wrap" id="group-${item.id}"><ul class="nav-list nav-group-children">${
+    ? `<div class="nav-group-wrap${
+      groupExpanded ? "" : " is-collapsed"
+    }" id="group-${item.id}"${
+      groupExpanded || item.collapsible === false ? "" : " inert"
+    }><ul class="nav-list nav-group-children">${
       renderedChildren.map((child) => child.html).join("")
     }</ul></div>`
     : ""

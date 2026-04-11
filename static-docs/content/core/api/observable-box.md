@@ -2,8 +2,10 @@
 title: observableBox
 description: Create a reactive boxed value that notifies observers when it changes.
 navTitle: observableBox
-navSection: ["@fobx/core", "API"]
+navSection: ["@fobx/core", "API", "Observables"]
 navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
 `observableBox` is the simplest reactive primitive. It holds a single value and
@@ -96,4 +98,4 @@ observable object or class:
 
 For reactive properties on an object, use
 [`observable()`](/core/api/observable/) or
-[`makeObservable()`](/core/api/observable/) instead.
+[`makeObservable()`](/core/api/make-observable/) instead.

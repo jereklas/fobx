@@ -57,13 +57,6 @@ Deno.bench("fobx", { group: "array-read-index", baseline: true }, () => {
   const _c = fobxArr[4]
 })
 
-Deno.bench("mobx", { group: "array-read-length" }, () => {
-  const _len = mobxArr.length
-})
-Deno.bench("fobx", { group: "array-read-length", baseline: true }, () => {
-  const _len = fobxArr.length
-})
-
 // Write operations
 Deno.bench("mobx", { group: "array-push" }, () => {
   const a = mobx.observable.array([1, 2, 3])

@@ -2,8 +2,10 @@
 title: flow
 description: Generator-based async actions with per-step transactions.
 navTitle: flow
-navSection: ["@fobx/core", "API"]
-navOrder: 12
+navSection: ["@fobx/core", "API", "Transactions"]
+navOrder: 1
+navSectionOrders: [1, 5, 3]
+navSectionCollapsible: false
 ---
 
 `flow` wraps a generator function so that each synchronous segment between
@@ -157,13 +159,7 @@ const store = observable({
 // store.fetchData is automatically wrapped as a flow
 ```
 
-## `isFlow()`
+## Related API
 
-Check if a function was wrapped by `flow()`:
-
-```ts
-import { flow, isFlow } from "@fobx/core"
-
-const fn = flow(function* () {})
-console.log(isFlow(fn)) // true
-```
+Use [`isFlow()`](/core/api/is-flow/) to check whether a function was wrapped by
+`flow()`.

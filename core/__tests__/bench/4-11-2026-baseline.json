@@ -1,0 +1,2823 @@
+{
+  "version": 1,
+  "runtime": "Deno/2.2.12 x86_64-unknown-linux-gnu",
+  "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+  "benches": [
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-create-empty",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 53,
+            "min": 564.6285,
+            "max": 2503.6837,
+            "avg": 1096.274009433962,
+            "p75": 1320.3314,
+            "p99": 2503.6837,
+            "p995": 2503.6837,
+            "p999": 2503.6837,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-create-empty",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 128,
+            "min": 271.4577,
+            "max": 849.7567,
+            "avg": 422.1809523437499,
+            "p75": 475.6674,
+            "p99": 716.9638,
+            "p995": 849.7567,
+            "p999": 849.7567,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-create-1000",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 10200,
+            "min": 34590.0,
+            "max": 1063224.0,
+            "avg": 49091.0,
+            "p75": 65539.0,
+            "p99": 79409.0,
+            "p995": 83316.0,
+            "p999": 455383.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-create-1000",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 27029,
+            "min": 8472.0,
+            "max": 13171610.0,
+            "avg": 18504.0,
+            "p75": 17747.0,
+            "p99": 25642.0,
+            "p995": 28094.0,
+            "p999": 551948.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-read-index",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 64,
+            "min": 529.625,
+            "max": 1262.1771,
+            "avg": 940.3884609375,
+            "p75": 1150.4565,
+            "p99": 1262.1771,
+            "p995": 1262.1771,
+            "p999": 1262.1771,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-read-index",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 83,
+            "min": 510.3288,
+            "max": 1142.5784,
+            "avg": 677.7104493975907,
+            "p75": 814.1387,
+            "p99": 1142.5784,
+            "p995": 1142.5784,
+            "p999": 1142.5784,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-push",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 29,
+            "min": 2308.8598,
+            "max": 3618.6082,
+            "avg": 2639.127986206897,
+            "p75": 2705.5208,
+            "p99": 3618.6082,
+            "p995": 3618.6082,
+            "p999": 3618.6082,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-push",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 79,
+            "min": 458.2437,
+            "max": 1515.3956,
+            "avg": 710.3268037974678,
+            "p75": 816.1783,
+            "p99": 1515.3956,
+            "p995": 1515.3956,
+            "p999": 1515.3956,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-pop",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 25,
+            "min": 2999.5535,
+            "max": 5313.6561,
+            "avg": 3865.7544119999993,
+            "p75": 4714.4698,
+            "p99": 5313.6561,
+            "p995": 5313.6561,
+            "p999": 5313.6561,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-pop",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 103,
+            "min": 436.4093,
+            "max": 940.3171,
+            "avg": 537.9776388349514,
+            "p75": 622.8149,
+            "p99": 697.4528,
+            "p995": 940.3171,
+            "p999": 940.3171,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-splice",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 34,
+            "min": 2050.6166,
+            "max": 2413.2749,
+            "avg": 2144.0041823529414,
+            "p75": 2237.0977,
+            "p99": 2413.2749,
+            "p995": 2413.2749,
+            "p999": 2413.2749,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-splice",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 100,
+            "min": 489.1775,
+            "max": 697.35,
+            "avg": 560.259187,
+            "p75": 633.915,
+            "p99": 685.0522,
+            "p995": 697.35,
+            "p999": 697.35,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-forEach-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 46210,
+            "min": 10192.0,
+            "max": 1701764.0,
+            "avg": 10823.0,
+            "p75": 10703.0,
+            "p99": 14138.0,
+            "p995": 15187.0,
+            "p999": 18851.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-forEach-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 17,
+            "min": 6938.6077,
+            "max": 7688.052,
+            "avg": 7256.988452941176,
+            "p75": 7305.1596,
+            "p99": 7688.052,
+            "p995": 7688.052,
+            "p999": 7688.052,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-autorun-push",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 98457,
+            "min": 4464.0,
+            "max": 2053163.0,
+            "avg": 5079.0,
+            "p75": 4890.0,
+            "p99": 8418.0,
+            "p995": 9634.0,
+            "p999": 13992.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-autorun-push",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 45,
+            "min": 1291.2675,
+            "max": 1802.2968,
+            "avg": 1460.3941688888888,
+            "p75": 1539.4258,
+            "p99": 1802.2968,
+            "p995": 1802.2968,
+            "p999": 1802.2968,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-batch-write-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 10194,
+            "min": 46867.0,
+            "max": 1367279.0,
+            "avg": 49124.0,
+            "p75": 48338.0,
+            "p99": 67699.0,
+            "p995": 87357.0,
+            "p999": 110539.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "array-batch-write-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 50178,
+            "min": 9005.0,
+            "max": 1313610.0,
+            "avg": 9967.0,
+            "p75": 9637.0,
+            "p99": 17079.0,
+            "p995": 22632.0,
+            "p999": 24365.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-create-empty",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 306,
+            "min": 139.5283,
+            "max": 326.1842,
+            "avg": 169.69874509803932,
+            "p75": 159.4973,
+            "p99": 284.6187,
+            "p995": 292.3521,
+            "p999": 326.1842,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-create-empty",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 370,
+            "min": 120.5287,
+            "max": 262.8342,
+            "avg": 139.30881972972978,
+            "p75": 137.8083,
+            "p99": 208.3111,
+            "p995": 218.598,
+            "p999": 262.8342,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-create-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 18685,
+            "min": 23748.0,
+            "max": 1430383.0,
+            "avg": 26775.0,
+            "p75": 26248.0,
+            "p99": 37655.0,
+            "p995": 44355.0,
+            "p999": 369835.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-create-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 34051,
+            "min": 12602.0,
+            "max": 789050.0,
+            "avg": 14689.0,
+            "p75": 14451.0,
+            "p99": 21563.0,
+            "p995": 22330.0,
+            "p999": 26736.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-get",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 53,
+            "min": 1098.997,
+            "max": 1542.3166,
+            "avg": 1184.5788264150942,
+            "p75": 1261.601,
+            "p99": 1542.3166,
+            "p995": 1542.3166,
+            "p999": 1542.3166,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-get",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 99,
+            "min": 478.3622,
+            "max": 946.3375,
+            "avg": 567.8953464646464,
+            "p75": 696.0225,
+            "p99": 946.3375,
+            "p995": 946.3375,
+            "p999": 946.3375,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-set",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 69,
+            "min": 754.8169,
+            "max": 983.8154,
+            "avg": 856.8685681159423,
+            "p75": 931.9029,
+            "p99": 983.8154,
+            "p995": 983.8154,
+            "p999": 983.8154,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-set",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 140,
+            "min": 323.411,
+            "max": 600.7871,
+            "avg": 387.0081207142857,
+            "p75": 357.5603,
+            "p99": 584.4628,
+            "p995": 600.7871,
+            "p999": 600.7871,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-has",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 68,
+            "min": 807.1398,
+            "max": 982.359,
+            "avg": 873.0231279411767,
+            "p75": 946.9096,
+            "p99": 982.359,
+            "p995": 982.359,
+            "p999": 982.359,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-has",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 128,
+            "min": 368.1107,
+            "max": 527.5159,
+            "avg": 423.1596210937502,
+            "p75": 432.6472,
+            "p99": 479.5541,
+            "p995": 527.5159,
+            "p999": 527.5159,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-delete",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 47,
+            "min": 1269.2063,
+            "max": 1480.5831,
+            "avg": 1374.9599531914894,
+            "p75": 1446.6963,
+            "p99": 1480.5831,
+            "p995": 1480.5831,
+            "p999": 1480.5831,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-delete",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 90,
+            "min": 515.1166,
+            "max": 811.8893,
+            "avg": 625.5695833333332,
+            "p75": 754.3682,
+            "p99": 811.8893,
+            "p995": 811.8893,
+            "p999": 811.8893,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-forEach-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 15868,
+            "min": 28561.0,
+            "max": 1028546.0,
+            "avg": 31530.0,
+            "p75": 31228.0,
+            "p99": 39439.0,
+            "p995": 41640.0,
+            "p999": 361924.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-forEach-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 30674,
+            "min": 13903.0,
+            "max": 788762.0,
+            "avg": 16307.0,
+            "p75": 15952.0,
+            "p99": 23697.0,
+            "p995": 25660.0,
+            "p999": 34222.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-autorun-set",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 30,
+            "min": 2288.2466,
+            "max": 2696.9852,
+            "avg": 2529.447786666666,
+            "p75": 2636.7131,
+            "p99": 2696.9852,
+            "p995": 2696.9852,
+            "p999": 2696.9852,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-autorun-set",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 58,
+            "min": 958.1914,
+            "max": 1238.8283,
+            "avg": 1060.8897396551722,
+            "p75": 1180.8562,
+            "p99": 1238.8283,
+            "p995": 1238.8283,
+            "p999": 1238.8283,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-batch-write-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 19883,
+            "min": 23039.0,
+            "max": 1441732.0,
+            "avg": 25162.0,
+            "p75": 24718.0,
+            "p99": 32317.0,
+            "p995": 33177.0,
+            "p999": 73892.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "map-batch-write-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 36749,
+            "min": 11610.0,
+            "max": 825797.0,
+            "avg": 13610.0,
+            "p75": 13561.0,
+            "p99": 19866.0,
+            "p995": 20779.0,
+            "p999": 24749.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-create-empty",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 347,
+            "min": 120.7476,
+            "max": 543.4758,
+            "avg": 148.5813118155619,
+            "p75": 136.5788,
+            "p99": 276.2559,
+            "p995": 277.2429,
+            "p999": 543.4758,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-create-empty",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 368,
+            "min": 119.3371,
+            "max": 279.4523,
+            "avg": 139.92193396739128,
+            "p75": 133.4219,
+            "p99": 241.1908,
+            "p995": 246.3766,
+            "p999": 279.4523,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-create-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 49780,
+            "min": 8590.0,
+            "max": 1463544.0,
+            "avg": 10047.0,
+            "p75": 9897.0,
+            "p99": 15575.0,
+            "p995": 17133.0,
+            "p999": 22846.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-create-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 20,
+            "min": 5215.8788,
+            "max": 5443.5242,
+            "avg": 5344.307595,
+            "p75": 5385.9406,
+            "p99": 5443.5242,
+            "p995": 5443.5242,
+            "p999": 5443.5242,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-add",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 123,
+            "min": 391.9075,
+            "max": 850.49,
+            "avg": 441.99048943089423,
+            "p75": 423.1435,
+            "p99": 797.9827,
+            "p995": 850.49,
+            "p999": 850.49,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-add",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 235,
+            "min": 195.2911,
+            "max": 371.1012,
+            "avg": 223.44511617021266,
+            "p75": 208.8716,
+            "p99": 365.098,
+            "p995": 367.3458,
+            "p999": 371.1012,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-has",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 88,
+            "min": 579.13,
+            "max": 774.7771,
+            "avg": 643.0670215909092,
+            "p75": 730.7765,
+            "p99": 774.7771,
+            "p995": 774.7771,
+            "p999": 774.7771,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-has",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 176,
+            "min": 273.2432,
+            "max": 437.1767,
+            "avg": 301.525550568182,
+            "p75": 282.4865,
+            "p99": 436.532,
+            "p995": 437.1767,
+            "p999": 437.1767,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-delete",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 58,
+            "min": 972.8429,
+            "max": 1226.2391,
+            "avg": 1059.3866396551723,
+            "p75": 1139.9483,
+            "p99": 1226.2391,
+            "p995": 1226.2391,
+            "p999": 1226.2391,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-delete",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 113,
+            "min": 452.2857,
+            "max": 631.5705,
+            "avg": 488.580261061947,
+            "p75": 467.5071,
+            "p99": 621.2783,
+            "p995": 631.5705,
+            "p999": 631.5705,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-forEach-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 39629,
+            "min": 11184.0,
+            "max": 1512193.0,
+            "avg": 12621.0,
+            "p75": 12410.0,
+            "p99": 19128.0,
+            "p995": 20041.0,
+            "p999": 22988.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-forEach-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 73555,
+            "min": 5696.0,
+            "max": 1138378.0,
+            "avg": 6799.0,
+            "p75": 6722.0,
+            "p99": 11031.0,
+            "p995": 13148.0,
+            "p999": 14791.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-autorun-add",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 32,
+            "min": 2169.5736,
+            "max": 2585.1168,
+            "avg": 2324.215025,
+            "p75": 2400.5078,
+            "p99": 2585.1168,
+            "p995": 2585.1168,
+            "p999": 2585.1168,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-autorun-add",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 60,
+            "min": 903.4479,
+            "max": 1667.2801,
+            "avg": 1002.1591800000002,
+            "p75": 1115.2707,
+            "p99": 1667.2801,
+            "p995": 1667.2801,
+            "p999": 1667.2801,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-batch-write-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 16,
+            "min": 9199.9172,
+            "max": 9639.1947,
+            "avg": 9501.689825,
+            "p75": 9535.7409,
+            "p99": 9639.1947,
+            "p995": 9639.1947,
+            "p999": 9639.1947,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/collections.bench.ts",
+      "group": "set-batch-write-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 21,
+            "min": 4258.5054,
+            "max": 4810.0703,
+            "avg": 4742.495761904762,
+            "p75": 4798.2939,
+            "p99": 4810.0703,
+            "p995": 4810.0703,
+            "p999": 4810.0703,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-create",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 451,
+            "min": 86.0236,
+            "max": 282.4363,
+            "avg": 113.1749671840355,
+            "p75": 108.0093,
+            "p99": 224.281,
+            "p995": 245.0076,
+            "p999": 282.4363,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-create",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1759,
+            "min": 24.8181,
+            "max": 91.3353,
+            "avg": 28.598351563388295,
+            "p75": 29.3987,
+            "p99": 35.4918,
+            "p995": 70.7363,
+            "p999": 86.1677,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-read",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 455,
+            "min": 98.3318,
+            "max": 233.2349,
+            "avg": 112.59095604395607,
+            "p75": 105.1078,
+            "p99": 206.9005,
+            "p995": 208.8184,
+            "p999": 233.2349,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-read",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 709,
+            "min": 55.5745,
+            "max": 339.6217,
+            "avg": 71.61370028208748,
+            "p75": 65.0423,
+            "p99": 167.3104,
+            "p995": 178.0997,
+            "p999": 339.6217,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-write",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 317,
+            "min": 150.3364,
+            "max": 311.1301,
+            "avg": 163.45931419558352,
+            "p75": 156.0937,
+            "p99": 292.8037,
+            "p995": 296.5732,
+            "p999": 311.1301,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-write",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 691,
+            "min": 60.8242,
+            "max": 188.9622,
+            "avg": 73.5669263386397,
+            "p75": 69.54,
+            "p99": 171.9928,
+            "p995": 174.052,
+            "p999": 188.9622,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-read-write",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 298,
+            "min": 161.5195,
+            "max": 304.2188,
+            "avg": 173.56253557046963,
+            "p75": 166.2778,
+            "p99": 298.9313,
+            "p995": 303.6764,
+            "p999": 304.2188,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "observable-box-read-write",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 714,
+            "min": 58.8481,
+            "max": 192.8719,
+            "avg": 71.04378501400568,
+            "p75": 67.2573,
+            "p99": 170.5592,
+            "p995": 174.8762,
+            "p999": 192.8719,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-simple-create",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 248,
+            "min": 188.2586,
+            "max": 346.4572,
+            "avg": 210.66803266129048,
+            "p75": 196.1115,
+            "p99": 342.9056,
+            "p995": 344.3554,
+            "p999": 346.4572,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-simple-create",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 324,
+            "min": 125.418,
+            "max": 414.66,
+            "avg": 159.5719848765432,
+            "p75": 148.7736,
+            "p99": 399.0117,
+            "p995": 411.3234,
+            "p999": 414.66,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-simple-read",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 113,
+            "min": 447.9211,
+            "max": 1009.8443,
+            "avg": 489.6973787610618,
+            "p75": 466.603,
+            "p99": 698.9095,
+            "p995": 1009.8443,
+            "p999": 1009.8443,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-simple-read",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 352,
+            "min": 119.4375,
+            "max": 451.4402,
+            "avg": 146.45139744318172,
+            "p75": 135.6729,
+            "p99": 268.0396,
+            "p995": 338.8813,
+            "p999": 451.4402,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-invalidate-recompute",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 99,
+            "min": 515.9842,
+            "max": 734.6224,
+            "avg": 562.4944323232322,
+            "p75": 573.3646,
+            "p99": 734.6224,
+            "p995": 734.6224,
+            "p999": 734.6224,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-invalidate-recompute",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 322,
+            "min": 137.9601,
+            "max": 278.3223,
+            "avg": 160.16764534161493,
+            "p75": 149.7904,
+            "p99": 276.3839,
+            "p995": 277.563,
+            "p999": 278.3223,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-complex-5-deps",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 47,
+            "min": 1258.8765,
+            "max": 2123.9887,
+            "avg": 1400.9583808510636,
+            "p75": 1468.5497,
+            "p99": 2123.9887,
+            "p995": 2123.9887,
+            "p999": 2123.9887,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-complex-5-deps",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 101,
+            "min": 487.9208,
+            "max": 677.2624,
+            "avg": 552.089095049505,
+            "p75": 619.1201,
+            "p99": 663.3655,
+            "p995": 677.2624,
+            "p999": 677.2624,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-chained-3-levels",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 25,
+            "min": 3214.9716,
+            "max": 3745.5022,
+            "avg": 3420.69114,
+            "p75": 3456.7633,
+            "p99": 3745.5022,
+            "p995": 3745.5022,
+            "p999": 3745.5022,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-chained-3-levels",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 116,
+            "min": 381.1193,
+            "max": 851.7042,
+            "avg": 474.53063879310344,
+            "p75": 549.2208,
+            "p99": 783.2905,
+            "p995": 851.7042,
+            "p999": 851.7042,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-with-autorun",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 120875,
+            "min": 3568.0,
+            "max": 1867888.0,
+            "avg": 4137.0,
+            "p75": 3950.0,
+            "p99": 7289.0,
+            "p995": 8371.0,
+            "p999": 12837.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-with-autorun",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 45,
+            "min": 1312.6717,
+            "max": 2057.4961,
+            "avg": 1445.2559577777774,
+            "p75": 1527.8129,
+            "p99": 2057.4961,
+            "p995": 2057.4961,
+            "p999": 2057.4961,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-blocking-propagation",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 23,
+            "min": 3681.1582,
+            "max": 4806.5057,
+            "avg": 3955.8387782608693,
+            "p75": 3953.5789,
+            "p99": 4806.5057,
+            "p995": 4806.5057,
+            "p999": 4806.5057,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "computed-blocking-propagation",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 43,
+            "min": 1379.5233,
+            "max": 2213.7948,
+            "avg": 1511.2552325581396,
+            "p75": 1599.2294,
+            "p99": 2213.7948,
+            "p995": 2213.7948,
+            "p999": 2213.7948,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "autorun-create",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 55,
+            "min": 970.7616,
+            "max": 1342.0998,
+            "avg": 1141.410714545454,
+            "p75": 1292.5292,
+            "p99": 1342.0998,
+            "p995": 1342.0998,
+            "p999": 1342.0998,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "autorun-create",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 229,
+            "min": 194.4317,
+            "max": 397.3831,
+            "avg": 228.76628209606974,
+            "p75": 210.023,
+            "p99": 390.5441,
+            "p995": 392.6474,
+            "p999": 397.3831,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "autorun-trigger",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 29,
+            "min": 2563.1095,
+            "max": 2882.2523,
+            "avg": 2730.5310172413797,
+            "p75": 2806.07,
+            "p99": 2882.2523,
+            "p995": 2882.2523,
+            "p999": 2882.2523,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "autorun-trigger",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 56,
+            "min": 1018.1281,
+            "max": 1287.7661,
+            "avg": 1110.7431535714288,
+            "p75": 1243.3507,
+            "p99": 1287.7661,
+            "p995": 1287.7661,
+            "p999": 1287.7661,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "reaction-create",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 30,
+            "min": 2430.4005,
+            "max": 2892.28,
+            "avg": 2591.42011,
+            "p75": 2662.585,
+            "p99": 2892.28,
+            "p995": 2892.28,
+            "p999": 2892.28,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "reaction-create",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 213,
+            "min": 210.4417,
+            "max": 485.331,
+            "avg": 247.49310798122067,
+            "p75": 227.1921,
+            "p99": 412.3911,
+            "p995": 415.322,
+            "p999": 485.331,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "reaction-trigger",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 21,
+            "min": 4480.4882,
+            "max": 5141.6476,
+            "avg": 4729.806014285716,
+            "p75": 4745.6068,
+            "p99": 5141.6476,
+            "p995": 5141.6476,
+            "p999": 5141.6476,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "reaction-trigger",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 50,
+            "min": 1148.0859,
+            "max": 2016.2293,
+            "avg": 1253.4716940000005,
+            "p75": 1364.9968,
+            "p99": 2016.2293,
+            "p995": 2016.2293,
+            "p999": 2016.2293,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "multiple-reactions-10",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 32559,
+            "min": 13568.0,
+            "max": 1888830.0,
+            "avg": 15362.0,
+            "p75": 14723.0,
+            "p99": 21073.0,
+            "p995": 22072.0,
+            "p999": 27029.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "multiple-reactions-10",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 19,
+            "min": 5874.5726,
+            "max": 6113.8952,
+            "avg": 6049.233968421053,
+            "p75": 6091.7614,
+            "p99": 6113.8952,
+            "p995": 6113.8952,
+            "p999": 6113.8952,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "dep-graph-wide-1-to-50",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 7108,
+            "min": 63740.0,
+            "max": 1764922.0,
+            "avg": 70440.0,
+            "p75": 66867.0,
+            "p99": 140838.0,
+            "p995": 145045.0,
+            "p999": 1552277.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "dep-graph-wide-1-to-50",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 18933,
+            "min": 23107.0,
+            "max": 1759360.0,
+            "avg": 26459.0,
+            "p75": 25345.0,
+            "p99": 32428.0,
+            "p995": 33696.0,
+            "p999": 45063.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "rapid-box-100-writes",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 20,
+            "min": 5283.1083,
+            "max": 5494.3531,
+            "avg": 5340.331665000001,
+            "p75": 5339.3468,
+            "p99": 5494.3531,
+            "p995": 5494.3531,
+            "p999": 5494.3531,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "rapid-box-100-writes",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 95,
+            "min": 545.1602,
+            "max": 749.1775,
+            "avg": 594.7302431578947,
+            "p75": 601.9595,
+            "p99": 749.1775,
+            "p995": 749.1775,
+            "p999": 749.1775,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "rapid-box-with-reaction-100",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 10256,
+            "min": 46160.0,
+            "max": 1401624.0,
+            "avg": 48801.0,
+            "p75": 48044.0,
+            "p99": 58523.0,
+            "p995": 63769.0,
+            "p999": 88608.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "rapid-box-with-reaction-100",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 19341,
+            "min": 23975.0,
+            "max": 882929.0,
+            "avg": 25866.0,
+            "p75": 25002.0,
+            "p99": 40017.0,
+            "p995": 56231.0,
+            "p999": 61679.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "action-simple",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 47,
+            "min": 1333.9713,
+            "max": 1527.6578,
+            "avg": 1383.0278085106381,
+            "p75": 1380.9717,
+            "p99": 1527.6578,
+            "p995": 1527.6578,
+            "p999": 1527.6578,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "action-simple",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 501,
+            "min": 85.433,
+            "max": 225.9455,
+            "avg": 101.6694646706587,
+            "p75": 94.8663,
+            "p99": 214.5974,
+            "p995": 221.9169,
+            "p999": 225.9455,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "action-batching-reactions",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 27,
+            "min": 2826.6972,
+            "max": 3449.1245,
+            "avg": 3022.6676777777775,
+            "p75": 3112.2991,
+            "p99": 3449.1245,
+            "p995": 3449.1245,
+            "p999": 3449.1245,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/minimal_comparison.bench.ts",
+      "group": "action-batching-reactions",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 90,
+            "min": 572.0686,
+            "max": 810.7582,
+            "avg": 627.661581111111,
+            "p75": 609.1853,
+            "p99": 810.7582,
+            "p995": 810.7582,
+            "p999": 810.7582,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "todo-list-app",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 10709,
+            "min": 40037.0,
+            "max": 506982.0,
+            "avg": 46732.0,
+            "p75": 44933.0,
+            "p99": 113607.0,
+            "p995": 229138.0,
+            "p999": 357109.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "todo-list-app",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 12965,
+            "min": 25687.0,
+            "max": 8808278.0,
+            "avg": 38587.0,
+            "p75": 38148.0,
+            "p99": 68866.0,
+            "p995": 81581.0,
+            "p999": 2087905.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "form-validation",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 38407,
+            "min": 10966.0,
+            "max": 6100198.0,
+            "avg": 13022.0,
+            "p75": 12037.0,
+            "p99": 25781.0,
+            "p995": 27781.0,
+            "p999": 49027.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "form-validation",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 78393,
+            "min": 5239.0,
+            "max": 1792650.0,
+            "avg": 6379.0,
+            "p75": 6040.0,
+            "p99": 12306.0,
+            "p995": 13201.0,
+            "p999": 17518.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "data-table-50-rows",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 879,
+            "min": 487780.0,
+            "max": 2639687.0,
+            "avg": 574980.0,
+            "p75": 545123.0,
+            "p99": 1334028.0,
+            "p995": 1398064.0,
+            "p999": 2639687.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "data-table-50-rows",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1234,
+            "min": 329883.0,
+            "max": 8170842.0,
+            "avg": 407961.0,
+            "p75": 353763.0,
+            "p99": 696280.0,
+            "p995": 7534994.0,
+            "p999": 7969772.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-4-node",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 50924,
+            "min": 8765.0,
+            "max": 4839572.0,
+            "avg": 9821.0,
+            "p75": 9478.0,
+            "p99": 14065.0,
+            "p995": 16073.0,
+            "p999": 19192.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-4-node",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 21,
+            "min": 4403.8857,
+            "max": 7814.2175,
+            "avg": 5125.8253904761905,
+            "p75": 4837.677,
+            "p99": 7814.2175,
+            "p995": 7814.2175,
+            "p999": 7814.2175,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-wide-10",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 22131,
+            "min": 19710.0,
+            "max": 1804263.0,
+            "avg": 22603.0,
+            "p75": 21004.0,
+            "p99": 41082.0,
+            "p995": 41708.0,
+            "p999": 60136.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-wide-10",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 40329,
+            "min": 10650.0,
+            "max": 1871417.0,
+            "avg": 12402.0,
+            "p75": 11567.0,
+            "p99": 23522.0,
+            "p995": 25210.0,
+            "p999": 37554.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-deep-4-levels",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 21153,
+            "min": 21736.0,
+            "max": 1954905.0,
+            "avg": 23649.0,
+            "p75": 22913.0,
+            "p99": 34024.0,
+            "p995": 38438.0,
+            "p999": 48015.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "diamond-deep-4-levels",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 40176,
+            "min": 10931.0,
+            "max": 1945527.0,
+            "avg": 12449.0,
+            "p75": 12030.0,
+            "p99": 19212.0,
+            "p995": 20340.0,
+            "p999": 25055.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "dynamic-deps-switch",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 18,
+            "min": 6186.6202,
+            "max": 6459.226,
+            "avg": 6373.101622222222,
+            "p75": 6426.8592,
+            "p99": 6459.226,
+            "p995": 6459.226,
+            "p999": 6459.226,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "dynamic-deps-switch",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 31,
+            "min": 2194.936,
+            "max": 3127.4485,
+            "avg": 2374.472674193549,
+            "p75": 2428.5061,
+            "p99": 3127.4485,
+            "p995": 3127.4485,
+            "p999": 3127.4485,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "10-components-lifecycle",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 9933,
+            "min": 44710.0,
+            "max": 2050556.0,
+            "avg": 50392.0,
+            "p75": 48698.0,
+            "p99": 65165.0,
+            "p995": 67193.0,
+            "p999": 147132.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "10-components-lifecycle",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 24692,
+            "min": 17361.0,
+            "max": 2120070.0,
+            "avg": 20258.0,
+            "p75": 19237.0,
+            "p99": 26787.0,
+            "p995": 28840.0,
+            "p999": 43320.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "array-reaction-filter-sort",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 18929,
+            "min": 21802.0,
+            "max": 3469451.0,
+            "avg": 26428.0,
+            "p75": 25279.0,
+            "p99": 47267.0,
+            "p995": 50531.0,
+            "p999": 87855.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "array-reaction-filter-sort",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 59506,
+            "min": 7063.0,
+            "max": 2265311.0,
+            "avg": 8404.0,
+            "p75": 7843.0,
+            "p99": 16890.0,
+            "p995": 17526.0,
+            "p999": 23474.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "map-computed-aggregation",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 12394,
+            "min": 35937.0,
+            "max": 2029136.0,
+            "avg": 40374.0,
+            "p75": 38703.0,
+            "p99": 74381.0,
+            "p995": 77733.0,
+            "p999": 136977.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "map-computed-aggregation",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 49201,
+            "min": 8933.0,
+            "max": 3373723.0,
+            "avg": 10201.0,
+            "p75": 9704.0,
+            "p99": 15683.0,
+            "p995": 17022.0,
+            "p999": 26040.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "set-membership-reaction",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 59505,
+            "min": 7276.0,
+            "max": 2536404.0,
+            "avg": 8405.0,
+            "p75": 7992.0,
+            "p99": 14798.0,
+            "p995": 15664.0,
+            "p999": 22220.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "set-membership-reaction",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 20,
+            "min": 5149.1576,
+            "max": 5584.2764,
+            "avg": 5289.8035199999995,
+            "p75": 5323.7432,
+            "p99": 5584.2764,
+            "p995": 5584.2764,
+            "p999": 5584.2764,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "large-graph-100-50-10",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 5117,
+            "min": 88547.0,
+            "max": 1763814.0,
+            "avg": 97902.0,
+            "p75": 93069.0,
+            "p99": 185311.0,
+            "p995": 191568.0,
+            "p999": 1480558.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "large-graph-100-50-10",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 12320,
+            "min": 35303.0,
+            "max": 1534438.0,
+            "avg": 40619.0,
+            "p75": 38784.0,
+            "p99": 62949.0,
+            "p995": 68880.0,
+            "p999": 1271354.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "minimal-lifecycle",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 26,
+            "min": 3063.7196,
+            "max": 3521.9746,
+            "avg": 3261.4874846153843,
+            "p75": 3312.9733,
+            "p99": 3521.9746,
+            "p995": 3521.9746,
+            "p999": 3521.9746,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "minimal-lifecycle",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 55,
+            "min": 988.2348,
+            "max": 1779.0877,
+            "avg": 1112.3031254545451,
+            "p75": 1209.4765,
+            "p99": 1779.0877,
+            "p995": 1779.0877,
+            "p999": 1779.0877,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "object-store-pattern",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 20268,
+            "min": 21619.0,
+            "max": 6732883.0,
+            "avg": 24681.0,
+            "p75": 22874.0,
+            "p99": 42243.0,
+            "p995": 44855.0,
+            "p999": 63193.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "object-store-pattern",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 30231,
+            "min": 11436.0,
+            "max": 11572249.0,
+            "avg": 16544.0,
+            "p75": 13044.0,
+            "p99": 25056.0,
+            "p995": 26134.0,
+            "p999": 44621.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "cascading-collections",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 8962,
+            "min": 51951.0,
+            "max": 6530036.0,
+            "avg": 55854.0,
+            "p75": 54252.0,
+            "p99": 74468.0,
+            "p995": 102553.0,
+            "p999": 131099.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "cascading-collections",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 13371,
+            "min": 29153.0,
+            "max": 7629700.0,
+            "avg": 37418.0,
+            "p75": 32281.0,
+            "p99": 66272.0,
+            "p995": 72045.0,
+            "p999": 112473.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "steady-state-single-write",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 41,
+            "min": 1592.3498,
+            "max": 1935.6623,
+            "avg": 1629.7659439024392,
+            "p75": 1645.9114,
+            "p99": 1935.6623,
+            "p995": 1935.6623,
+            "p999": 1935.6623,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "steady-state-single-write",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 83,
+            "min": 670.991,
+            "max": 1089.3872,
+            "avg": 690.8991228915663,
+            "p75": 685.7457,
+            "p99": 1089.3872,
+            "p995": 1089.3872,
+            "p999": 1089.3872,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "steady-state-batch-3-writes",
+      "name": "mobx",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 34,
+            "min": 1948.2684,
+            "max": 2697.1805,
+            "avg": 2099.1962823529407,
+            "p75": 2139.532,
+            "p99": 2697.1805,
+            "p995": 2697.1805,
+            "p999": 2697.1805,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///fobx/core/__tests__/bench/realworld.bench.ts",
+      "group": "steady-state-batch-3-writes",
+      "name": "fobx",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 75,
+            "min": 751.2402,
+            "max": 836.8136,
+            "avg": 770.1639506666668,
+            "p75": 771.4778,
+            "p99": 836.8136,
+            "p995": 836.8136,
+            "p999": 836.8136,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -78,7 +78,8 @@ class Counter {
 > **Note:** `observable()` auto-infers annotations. `makeObservable()` requires
 > an explicit annotations map — it does not auto-infer.
 
-→ [observable / makeObservable API](/core/api/observable/)
+→ [observable API](/core/api/observable/) ·
+[makeObservable API](/core/api/make-observable/)
 
 ---
 
@@ -189,7 +190,8 @@ const reset = fobx.transaction(() => {
 reset() // each call is automatically batched
 ```
 
-→ [Transactions API](/core/api/transactions/)
+→ [runInTransaction API](/core/api/run-in-transaction/) ·
+[transaction API](/core/api/transaction/)
 
 ---
 
@@ -261,7 +263,9 @@ fobx.isTransaction(fn) // true/false
 ```
 
 → [configure](/core/api/configure/) ·
-[Type predicates](/core/api/type-predicates/)
+[isObservable](/core/api/is-observable/) ·
+[isComputed](/core/api/is-computed/) ·
+[isTransaction](/core/api/is-transaction/)
 
 ---
 
@@ -279,4 +283,5 @@ fobx.isTransaction(fn) // true/false
 | `"flow.bound"`         | Generator method | Same + `this` is bound                                     |
 | `"none"`               | Any              | Excluded from reactivity                                   |
 
-→ [Full annotation reference](/core/api/observable/)
+→ [observable annotations](/core/api/observable/) ·
+[makeObservable annotations](/core/api/make-observable/)

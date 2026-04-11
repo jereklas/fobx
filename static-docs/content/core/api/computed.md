@@ -2,13 +2,20 @@
 title: computed
 description: Derive a cached value from other observables that updates automatically.
 navTitle: computed
-navSection: ["@fobx/core", "API"]
-navOrder: 2
+navSection: ["@fobx/core", "API", "Observables"]
+navOrder: 1
+navSectionOrders: [1, 5, 1]
+navSectionCollapsible: false
 ---
 
-`computed` creates a derived value that is automatically recalculated when its
-dependencies change. When observed, the result is cached and only recomputed
-when needed.
+`computed` creates a derived observable value that is automatically recalculated
+when its dependencies change. When observed, the result is cached and only
+recomputed when needed.
+
+> **Note:** `computed` belongs under Observables because it produces an
+> observable value you can read with `get()`. It is also a tracked reactive
+> computation: its derivation function re-runs when the observables it depends
+> on change.
 
 ## Signature
 

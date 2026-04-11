@@ -12,7 +12,6 @@ import {
   hasObservers,
   KIND_COMPUTED,
   NOT_CACHED,
-  NOTIFY_CHANGED,
   type ObservableAdmin,
   POSSIBLY_STALE,
   STALE,
@@ -20,18 +19,14 @@ import {
 } from "../state/global.ts"
 import { $instance, resolveComparer } from "../state/instance.ts"
 import {
-  cleanupGraph,
-  getOldDeps,
-  getPrevTracking,
   removeFromAllDeps,
-  startTracking,
-  stopTracking,
+  runWithTrackingAdmin,
   trackAccess,
 } from "../reactions/tracking.ts"
 import { endBatch, safeRunReaction, startBatch } from "../transactions/batch.ts"
 import {
   isNotProduction,
-  notifyObservers,
+  notifyObserversChanged,
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
 import { debug } from "../utils/debug.ts"
@@ -176,18 +171,11 @@ function _runComputed(this: ComputedAdmin): void {
   const admin = this
   const oldValue = admin.value
 
-  startTracking(admin)
-  const oldDeps = getOldDeps()
-  const prevTracking = getPrevTracking()
   try {
-    admin.value = admin._fn()
-    admin.state = UP_TO_DATE
+    runWithTrackingAdmin(admin, _evaluateComputed)
   } catch (error) {
     admin.state = UP_TO_DATE
     throw error
-  } finally {
-    stopTracking(prevTracking)
-    cleanupGraph(admin, oldDeps)
   }
 
   if (isNotProduction && $instance.warnOnDependentlessComputeds) {
@@ -196,6 +184,11 @@ function _runComputed(this: ComputedAdmin): void {
 
   // Notify observers if value changed (skip on first computation)
   if (oldValue !== NOT_CACHED && !admin.comparer(oldValue, admin.value)) {
-    notifyObservers(admin, NOTIFY_CHANGED)
+    notifyObserversChanged(admin)
   }
+}
+
+function _evaluateComputed(admin: ComputedAdmin): void {
+  admin.value = admin._fn()
+  admin.state = UP_TO_DATE
 }

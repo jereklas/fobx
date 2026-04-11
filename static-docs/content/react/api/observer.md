@@ -4,6 +4,7 @@ description: Higher-order component that makes a React function component reacti
 navTitle: observer
 navSection: ["@fobx/react", "API"]
 navOrder: 1
+navSectionOrder: 3
 ---
 
 `observer` is a higher-order component (HOC) that wraps a React function

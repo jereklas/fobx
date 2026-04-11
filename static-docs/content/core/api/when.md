@@ -2,8 +2,10 @@
 title: when
 description: Wait for a reactive condition, then run once or resolve a promise.
 navTitle: when
-navSection: ["@fobx/core", "API"]
-navOrder: 5
+navSection: ["@fobx/core", "API", "Reactions"]
+navOrder: 1
+navSectionOrders: [1, 5, 2]
+navSectionCollapsible: false
 ---
 
 `when` observes a predicate and fires once when it becomes `true`, then disposes

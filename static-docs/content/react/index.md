@@ -5,6 +5,7 @@ navTitle: Introduction
 navSection: ["@fobx/react"]
 navOrder: 0
 navSectionOrder: 7
+navSectionExpanded: true
 ---
 
 `@fobx/react` connects FobX's reactive system to React. It provides tools to

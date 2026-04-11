@@ -209,13 +209,12 @@ interface SchedulerState {
   /** Monotonically increasing ID counter */
   nextId: number
   /**
-   * Monotonically increasing write epoch — incremented on every observable
-   * value change (any call to notifyChanged). Used by the React adapter to
-   * distinguish a true "something changed while suspended" case from a
-   * StrictMode cleanup/resubscribe cycle where nothing was actually written.
-   * Fallback: older copies of fobx that don't bump this field leave it at 0;
-   * the reactV2 integration then conservatively treats epoch=0 as "may have
-   * changed" and falls back to always bumping stateVersion.
+   * Reserved cross-bundle compatibility slot.
+   *
+   * This was introduced for a planned suspended-write heuristic, but the
+   * checked-in runtime does not currently read or update it. Keep the field so
+   * older built copies that expect this scheduler shape can still share the
+   * same global scheduler object without a breaking protocol change.
    */
   writeEpoch: number
 }
@@ -258,21 +257,6 @@ export function decBatch(): void {
 }
 export function pushPending(r: ReactionAdmin): void {
   $scheduler.pending.push(r)
-}
-/** Swap pending queue for a fresh one, returning the old batch. */
-export function swapPending(): ReactionAdmin[] {
-  const old = $scheduler.pending
-  $scheduler.pending = []
-  return old
-}
-export function clearPending(): void {
-  $scheduler.pending.length = 0
-}
-/** Drain extra items from pending into target array, then clear pending. */
-export function drainPendingInto(target: ReactionAdmin[]): void {
-  const p = $scheduler.pending
-  for (let i = 0; i < p.length; i++) target.push(p[i])
-  p.length = 0
 }
 export function setActionThrew(v: boolean): void {
   $scheduler.actionThrew = v

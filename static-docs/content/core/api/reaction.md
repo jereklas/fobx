@@ -2,8 +2,10 @@
 title: reaction
 description: Watch a specific expression and run an effect when its value changes.
 navTitle: reaction
-navSection: ["@fobx/core", "API"]
-navOrder: 4
+navSection: ["@fobx/core", "API", "Reactions"]
+navOrder: 1
+navSectionOrders: [1, 5, 2]
+navSectionCollapsible: false
 ---
 
 `reaction` is a two-phase reaction: a **tracked expression** that produces a

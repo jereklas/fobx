@@ -10,13 +10,12 @@ import {
   getNextId,
   KIND_AUTORUN,
   type ObservableAdmin,
-  pushPending,
   type ReactionAdmin,
   STALE,
   UP_TO_DATE,
 } from "../state/global.ts"
 import { removeFromAllDeps, runWithTrackingAdmin } from "./tracking.ts"
-import { safeRunReaction } from "../transactions/batch.ts"
+import { scheduleReaction } from "../transactions/transaction.ts"
 import { isTransaction } from "../utils/utils.ts"
 
 interface AutorunAdmin extends ReactionAdmin {
@@ -73,11 +72,7 @@ export function autorun(
     run: _runAutorun,
   }
 
-  if ($scheduler.batchDepth > 0) {
-    pushPending(admin)
-  } else {
-    safeRunReaction(admin)
-  }
+  scheduleReaction(admin)
 
   return dispose
 }

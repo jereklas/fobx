@@ -9,6 +9,8 @@ import {
   $scheduler,
   type ComputedAdmin,
   hasObservers as _hasObservers,
+  isTrackingReactiveRun,
+  isTransactionActive,
   KIND_BOX,
   KIND_COLLECTION,
   KIND_COMPUTED,
@@ -24,7 +26,7 @@ import {
 import { debug } from "../utils/debug.ts"
 import { $instance } from "./instance.ts"
 
-// Forward declaration — set by batch.ts to break circular dep
+// Forward declaration — set by transaction.ts to break circular dep
 let _runPendingReactions: () => void = () => {}
 
 export function setRunPendingReactions(fn: () => void): void {
@@ -133,7 +135,10 @@ export function notifyObserversChanged(observable: ObservableAdmin): void {
 export function notifyChanged(admin: ObservableAdmin): void {
   notifyObserversChanged(admin)
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).
-  if ($scheduler.batchDepth === 0 && $scheduler.pending.length > 0) {
+  if (
+    !isTransactionActive() && !isTrackingReactiveRun() &&
+    $scheduler.pending.length > 0
+  ) {
     _runPendingReactions()
   }
 }
@@ -144,7 +149,7 @@ export function warnIfObservedWriteOutsideTransaction(
 ): void {
   if (
     $instance.enforceTransactions &&
-    $scheduler.batchDepth === 0 &&
+    !isTransactionActive() &&
     _hasObservers(admin)
   ) {
     debug.warn(

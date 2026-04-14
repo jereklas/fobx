@@ -10,6 +10,7 @@ import {
   type EqualityComparison,
   getNextId,
   hasObservers,
+  isTransactionActive,
   KIND_COMPUTED,
   NOT_CACHED,
   type ObservableAdmin,
@@ -23,7 +24,11 @@ import {
   runWithTrackingAdmin,
   trackAccess,
 } from "../reactions/tracking.ts"
-import { endBatch, safeRunReaction, startBatch } from "../transactions/batch.ts"
+import {
+  endBatch,
+  safeRunReaction,
+  startBatch,
+} from "../transactions/transaction.ts"
 import {
   isNotProduction,
   notifyObserversChanged,
@@ -107,7 +112,7 @@ function getComputedValue<T>(
 ): T {
   const isTrackingRead = $scheduler.tracking !== null
   const observed = hasObservers(admin) || isTrackingRead
-  const isInBatch = $scheduler.batchDepth > 0
+  const isInBatch = isTransactionActive()
 
   // SUSPENDED: Pure function mode — compute without tracking
   if (!observed && !isInBatch) {

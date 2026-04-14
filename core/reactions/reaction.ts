@@ -4,7 +4,6 @@
 
 import {
   $fobx,
-  $scheduler,
   addObserver,
   type Any,
   defaultComparer,
@@ -14,7 +13,6 @@ import {
   getNextId,
   KIND_COLLECTION,
   KIND_REACTION,
-  pushPending,
   type ReactionAdmin,
   STALE,
   UP_TO_DATE,
@@ -25,7 +23,7 @@ import {
   removeFromAllDeps,
   runWithTrackingAdmin,
 } from "./tracking.ts"
-import { safeRunReaction } from "../transactions/batch.ts"
+import { scheduleReaction } from "../transactions/transaction.ts"
 import { hasFobxAdmin } from "../utils/utils.ts"
 
 export const UNDEFINED = Symbol.for("fobx-undefined")
@@ -161,11 +159,7 @@ export function reaction<T>(
     run: _runReaction,
   }
 
-  if ($scheduler.batchDepth > 0) {
-    pushPending(admin)
-  } else {
-    safeRunReaction(admin)
-  }
+  scheduleReaction(admin)
 
   return dispose
 }

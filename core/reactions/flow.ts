@@ -1,5 +1,5 @@
 import { $fobx, type Any } from "../state/global.ts"
-import { runInTransaction } from "../transactions/batch.ts"
+import { runInTransaction } from "../transactions/transaction.ts"
 
 export type FlowOptions = {
   name?: string

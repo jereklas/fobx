@@ -13,7 +13,7 @@
 
 import {
   getNextId,
-  KIND_REACTION,
+  KIND_TRACKER,
   type ReactionAdmin,
   UP_TO_DATE,
 } from "../state/global.ts"
@@ -35,7 +35,7 @@ export function createTracker(
 
   const id = getNextId()
   const admin: ReactionAdmin = {
-    kind: KIND_REACTION,
+    kind: KIND_TRACKER,
     id,
     name: name || `Tracker@${id}`,
     state: UP_TO_DATE,

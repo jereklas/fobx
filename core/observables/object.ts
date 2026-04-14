@@ -9,7 +9,11 @@ import {
 import { resolveComparer } from "../state/instance.ts"
 import { type ObservableBox, observableBox } from "./observableBox.ts"
 import { type Computed, computed } from "./computed.ts"
-import { endBatch, startBatch, transaction } from "../transactions/batch.ts"
+import {
+  endBatch,
+  startBatch,
+  transaction,
+} from "../transactions/transaction.ts"
 import { flow } from "../reactions/flow.ts"
 import { runWithoutTracking } from "../reactions/tracking.ts"
 import {

@@ -1,8 +1,5 @@
 /**
- * Batch processing and graph resolution — the scheduler.
- *
- * The scheduling cycle:
- *   startBatch() → mutations → endBatch() → runPendingReactions() → safeRunReaction()
+ * Transaction processing and graph resolution.
  */
 
 import {
@@ -11,8 +8,11 @@ import {
   type Any,
   decBatch,
   incBatch,
+  isTrackingReactiveRun,
+  isTransactionActive,
   KIND_COMPUTED,
   POSSIBLY_STALE,
+  pushPending,
   type ReactionAdmin,
   setActionThrew,
   STALE,
@@ -47,12 +47,12 @@ function clearPendingReactions(): void {
 }
 
 function drainPendingReactionsIfIdle(): void {
-  if ($scheduler.batchDepth === 0) {
+  if (!isTransactionActive() && !isTrackingReactiveRun()) {
     runPendingReactions()
   }
 }
 
-function runBatched<T>(fn: () => T): T {
+function runTransactionScope<T>(fn: () => T): T {
   incBatch()
   try {
     return runWithoutTracking(fn)
@@ -66,7 +66,7 @@ function runBatched<T>(fn: () => T): T {
   }
 }
 
-function applyBatched<TThis, TArgs extends Any[], TResult>(
+function applyTransactionScope<TThis, TArgs extends Any[], TResult>(
   fn: (this: TThis, ...args: TArgs) => TResult,
   thisArg: TThis,
   args: TArgs,
@@ -84,8 +84,6 @@ function applyBatched<TThis, TArgs extends Any[], TResult>(
   }
 }
 
-// ─── Batch API ───────────────────────────────────────────────────────────────
-
 export function startBatch(): void {
   incBatch()
 }
@@ -95,14 +93,15 @@ export function endBatch(): void {
   drainPendingReactionsIfIdle()
 }
 
-// ─── Graph Resolution ────────────────────────────────────────────────────────
+export function scheduleReaction(reaction: ReactionAdmin): void {
+  if (isTransactionActive()) {
+    pushPending(reaction)
+  } else {
+    safeRunReaction(reaction)
+  }
+}
 
-/**
- * Safely run a reaction's computation, catching and logging errors.
- * Wraps execution in batch context to ensure nested mutations are batched.
- */
 export function safeRunReaction(reaction: ReactionAdmin): void {
-  incBatch()
   try {
     reaction.run()
   } catch (error) {
@@ -120,17 +119,11 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
       $instance.onReactionError?.(error, reaction)
     }
   } finally {
-    decBatch()
     drainPendingReactionsIfIdle()
   }
 }
 
-/**
- * Resolve the dependency graph by running all pending reactions.
- * Called when batchDepth reaches 0.
- */
 function runPendingReactions(): void {
-  // Early bail when nothing is pending.
   if ($scheduler.pending.length === 0) return
 
   let currentBatch = takePendingBatch()
@@ -141,9 +134,7 @@ function runPendingReactions(): void {
     iterations++
     if (iterations > 100) {
       console.error(
-        "[@fobx/core] Reaction doesn't converge to a stable state after 100 iterations. " +
-          "Likely cycle in reactive graph or reaction mutating state causing infinite loop. " +
-          "Abandoning remaining reactions to prevent app crash.",
+        "[@fobx/core] Reaction doesn't converge to a stable state after 100 iterations. Likely cycle in reactive graph or reaction mutating state causing infinite loop. Abandoning remaining reactions to prevent app crash.",
       )
       break
     }
@@ -159,19 +150,14 @@ function runPendingReactions(): void {
         safeRunReaction(reaction)
         resolved = true
       } else if (reaction.state === POSSIBLY_STALE) {
-        // Check if all deps are up to date
         let allDepsUpToDate = true
         const deps = reaction.deps
         const depsLength = deps.length
         for (let j = 0; j < depsLength; j++) {
           const dep = deps[j]
-          // Pure observables (box, collection) don't have state — skip
           if (dep.kind === KIND_COMPUTED) {
-            const depState = (dep as unknown as ReactionAdmin).state
-            if (
-              depState === STALE ||
-              depState === POSSIBLY_STALE
-            ) {
+            const depState = dep as unknown as ReactionAdmin
+            if (depState.state === STALE || depState.state === POSSIBLY_STALE) {
               allDepsUpToDate = false
               break
             }
@@ -188,9 +174,7 @@ function runPendingReactions(): void {
       }
     }
 
-    // Check if reactions mutated state and pushed more into pending
     appendPendingReactions(unresolved)
-
     currentBatch = unresolved
     unresolved = []
   }
@@ -198,10 +182,7 @@ function runPendingReactions(): void {
   clearPendingReactions()
 }
 
-// Wire up the notification module's forward reference
 setRunPendingReactions(runPendingReactions)
-
-// ─── Transaction API ─────────────────────────────────────────────────────────
 
 export interface TransactionOptions {
   name?: string
@@ -214,7 +195,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
   const name = options?.name || fn.name || "<unnamed transaction>"
 
   const wrapper = function (this: unknown, ...args: Any[]) {
-    return applyBatched(fn, this, args)
+    return applyTransactionScope(fn, this, args)
   }
 
   Object.defineProperty(wrapper, "name", { value: name, configurable: true })
@@ -229,7 +210,7 @@ export function transaction<T extends (...args: Any[]) => Any>(
 }
 
 export function runInTransaction<T>(fn: () => T): T {
-  return runBatched(fn)
+  return runTransactionScope(fn)
 }
 
 export function transactionBound<T, F extends (this: T, ...args: Any[]) => Any>(

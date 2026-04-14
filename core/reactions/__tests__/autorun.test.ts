@@ -254,6 +254,63 @@ test("autoruns created in autoruns should kick off", function () {
   expect(x2).toEqual([6, 8])
 })
 
+test("nested autorun setup preserves immediate execution order", () => {
+  const values: number[] = []
+  let innerDispose: (() => void) | undefined
+
+  const outerDispose = fobx.autorun(() => {
+    innerDispose = fobx.autorun(() => {
+      values.push(1)
+    })
+    values.push(2)
+  })
+
+  expect(values).toEqual([1, 2])
+
+  outerDispose()
+  innerDispose?.()
+})
+
+test("observed writes inside autorun still warn outside transaction", () => {
+  fobx.configure({ enforceTransactions: true })
+
+  const a = fobx.observableBox(0)
+  const b = fobx.observableBox(0)
+  const warnings: string[] = []
+  const originalWarn = console.warn
+
+  const disposeA = fobx.autorun(() => {
+    a.get()
+  })
+  const disposeB = fobx.autorun(() => {
+    b.get()
+  })
+  const disposeMutator = fobx.autorun(() => {
+    if (a.get() === 1) {
+      b.set(1)
+    }
+  })
+
+  try {
+    console.warn = (message?: unknown) => {
+      warnings.push(String(message))
+    }
+
+    a.set(1)
+
+    expect(b.get()).toBe(1)
+    expect(warnings).toHaveLength(2)
+    expect(warnings[0]).toMatch(/outside of a transaction/)
+    expect(warnings[1]).toMatch(/outside of a transaction/)
+  } finally {
+    console.warn = originalWarn
+    disposeA()
+    disposeB()
+    disposeMutator()
+    fobx.configure({ enforceTransactions: false })
+  }
+})
+
 test("prematurely end autorun", function () {
   const x = fobx.observableBox(2)
   let dis1: (() => void) | undefined

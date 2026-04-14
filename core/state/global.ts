@@ -11,6 +11,7 @@ export const KIND_AUTORUN = 2
 export const KIND_REACTION = 3
 export const KIND_WHEN = 4
 export const KIND_COLLECTION = 5 // keysAdmin / collectionAdmin on maps/sets/arrays
+export const KIND_TRACKER = 6
 
 // ─── Reaction State ──────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ export interface ObservableAdmin<T = unknown> {
   _epoch: number
   /** Last reaction that tracked this admin in the current dedup fast-path. */
   _tracker?: ReactionAdmin
-  /** Optional: called when losing an observer (enables computed suspension) */
+  /** Optional: called when losing an observer (enables computed suspension). */
   onLoseObserver?: (admin: ObservableAdmin) => void
   /** Collection mutation counter (used by array/map/set admins) */
   changes?: number
@@ -192,7 +193,7 @@ const $fobxScheduler = Symbol.for("fobx-scheduler")
 interface SchedulerState {
   /** Currently-tracking reaction (set during reaction execution) */
   tracking: ReactionAdmin | null
-  /** Batch nesting depth. Reactions only run when this reaches 0. */
+  /** Explicit batch nesting depth*/
   batchDepth: number
   /** Reactions queued for execution at end of batch */
   pending: ReactionAdmin[]
@@ -254,6 +255,13 @@ export function incBatch(): void {
 }
 export function decBatch(): void {
   $scheduler.batchDepth--
+}
+export function isTransactionActive(): boolean {
+  return $scheduler.batchDepth > 0
+}
+export function isTrackingReactiveRun(): boolean {
+  const tracking = $scheduler.tracking
+  return tracking !== null && tracking.kind !== KIND_TRACKER
 }
 export function pushPending(r: ReactionAdmin): void {
   $scheduler.pending.push(r)

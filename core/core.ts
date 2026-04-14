@@ -14,7 +14,7 @@ export { reaction } from "./reactions/reaction.ts"
 export { when } from "./reactions/when.ts"
 export { createSelector } from "./reactions/selector.ts"
 
-export { runInTransaction, transaction } from "./transactions/batch.ts"
+export { runInTransaction, transaction } from "./transactions/transaction.ts"
 export { runWithoutTracking } from "./reactions/tracking.ts"
 
 export {
@@ -35,7 +35,6 @@ export {
 export { effect, subscribe } from "./reactions/autorun.ts"
 export { recycleReaction } from "./reactions/autorun.ts"
 export { createTracker } from "./reactions/tracker.ts"
-export { endBatch, startBatch } from "./transactions/batch.ts"
 export { $fobx, deleteObserver, setActiveScope } from "./state/global.ts"
 
 // Public types

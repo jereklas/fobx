@@ -93,7 +93,7 @@ export function createSelector<T>(
         comparer: defaultComparer,
         _epoch: 0,
         onLoseObserver: _cleanupKey as Any,
-      } // Stash the key on the admin so the cleanup function can find it
+      }
       ;(admin as Any)._key = key
       ;(admin as Any)._subs = subs
       subs.set(key, admin)

@@ -16,7 +16,7 @@ import {
   type ObservableAdmin,
 } from "../state/global.ts"
 import { resolveComparer } from "../state/instance.ts"
-import { endBatch, startBatch } from "../transactions/batch.ts"
+import { endBatch, startBatch } from "../transactions/transaction.ts"
 import {
   isNotProduction,
   notifyChanged,

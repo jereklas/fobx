@@ -12,7 +12,7 @@ import {
   KIND_COLLECTION,
   type ObservableAdmin,
 } from "../state/global.ts"
-import { endBatch, startBatch } from "../transactions/batch.ts"
+import { endBatch, startBatch } from "../transactions/transaction.ts"
 import {
   isNotProduction,
   notifyChanged,

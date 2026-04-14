@@ -3,11 +3,9 @@
  */
 
 import {
-  $scheduler,
   type Dispose,
   getNextId,
   KIND_WHEN,
-  pushPending,
   type ReactionAdmin,
   STALE,
   UP_TO_DATE,
@@ -17,7 +15,7 @@ import {
   runWithoutTracking,
   runWithTracking,
 } from "./tracking.ts"
-import { safeRunReaction } from "../transactions/batch.ts"
+import { scheduleReaction } from "../transactions/transaction.ts"
 
 const ERR_TIMEOUT = "When reaction timed out"
 const ERR_CANCEL = "When reaction was canceled"
@@ -156,11 +154,7 @@ function createWhen(
     options.signal.addEventListener("abort", abortHandler)
   }
 
-  if ($scheduler.batchDepth > 0) {
-    pushPending(admin)
-  } else {
-    safeRunReaction(admin)
-  }
+  scheduleReaction(admin)
 
   return dispose
 }

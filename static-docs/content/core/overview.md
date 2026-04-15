@@ -262,8 +262,7 @@ fobx.isComputed(obj, "getter") // true/false
 fobx.isTransaction(fn) // true/false
 ```
 
-→ [configure](/core/api/configure/) ·
-[isObservable](/core/api/is-observable/) ·
+→ [configure](/core/api/configure/) · [isObservable](/core/api/is-observable/) ·
 [isComputed](/core/api/is-computed/) ·
 [isTransaction](/core/api/is-transaction/)
 
@@ -285,3 +284,12 @@ fobx.isTransaction(fn) // true/false
 
 → [observable annotations](/core/api/observable/) ·
 [makeObservable annotations](/core/api/make-observable/)
+
+---
+
+## Practical next step
+
+Once the API surface makes sense, read
+[Patterns & Anti-Patterns](/core/best-practices/patterns-and-antipatterns/) for
+practical guidance on when to use observables, computeds, reactions, and
+transactions together.

@@ -7,6 +7,12 @@ navOrder: 0
 navSectionOrder: 6
 ---
 
+For broader day-to-day guidance on when to use computeds, reactions,
+transactions, and reference annotations, see
+[Patterns & Anti-Patterns](/core/best-practices/patterns-and-antipatterns/).
+
+---
+
 ## Prefer computed values over manual sync
 
 The most important pattern in FobX: put derived state in computeds, not in

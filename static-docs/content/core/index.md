@@ -114,6 +114,8 @@ stop() // clean up — reaction no longer runs
 
 - [Installation](/core/installation/) — add `@fobx/core` to your project
 - [Overview](/core/overview/) — a 5-minute tour of every feature
+- [Patterns & Anti-Patterns](/core/best-practices/patterns-and-antipatterns/) —
+  practical guidance on what to lean into and what to avoid
 - [How It Works](/core/how-it-works/) — deep dive on tracking, batching, and
   computed caching
 - [Performance](/core/performance/) — benchmark-based performance comparison

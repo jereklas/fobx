@@ -138,13 +138,13 @@ fobx.runInTransaction(() => { // outer batch
 
 ### The scheduling cycle
 
-Under the hood, the batch system works as follows:
+Under the hood, the transaction system works as follows:
 
-1. `startBatch()` increments a global batch depth counter.
-2. During the batch, mutations mark dependent reactions as STALE and push them
-   into a pending queue.
-3. `endBatch()` decrements the counter. When it reaches 0, the pending queue is
-   drained.
+1. `startTransaction()` increments a global transaction depth counter.
+2. During the transaction, mutations mark dependent reactions as STALE and push
+   them into a pending queue.
+3. `endTransaction()` decrements the counter. When it reaches 0, the pending
+   queue is drained.
 4. Pending reactions are resolved in iterations: STALE reactions run
    immediately; POSSIBLY_STALE reactions (downstream of computeds) wait for
    their upstream computeds to resolve first.

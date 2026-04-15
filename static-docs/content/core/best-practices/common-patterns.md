@@ -6,6 +6,11 @@ navSection: ["@fobx/core", "Best Practices"]
 navOrder: 2
 ---
 
+For the complementary guidance on what to avoid, see
+[Patterns & Anti-Patterns](/core/best-practices/patterns-and-antipatterns/).
+
+---
+
 ## Async data loading with `flow`
 
 ```ts

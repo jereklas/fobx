@@ -34,10 +34,28 @@ async function bundle(opts: {
 
   if (!bundle) {
     let content = await Deno.readTextFile(outfile)
-    const target = opts.noBundler ? `./core.production.${ext}` : `./core.${ext}`
-    content = content.replaceAll("./core.ts", target)
+    content = rewriteRuntimeImportExtensions(content, {
+      ext,
+      noBundler: Boolean(opts.noBundler),
+    })
     await Deno.writeTextFile(outfile, content)
   }
+}
+
+function rewriteRuntimeImportExtensions(
+  content: string,
+  options: { ext: "js" | "cjs"; noBundler: boolean },
+): string {
+  return content.replaceAll(
+    /(["'])(\.{1,2}\/[^"']+?)\.ts\1/g,
+    (_match, quote: string, specifier: string) => {
+      if (options.noBundler && specifier === "./core") {
+        return `${quote}./core.production.${options.ext}${quote}`
+      }
+
+      return `${quote}${specifier}.${options.ext}${quote}`
+    },
+  )
 }
 
 async function build() {

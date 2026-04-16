@@ -36,6 +36,7 @@ export { effect, subscribe } from "./reactions/autorun.ts"
 export { recycleReaction } from "./reactions/autorun.ts"
 export { createTracker } from "./reactions/tracker.ts"
 export { $fobx, deleteObserver, setActiveScope } from "./state/global.ts"
+export { endBatch, startBatch } from "./transactions/transaction.ts"
 
 // Public types
 export type { FlowOptions } from "./reactions/flow.ts"

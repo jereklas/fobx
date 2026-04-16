@@ -5,13 +5,13 @@ export {
   $fobx,
   createTracker,
   deleteObserver,
+  endBatch,
   effect,
   recycleReaction,
   setActiveScope,
+  startBatch,
   subscribe,
 } from "./core.ts"
-
-export { endBatch, startBatch } from "./transactions/transaction.ts"
 
 export type { Tracker } from "./core.ts"
 export type { Dispose, ObservableAdmin } from "./core.ts"

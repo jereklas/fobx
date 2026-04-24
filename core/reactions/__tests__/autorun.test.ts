@@ -317,27 +317,34 @@ test("prematurely end autorun", function () {
   let dis2: (() => void) | undefined
   let r1: unknown
   let r2: unknown
+  const seen: number[] = []
 
   fobx.runInTransaction(function () {
     dis1 = fobx.autorun(function (r) {
       r1 = r
-      x.get()
+      seen.push(x.get())
     })
     dis2 = fobx.autorun(function (r) {
       r2 = r
-      x.get()
+      seen.push(x.get())
     })
 
-    // neither autorun runs while inside the transaction
-    expect(r1).toBe(undefined)
-    expect(r2).toBe(undefined)
+    // autoruns created inside a transaction still start immediately
+    expect(r1).not.toBe(undefined)
+    expect(r2).not.toBe(undefined)
+    expect(seen).toEqual([2, 2])
 
     dis1!()
+    x.set(3)
+
+    // later invalidations are still batched until the transaction commits
+    expect(seen).toEqual([2, 2])
   })
-  // After transaction, dis2's autorun should have run and be active
+
+  // dis1 was disposed before commit, so only dis2 re-runs with the final value
+  expect(r1).not.toBe(undefined)
   expect(r2).not.toBe(undefined)
-  // dis1 was disposed so it shouldn't have run
-  expect(r1).toBe(undefined)
+  expect(seen).toEqual([2, 2, 3])
   dis2!()
 })
 

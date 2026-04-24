@@ -32,6 +32,20 @@ Supported fields in each markdown file:
 - `toc`: set to `false` to hide generated TOC
 - `draft`: set to `true` to exclude from output
 
+## Staged docs area
+
+Any docs placed under `content/_staged/` are ignored by the site generator.
+Use that directory for pages you want in git but not yet published.
+
+Recommended workflow:
+
+- keep public docs under `content/`
+- put not-yet-published docs under `content/_staged/`
+- move them into `content/` only when they should start generating routes
+
+If you need a different folder name, set `excludedSourceDirs` in the docs
+config.
+
 ## Usage
 
 ```sh

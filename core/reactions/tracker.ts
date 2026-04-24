@@ -18,6 +18,7 @@ import {
   UP_TO_DATE,
 } from "../state/global.ts"
 import { removeFromAllDeps, runWithTracking } from "./tracking.ts"
+import { markDebugDisposed, registerDebugNode } from "../state/debugGraph.ts"
 
 export interface Tracker {
   /** Run fn with dependency tracking. When tracked deps change later, onInvalidate fires. */
@@ -56,6 +57,15 @@ export function createTracker(
     },
   }
 
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(admin, {
+      admin,
+      kind: "tracker",
+      name: admin.name,
+    })
+  }
+
   return {
     track<T>(fn: () => T): T {
       isTracking = true
@@ -72,6 +82,10 @@ export function createTracker(
     dispose() {
       if (isDisposed) return
       isDisposed = true
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        markDebugDisposed(admin)
+      }
       removeFromAllDeps(admin)
     },
   }

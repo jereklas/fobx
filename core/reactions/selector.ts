@@ -28,6 +28,11 @@ import {
 } from "../state/global.ts"
 import { trackAccessKnownTracked } from "./tracking.ts"
 import { notifyObserversChanged } from "../state/notifications.ts"
+import {
+  attachDebugNodeMetadata,
+  markDebugDisposed,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 // deno-lint-ignore no-explicit-any
 type Any = any
@@ -97,6 +102,19 @@ export function createSelector<T>(
       ;(admin as Any)._key = key
       ;(admin as Any)._subs = subs
       subs.set(key, admin)
+
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        registerDebugNode(admin, {
+          admin,
+          kind: "selector-entry",
+          name: `selector(${String(key)})`,
+        })
+        attachDebugNodeMetadata(admin, {
+          parentTarget: isSelected,
+          propertyKey: String(key),
+        })
+      }
     }
 
     trackAccessKnownTracked(admin, tracking)
@@ -106,6 +124,13 @@ export function createSelector<T>(
   // Dispose function: tears down the autorun + clears all subscriptions
   isSelected.dispose = (): void => {
     disposeAutorun()
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      for (const admin of subs.values()) {
+        markDebugDisposed(admin)
+      }
+      markDebugDisposed(isSelected)
+    }
     subs.clear()
   }
 
@@ -129,8 +154,29 @@ export function createSelector<T>(
       ;(admin as Any)._key = key
       ;(admin as Any)._subs = subs
       subs.set(key, admin)
+
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        registerDebugNode(admin, {
+          admin,
+          kind: "selector-entry",
+          name: `selector(${String(key)})`,
+        })
+        attachDebugNodeMetadata(admin, {
+          parentTarget: isSelected,
+          propertyKey: String(key),
+        })
+      }
     }
     return admin
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(isSelected, {
+      kind: "selector",
+      name: "selector",
+    })
   }
 
   return isSelected
@@ -160,4 +206,8 @@ function _cleanupKey(admin: ObservableAdmin): void {
   const key = (admin as Any)._key
   const subs = (admin as Any)._subs as Map<Any, ObservableAdmin>
   subs.delete(key)
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    markDebugDisposed(admin)
+  }
 }

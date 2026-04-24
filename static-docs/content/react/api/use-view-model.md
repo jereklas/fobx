@@ -171,7 +171,8 @@ const FilterList = observer((props: FilterProps) => {
 3. On re-renders, `vm.update(props)` uses `Object.assign` to copy new values
    into the existing observable props — this fires reactions tracking those
    props.
-4. The update is wrapped in a batch, so all prop changes are atomic.
+4. The update is wrapped in a batch, so all prop changes are atomic while
+  render-time reads inside `update()` stay tracked by the surrounding render.
 
 ### Inherited annotations on `ViewModel`
 

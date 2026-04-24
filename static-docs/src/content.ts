@@ -9,6 +9,7 @@ const SUPPORTED_EXTENSIONS = new Set([".md", ".mdx"])
 export const loadDocuments = async (
   inputDir: string,
   includeMdx: boolean,
+  excludedSourceDirs: string[] = [],
 ): Promise<DocsDocument[]> => {
   const docs: DocsDocument[] = []
 
@@ -24,6 +25,10 @@ export const loadDocuments = async (
     }
 
     const sourcePath = relative(inputDir, entry.path).replaceAll("\\", "/")
+    if (isExcludedSourcePath(sourcePath, excludedSourceDirs)) {
+      continue
+    }
+
     const sourceText = await Deno.readTextFile(entry.path)
     const parsed = matter(sourceText)
     const routePath = sourceToRoute(sourcePath)
@@ -41,6 +46,24 @@ export const loadDocuments = async (
 
   docs.sort((left, right) => left.sourcePath.localeCompare(right.sourcePath))
   return docs
+}
+
+const isExcludedSourcePath = (
+  sourcePath: string,
+  excludedSourceDirs: string[],
+): boolean => {
+  if (excludedSourceDirs.length === 0) {
+    return false
+  }
+
+  const parts = sourcePath.split("/")
+  for (let index = 0; index < parts.length - 1; index++) {
+    if (excludedSourceDirs.includes(parts[index])) {
+      return true
+    }
+  }
+
+  return false
 }
 
 export const buildPages = (documents: DocsDocument[]): DocsPage[] => {

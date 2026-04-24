@@ -35,6 +35,11 @@ import {
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
 import { debug } from "../utils/debug.ts"
+import {
+  markDebugDisposed,
+  recordDebugWrite,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 export interface Computed<T> {
   get(): T
@@ -76,7 +81,7 @@ export function computed<T>(
     onLoseObserver: _suspendIfNeeded,
   }
 
-  return {
+  const value: Computed<T> = {
     [$fobx]: admin,
     get(): T {
       return getComputedValue(admin)
@@ -85,9 +90,25 @@ export function computed<T>(
       setComputedValue(admin, value, userSetter, bindContext)
     },
     dispose(): void {
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        markDebugDisposed(admin)
+      }
       removeFromAllDeps(admin)
     },
   }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(value, {
+      admin,
+      kind: "computed",
+      name: admin.name,
+      aliases: [admin],
+    })
+  }
+
+  return value
 }
 
 /** Shared onLoseObserver — receives admin from removeObserver. No per-instance closure. */
@@ -189,6 +210,15 @@ function _runComputed(this: ComputedAdmin): void {
 
   // Notify observers if value changed (skip on first computation)
   if (oldValue !== NOT_CACHED && !admin.comparer(oldValue, admin.value)) {
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugWrite(admin, {
+        changed: true,
+        operation: "computed:update",
+        value: admin.value,
+        previousValue: oldValue,
+      })
+    }
     notifyObserversChanged(admin)
   }
 }

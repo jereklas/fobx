@@ -24,6 +24,7 @@ import {
   rememberConvertedValue,
   withConversionContext,
 } from "./conversionContext.ts"
+import { recordDebugWrite, registerDebugNode } from "../state/debugGraph.ts"
 
 // Forward declaration — set after object.ts is loaded to break circular dep
 let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
@@ -435,13 +436,34 @@ export function observableArray<T>(
             arr.length = newValue
             admin.changes++
             notifyChanged(admin)
+          } else {
+            // deno-lint-ignore no-process-global
+            if (process.env.FOBX_DEBUG) {
+              recordDebugWrite(admin, {
+                changed: false,
+                operation: "array:length:no-op",
+                value: newValue,
+                previousValue: oldLength,
+              })
+            }
           }
           return true
         }
         if (typeof prop === "string" && isNumericIndex(prop)) {
           const index = prop as Any
           const oldValue = arr[index]
-          if (admin.comparer(oldValue, newValue)) return true
+          if (admin.comparer(oldValue, newValue)) {
+            // deno-lint-ignore no-process-global
+            if (process.env.FOBX_DEBUG) {
+              recordDebugWrite(admin, {
+                changed: false,
+                operation: `array:index:${String(prop)}:no-op`,
+                value: newValue,
+                previousValue: oldValue,
+              })
+            }
+            return true
+          }
           if (isNotProduction) {
             warnIfObservedWriteOutsideTransaction(admin, "observable values")
           }
@@ -474,6 +496,16 @@ export function observableArray<T>(
     })
 
     rememberConvertedValue(initialValue as unknown as object, proxy)
+
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      registerDebugNode(proxy, {
+        admin,
+        kind: "array",
+        name: admin.name,
+        aliases: [admin],
+      })
+    }
 
     if (!shallow) {
       for (let i = 0; i < arr.length; i++) {

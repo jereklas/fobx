@@ -35,6 +35,15 @@ export {
 export { effect, subscribe } from "./reactions/autorun.ts"
 export { recycleReaction } from "./reactions/autorun.ts"
 export { createTracker } from "./reactions/tracker.ts"
+export {
+  buildDebugMermaidGraph,
+  buildDebugTextReport,
+  buildDebugTraceSummary,
+  configureDebugTracking,
+  explainDebugTarget,
+  getDebugSnapshot,
+  resetDebugTracking,
+} from "./state/debugGraph.ts"
 export { $fobx, deleteObserver, setActiveScope } from "./state/global.ts"
 export { endBatch, startBatch } from "./transactions/transaction.ts"
 
@@ -69,3 +78,15 @@ export type { EqualityChecker, EqualityComparison } from "./state/global.ts"
 // Internals types
 export type { Tracker } from "./reactions/tracker.ts"
 export type { Dispose, ObservableAdmin } from "./state/global.ts"
+export type {
+  DebugEventSnapshot,
+  DebugExplanation,
+  DebugNodeSnapshot,
+  DebugOptions,
+  DebugSnapshot,
+  DebugTraceEventSummary,
+  DebugTraceNodeSnapshot,
+  DebugTraceOptions,
+  DebugTraceSummary,
+  DebugValueSummary,
+} from "./state/debugGraph.ts"

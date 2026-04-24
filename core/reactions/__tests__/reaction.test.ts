@@ -176,6 +176,47 @@ test("effect fireImmediately is honored", () => {
   expect(values).toEqual([1, 2, 3])
 })
 
+test("reaction expression created inside a transaction runs immediately and re-runs after commit", () => {
+  const value = fobx.observableBox(1)
+  const predicateValues: number[] = []
+  const effectValues: Array<[number, number | undefined, boolean]> = []
+
+  const dispose = fobx.runInTransaction(() => {
+    const reactionDispose = fobx.reaction(
+      () => {
+        const currentValue = value.get()
+        predicateValues.push(currentValue)
+        return currentValue
+      },
+      (currentValue, previousValue, context) => {
+        effectValues.push([
+          currentValue,
+          previousValue,
+          context.hasPrevious,
+        ])
+      },
+    )
+
+    // the tracked predicate runs immediately to establish dependencies
+    expect(predicateValues).toEqual([1])
+    expect(effectValues).toEqual([])
+
+    value.set(2)
+    value.set(3)
+
+    // invalidation stays batched until the transaction commits
+    expect(predicateValues).toEqual([1])
+    expect(effectValues).toEqual([])
+
+    return reactionDispose
+  })
+
+  expect(predicateValues).toEqual([1, 3])
+  expect(effectValues).toEqual([[3, 1, true]])
+
+  dispose()
+})
+
 test("effect is untracked", () => {
   const a = fobx.observableBox(1)
   const b = fobx.observableBox(2)

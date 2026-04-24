@@ -3,6 +3,7 @@ export interface DocsConfig {
   inputDir?: string
   outputDir?: string
   assetsDir?: string
+  excludedSourceDirs?: string[]
   siteTitle?: string
   siteDescription?: string
   githubUrl?: string

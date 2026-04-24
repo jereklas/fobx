@@ -70,3 +70,40 @@ Deno.test("buildSite respects basePath links", async () => {
 
   await Deno.remove(root, { recursive: true })
 })
+
+Deno.test("buildSite excludes staged docs directories from output", async () => {
+  const root = await Deno.makeTempDir({ prefix: "static-docs-test-" })
+  const input = join(root, "content")
+  const output = join(root, "dist")
+
+  await Deno.mkdir(join(input, "_staged", "jsx"), { recursive: true })
+  await Deno.writeTextFile(join(input, "index.md"), "# Home")
+  await Deno.writeTextFile(
+    join(input, "_staged", "jsx", "index.md"),
+    "---\ntitle: Staged JSX\n---\n\nHidden until moved.",
+  )
+
+  const result = await buildSite({
+    rootDir: root,
+    inputDir: input,
+    outputDir: output,
+  })
+
+  assertEquals(result.pages.length, 1)
+  assertEquals(result.pages[0].routePath, "/")
+
+  let stagedExists = true
+  try {
+    await Deno.stat(join(output, "_staged", "jsx", "index.html"))
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      stagedExists = false
+    } else {
+      throw error
+    }
+  }
+
+  assertEquals(stagedExists, false)
+
+  await Deno.remove(root, { recursive: true })
+})

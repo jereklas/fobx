@@ -17,6 +17,7 @@ import {
   warnIfObservedWriteOutsideTransaction,
 } from "../state/notifications.ts"
 import { trackAccess } from "../reactions/tracking.ts"
+import { recordDebugWrite, registerDebugNode } from "../state/debugGraph.ts"
 
 export interface ObservableBox<T> {
   get(): T
@@ -48,7 +49,7 @@ export function observableBox<T>(
     _epoch: 0,
   }
 
-  return {
+  const box: ObservableBox<T> = {
     [$fobx]: admin,
     get(): T {
       return getBoxValue(admin)
@@ -60,6 +61,18 @@ export function observableBox<T>(
       setBoxValue(admin, newValue)
     },
   }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(box, {
+      admin,
+      kind: "box",
+      name: admin.name,
+      aliases: [admin],
+    })
+  }
+
+  return box
 }
 
 /**
@@ -80,9 +93,31 @@ export function setBoxValue<T>(
   admin: ObservableAdmin<T>,
   newValue: T,
 ): boolean {
-  if (admin.comparer(admin.value, newValue)) return false
+  const previousValue = admin.value
+  if (admin.comparer(admin.value, newValue)) {
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugWrite(admin, {
+        changed: false,
+        operation: "set-box:no-op",
+        value: newValue,
+        previousValue,
+      })
+    }
+    return false
+  }
 
   admin.value = newValue
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugWrite(admin, {
+      changed: true,
+      operation: "set-box",
+      value: newValue,
+      previousValue,
+    })
+  }
 
   notifyChanged(admin)
   return true

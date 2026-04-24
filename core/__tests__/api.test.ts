@@ -37,11 +37,18 @@ test("library has expected exports", () => {
 test("internals has expected exports", () => {
   expect(Object.keys(internals).sort()).toEqual([
     "$fobx",
+    "buildDebugTextReport",
+    "buildDebugTraceSummary",
+    "buildDebugMermaidGraph",
+    "configureDebugTracking",
     "createTracker",
     "deleteObserver",
     "effect",
     "endBatch",
+    "explainDebugTarget",
+    "getDebugSnapshot",
     "recycleReaction",
+    "resetDebugTracking",
     "setActiveScope",
     "startBatch",
     "subscribe",

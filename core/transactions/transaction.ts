@@ -12,7 +12,6 @@ import {
   isTransactionActive,
   KIND_COMPUTED,
   POSSIBLY_STALE,
-  pushPending,
   type ReactionAdmin,
   setActionThrew,
   STALE,
@@ -27,6 +26,11 @@ import {
   applyWithoutTracking,
   runWithoutTracking,
 } from "../reactions/tracking.ts"
+import {
+  recordDebugRunEnd,
+  recordDebugRunStart,
+  recordDebugSchedule,
+} from "../state/debugGraph.ts"
 
 function takePendingBatch(): ReactionAdmin[] {
   const currentBatch = $scheduler.pending
@@ -94,17 +98,28 @@ export function endBatch(): void {
 }
 
 export function scheduleReaction(reaction: ReactionAdmin): void {
-  if (isTransactionActive()) {
-    pushPending(reaction)
-  } else {
-    safeRunReaction(reaction)
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugSchedule(reaction, {
+      reason: "run-immediately",
+      fromState: reaction.state,
+      toState: reaction.state,
+    })
   }
+
+  safeRunReaction(reaction)
 }
 
 export function safeRunReaction(reaction: ReactionAdmin): void {
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugRunStart(reaction)
+  }
+  let runDetail = "completed"
   try {
     reaction.run()
   } catch (error) {
+    runDetail = "threw"
     if ($scheduler.actionThrew) {
       if (isNotProduction) {
         console.error(
@@ -119,6 +134,10 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
       $instance.onReactionError?.(error, reaction)
     }
   } finally {
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugRunEnd(reaction, runDetail)
+    }
     drainPendingReactionsIfIdle()
   }
 }

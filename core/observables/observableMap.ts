@@ -37,6 +37,10 @@ import {
   rememberConvertedValue,
   withConversionContext,
 } from "./conversionContext.ts"
+import {
+  attachDebugNodeMetadata,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 // Forward declaration — set after object.ts is loaded
 let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
@@ -108,6 +112,25 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     }
     this[$fobx] = this.collectionAdmin
 
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      registerDebugNode(this, {
+        admin: this.collectionAdmin,
+        kind: "map",
+        name: this.collectionAdmin.name,
+        aliases: [this.collectionAdmin],
+      })
+      registerDebugNode(this.keysAdmin, {
+        admin: this.keysAdmin,
+        kind: "map-keys",
+        name: this.keysAdmin.name,
+      })
+      attachDebugNodeMetadata(this.keysAdmin, {
+        parentTarget: this,
+        propertyKey: "keys",
+      })
+    }
+
     if (entries != null && typeof entries === "object") {
       rememberConvertedValue(entries, this)
     }
@@ -152,7 +175,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
   /** Create an ObservableAdmin for a value entry (avoids box() wrapper overhead). */
   private _newAdmin(key: K, value: V): ObservableAdmin<V> {
     const id = getNextId()
-    return {
+    const admin = {
       kind: KIND_BOX,
       id,
       name: `${this.keysAdmin.name}[${String(key)}]`,
@@ -161,6 +184,19 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       comparer: this._comparer,
       _epoch: 0,
     }
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      registerDebugNode(admin, {
+        admin,
+        kind: "map-entry",
+        name: admin.name,
+      })
+      attachDebugNodeMetadata(admin, {
+        parentTarget: this,
+        propertyKey: String(key),
+      })
+    }
+    return admin
   }
 
   private _warnIfObservedWriteOutsideTransaction(key?: K): void {
@@ -196,6 +232,14 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
         this.hasMap = hasMap
       }
       hasMap.set(key, hasBox)
+
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        attachDebugNodeMetadata(hasBox, {
+          parentTarget: this,
+          propertyKey: `has(${String(key)})`,
+        })
+      }
 
       const hmRef = hasMap
       const keyRef = key

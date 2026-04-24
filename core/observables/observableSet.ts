@@ -28,6 +28,10 @@ import {
   rememberConvertedValue,
   withConversionContext,
 } from "./conversionContext.ts"
+import {
+  attachDebugNodeMetadata,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 // Forward declaration — set after object.ts is loaded
 let _processValue: <T>(value: T, shallow: boolean) => T = (v) => v
@@ -69,6 +73,16 @@ class ObservableSet<T = unknown> implements Set<T> {
       changes: 0,
     }
 
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      registerDebugNode(this, {
+        admin: this[$fobx],
+        kind: "set",
+        name: this[$fobx].name,
+        aliases: [this[$fobx]],
+      })
+    }
+
     if (values != null && typeof values === "object") {
       rememberConvertedValue(values, this)
     }
@@ -92,6 +106,14 @@ class ObservableSet<T = unknown> implements Set<T> {
         name: `${this[$fobx].name}.has(${String(value)})`,
       })
       this.hasMap.set(value, hasBox)
+
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        attachDebugNodeMetadata(hasBox, {
+          parentTarget: this,
+          propertyKey: `has(${String(value)})`,
+        })
+      }
 
       // Cleanup when unobserved (prevents memory leaks)
       const hmRef = this.hasMap

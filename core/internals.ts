@@ -3,11 +3,18 @@
 
 export {
   $fobx,
+  buildDebugMermaidGraph,
+  buildDebugTextReport,
+  buildDebugTraceSummary,
+  configureDebugTracking,
   createTracker,
   deleteObserver,
-  endBatch,
   effect,
+  endBatch,
+  explainDebugTarget,
+  getDebugSnapshot,
   recycleReaction,
+  resetDebugTracking,
   setActiveScope,
   startBatch,
   subscribe,
@@ -15,3 +22,15 @@ export {
 
 export type { Tracker } from "./core.ts"
 export type { Dispose, ObservableAdmin } from "./core.ts"
+export type {
+  DebugEventSnapshot,
+  DebugExplanation,
+  DebugNodeSnapshot,
+  DebugOptions,
+  DebugSnapshot,
+  DebugTraceEventSummary,
+  DebugTraceNodeSnapshot,
+  DebugTraceOptions,
+  DebugTraceSummary,
+  DebugValueSummary,
+} from "./core.ts"

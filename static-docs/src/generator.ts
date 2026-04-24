@@ -18,7 +18,11 @@ export const buildSite = async (
 ): Promise<DocsBuildResult> => {
   const resolved = resolveConfig(config)
 
-  const documents = await loadDocuments(resolved.inputDir, resolved.includeMdx)
+  const documents = await loadDocuments(
+    resolved.inputDir,
+    resolved.includeMdx,
+    resolved.excludedSourceDirs,
+  )
   const pages = buildPages(documents)
   const nav = buildNav(pages)
 

@@ -16,6 +16,7 @@ import {
   runWithTracking,
 } from "./tracking.ts"
 import { scheduleReaction } from "../transactions/transaction.ts"
+import { markDebugDisposed, registerDebugNode } from "../state/debugGraph.ts"
 
 const ERR_TIMEOUT = "When reaction timed out"
 const ERR_CANCEL = "When reaction was canceled"
@@ -79,6 +80,10 @@ function createWhen(
     if (abortHandler) {
       options?.signal?.removeEventListener("abort", abortHandler)
     }
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      markDebugDisposed(admin)
+    }
     removeFromAllDeps(admin)
   }
 
@@ -137,6 +142,15 @@ function createWhen(
         })
       }
     },
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(admin, {
+      admin,
+      kind: "when",
+      name: admin.name,
+    })
   }
 
   if (options?.signal) {

@@ -25,6 +25,11 @@ import {
 } from "./tracking.ts"
 import { scheduleReaction } from "../transactions/transaction.ts"
 import { hasFobxAdmin } from "../utils/utils.ts"
+import {
+  markDebugDisposed,
+  recordDebugDependencyRead,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 export const UNDEFINED = Symbol.for("fobx-undefined")
 
@@ -74,6 +79,12 @@ function _runReaction(this: ReactionRunAdmin): void {
     const deps = this.deps
     if (deps.indexOf(collectionAdmin) === -1) {
       deps.push(collectionAdmin)
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        recordDebugDependencyRead(this, collectionAdmin, {
+          added: true,
+        })
+      }
     }
     addObserver(collectionAdmin, this)
     currentChanges = collectionAdmin.changes
@@ -135,6 +146,10 @@ export function reaction<T>(
   const dispose: Dispose = () => {
     if (admin._isDisposed) return
     admin._isDisposed = true
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      markDebugDisposed(admin)
+    }
     removeFromAllDeps(admin)
   }
 
@@ -157,6 +172,15 @@ export function reaction<T>(
     _dispose: dispose,
     _fireImmediately: options?.fireImmediately === true,
     run: _runReaction,
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(admin, {
+      admin,
+      kind: "reaction",
+      name: admin.name,
+    })
   }
 
   scheduleReaction(admin)

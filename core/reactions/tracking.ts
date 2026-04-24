@@ -18,6 +18,10 @@ import {
   type ReactionAdmin,
   setTracking,
 } from "../state/global.ts"
+import {
+  recordDebugDependencyRead,
+  recordDebugDependencyRemoved,
+} from "../state/debugGraph.ts"
 
 // ─── Module-level state ──────────────────────────────────────────────────────
 
@@ -55,6 +59,12 @@ export function trackAccessKnownTracked(
   if (deps.length !== 0 && deps.indexOf(admin) !== -1) {
     admin._epoch = epoch
     admin._tracker = tracking
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugDependencyRead(tracking, admin, {
+        added: false,
+      })
+    }
     return
   }
 
@@ -64,6 +74,12 @@ export function trackAccessKnownTracked(
   // Add bidirectional links
   deps.push(admin)
   addObserver(admin, tracking)
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugDependencyRead(tracking, admin, {
+      added: true,
+    })
+  }
 }
 
 /**
@@ -97,6 +113,10 @@ function stopTracking(prevTracking: ReactionAdmin | null): void {
  */
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
   if (deleteObserver(dep, reaction)) {
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugDependencyRemoved(reaction, dep)
+    }
     dep.onLoseObserver?.(dep)
   }
 }

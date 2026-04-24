@@ -25,6 +25,11 @@ import {
 } from "./global.ts"
 import { debug } from "../utils/debug.ts"
 import { $instance } from "./instance.ts"
+import {
+  recordDebugNotify,
+  recordDebugSchedule,
+  recordDebugWrite,
+} from "./debugGraph.ts"
 
 // Forward declaration — set by transaction.ts to break circular dep
 let _runPendingReactions: () => void = () => {}
@@ -56,8 +61,19 @@ function _notifyOneObserver(
       notificationType === NOTIFY_CHANGED &&
       reaction.state === UP_TO_DATE
     ) {
+      const previousState = reaction.state
       reaction.state = STALE
       pushPending(reaction)
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        recordDebugSchedule(reaction, {
+          source: observable,
+          notificationType,
+          reason: "tracking-reaction-invalidated",
+          fromState: previousState,
+          toState: reaction.state,
+        })
+      }
     }
     return
   }
@@ -69,12 +85,24 @@ function _notifyOneObserver(
   ) {
     // Upgrade to STALE if receiving CHANGED notification
     if (notificationType === NOTIFY_CHANGED) {
+      const previousState = reaction.state
       reaction.state = STALE
+      // deno-lint-ignore no-process-global
+      if (process.env.FOBX_DEBUG) {
+        recordDebugSchedule(reaction, {
+          source: observable,
+          notificationType,
+          reason: "already-queued-upgrade",
+          fromState: previousState,
+          toState: reaction.state,
+        })
+      }
     }
     return // Already queued
   }
 
   // state === UP_TO_DATE
+  const previousState = reaction.state
   reaction.state = notificationType === NOTIFY_CHANGED ? STALE : POSSIBLY_STALE
 
   // Only queue reactions that have observers (don't queue suspended computeds)
@@ -85,6 +113,17 @@ function _notifyOneObserver(
 
   if (hasObs) {
     pushPending(reaction)
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugSchedule(reaction, {
+      source: observable,
+      notificationType,
+      reason: hasObs ? "observer-notified" : "observer-suspended",
+      fromState: previousState,
+      toState: reaction.state,
+    })
   }
 
   // Propagate through computed chain
@@ -106,6 +145,11 @@ export function notifyObservers(
 ): void {
   const obs = observable.observers
   if (obs === null) return
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugNotify(observable, { notificationType })
+  }
 
   if (obs instanceof Set) {
     for (const reaction of obs) {
@@ -133,6 +177,14 @@ export function notifyObserversChanged(observable: ObservableAdmin): void {
  * Centralizes the notify + runPending pattern to avoid per-call-site duplication.
  */
 export function notifyChanged(admin: ObservableAdmin): void {
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG && admin.kind === KIND_COLLECTION) {
+    recordDebugWrite(admin, {
+      changed: true,
+      operation: "collection:changed",
+      value: admin.value,
+    })
+  }
   notifyObserversChanged(admin)
   // Skip runPendingReactions when nothing was queued (common for unobserved writes).
   if (

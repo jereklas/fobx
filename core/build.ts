@@ -23,6 +23,9 @@ async function bundle(opts: {
       "process.env.NODE_ENV": opts.noBundler
         ? '"production"'
         : "process.env.NODE_ENV",
+      "process.env.FOBX_DEBUG": opts.noBundler
+        ? "false"
+        : "process.env.FOBX_DEBUG",
       "globalThis.window": "globalThis.window",
     },
     entryPoints: [opts.file === "core" ? CORE_ENTRY : `./${opts.file}.ts`],

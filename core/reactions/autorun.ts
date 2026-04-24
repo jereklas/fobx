@@ -17,6 +17,12 @@ import {
 import { removeFromAllDeps, runWithTrackingAdmin } from "./tracking.ts"
 import { scheduleReaction } from "../transactions/transaction.ts"
 import { isTransaction } from "../utils/utils.ts"
+import {
+  markDebugDisposed,
+  recordDebugObserverLink,
+  recordDebugObserverUnlink,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 interface AutorunAdmin extends ReactionAdmin {
   _fn: (dispose: Dispose) => void
@@ -57,6 +63,10 @@ export function autorun(
   const dispose: Dispose = () => {
     if (admin._isDisposed) return
     admin._isDisposed = true
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      markDebugDisposed(admin)
+    }
     removeFromAllDeps(admin)
   }
 
@@ -70,6 +80,15 @@ export function autorun(
     _isDisposed: false,
     _dispose: dispose,
     run: _runAutorun,
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(admin, {
+      admin,
+      kind: "autorun",
+      name: admin.name,
+    })
   }
 
   scheduleReaction(admin)
@@ -106,6 +125,15 @@ export function effect(fn: () => void): Dispose {
     _isDisposed: false,
     _dispose: dispose,
     run: _runAutorun,
+  }
+
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(admin, {
+      admin,
+      kind: "effect",
+      name: "effect",
+    })
   }
 
   // Always run immediately — no batch deferral for initial execution
@@ -173,7 +201,20 @@ export function subscribe<T>(
 ): Dispose {
   const reaction = _getReaction(fn, admin)
 
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(reaction, {
+      admin: reaction,
+      kind: "subscription",
+      name: admin.name === "" ? "subscription" : `subscribe(${admin.name})`,
+    })
+  }
+
   addObserver(admin, reaction)
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    recordDebugObserverLink(admin, reaction, "subscribe")
+  }
   fn(admin.value) // initial synchronous run
 
   // If a scope is active (inside mountList), push the reaction directly
@@ -187,6 +228,11 @@ export function subscribe<T>(
   // Dispose triggers onLoseObserver for proper cleanup (e.g. selector key removal)
   return () => {
     deleteObserver(admin, reaction)
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      recordDebugObserverUnlink(admin, reaction, "subscribe")
+      markDebugDisposed(reaction)
+    }
     if (admin.observers === null && admin.onLoseObserver) {
       admin.onLoseObserver(admin)
     }

@@ -44,6 +44,10 @@ import {
   isObservableObject,
   isPlainObject,
 } from "../utils/utils.ts"
+import {
+  attachDebugNodeMetadata,
+  registerDebugNode,
+} from "../state/debugGraph.ts"
 
 export interface ObservableObjectAdmin {
   id: number
@@ -333,10 +337,18 @@ function installDataProperty(
   }
 
   function createBox(name: string, value: Any): ObservableBox<Any> {
-    return observableBox(convertStoredValue(value), {
+    const box = observableBox(convertStoredValue(value), {
       name: `${name}.${String(key)}`,
       comparer: equalityOptions?.comparer,
     })
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      attachDebugNodeMetadata(box, {
+        parentTarget: admin.target,
+        propertyKey: key,
+      })
+    }
+    return box
   }
 
   installTrackedAccessor(
@@ -364,11 +376,19 @@ function installComputedProperty(
   const storageKey = prototypeStorageKey
 
   function createComputedValue(name: string, target: object): Computed<Any> {
-    return computed(getter.bind(target), {
+    const value = computed(getter.bind(target), {
       name: `${name}.${String(key)}`,
       comparer: equalityOptions?.comparer,
       set: setter ? setter.bind(target) : undefined,
     })
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      attachDebugNodeMetadata(value, {
+        parentTarget: admin.target,
+        propertyKey: key,
+      })
+    }
+    return value
   }
 
   installTrackedAccessor(
@@ -1269,6 +1289,16 @@ export function makeObservable<T extends object>(
     configurable: false,
   })
 
+  // deno-lint-ignore no-process-global
+  if (process.env.FOBX_DEBUG) {
+    registerDebugNode(target, {
+      admin,
+      kind: "observable-object",
+      name: admin.name,
+      aliases: [admin],
+    })
+  }
+
   if (isPlainObject(target)) {
     applyPlainObjectAnnotations(target, target, admin, {
       annotations,
@@ -1387,6 +1417,16 @@ export function observable<T extends object>(
       enumerable: false,
       configurable: false,
     })
+
+    // deno-lint-ignore no-process-global
+    if (process.env.FOBX_DEBUG) {
+      registerDebugNode(observableTarget, {
+        admin,
+        kind: "observable-object",
+        name: admin.name,
+        aliases: [admin],
+      })
+    }
 
     rememberConvertedValue(target, observableTarget)
 

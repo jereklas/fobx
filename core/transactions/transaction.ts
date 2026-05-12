@@ -99,7 +99,7 @@ export function endBatch(): void {
 
 export function scheduleReaction(reaction: ReactionAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     recordDebugSchedule(reaction, {
       reason: "run-immediately",
       fromState: reaction.state,
@@ -112,7 +112,7 @@ export function scheduleReaction(reaction: ReactionAdmin): void {
 
 export function safeRunReaction(reaction: ReactionAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     recordDebugRunStart(reaction)
   }
   let runDetail = "completed"
@@ -135,7 +135,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
     }
   } finally {
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       recordDebugRunEnd(reaction, runDetail)
     }
     drainPendingReactionsIfIdle()

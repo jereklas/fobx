@@ -104,7 +104,7 @@ export function createSelector<T>(
       subs.set(key, admin)
 
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         registerDebugNode(admin, {
           admin,
           kind: "selector-entry",
@@ -125,7 +125,7 @@ export function createSelector<T>(
   isSelected.dispose = (): void => {
     disposeAutorun()
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       for (const admin of subs.values()) {
         markDebugDisposed(admin)
       }
@@ -156,7 +156,7 @@ export function createSelector<T>(
       subs.set(key, admin)
 
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         registerDebugNode(admin, {
           admin,
           kind: "selector-entry",
@@ -172,7 +172,7 @@ export function createSelector<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(isSelected, {
       kind: "selector",
       name: "selector",
@@ -207,7 +207,7 @@ function _cleanupKey(admin: ObservableAdmin): void {
   const subs = (admin as Any)._subs as Map<Any, ObservableAdmin>
   subs.delete(key)
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     markDebugDisposed(admin)
   }
 }

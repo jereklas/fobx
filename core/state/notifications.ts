@@ -65,7 +65,7 @@ function _notifyOneObserver(
       reaction.state = STALE
       pushPending(reaction)
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         recordDebugSchedule(reaction, {
           source: observable,
           notificationType,
@@ -88,7 +88,7 @@ function _notifyOneObserver(
       const previousState = reaction.state
       reaction.state = STALE
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         recordDebugSchedule(reaction, {
           source: observable,
           notificationType,
@@ -116,7 +116,7 @@ function _notifyOneObserver(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     recordDebugSchedule(reaction, {
       source: observable,
       notificationType,
@@ -147,7 +147,7 @@ export function notifyObservers(
   if (obs === null) return
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     recordDebugNotify(observable, { notificationType })
   }
 
@@ -178,7 +178,7 @@ export function notifyObserversChanged(observable: ObservableAdmin): void {
  */
 export function notifyChanged(admin: ObservableAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG && admin.kind === KIND_COLLECTION) {
+  if (process.env.NODE_ENV === "debug" && admin.kind === KIND_COLLECTION) {
     recordDebugWrite(admin, {
       changed: true,
       operation: "collection:changed",

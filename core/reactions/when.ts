@@ -81,7 +81,7 @@ function createWhen(
       options?.signal?.removeEventListener("abort", abortHandler)
     }
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       markDebugDisposed(admin)
     }
     removeFromAllDeps(admin)
@@ -145,7 +145,7 @@ function createWhen(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "when",

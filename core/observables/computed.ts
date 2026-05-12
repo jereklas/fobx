@@ -91,7 +91,7 @@ export function computed<T>(
     },
     dispose(): void {
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         markDebugDisposed(admin)
       }
       removeFromAllDeps(admin)
@@ -99,7 +99,7 @@ export function computed<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(value, {
       admin,
       kind: "computed",
@@ -211,7 +211,7 @@ function _runComputed(this: ComputedAdmin): void {
   // Notify observers if value changed (skip on first computation)
   if (oldValue !== NOT_CACHED && !admin.comparer(oldValue, admin.value)) {
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       recordDebugWrite(admin, {
         changed: true,
         operation: "computed:update",

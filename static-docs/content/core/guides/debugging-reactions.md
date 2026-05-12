@@ -1,5 +1,5 @@
 ---
-title: Debugging Reactions With FOBX_DEBUG
+title: Debugging Reactions In Debug Builds
 navTitle: Debugging Reactions
 navSection: ["@fobx/core", "Guides"]
 navOrder: 1
@@ -17,10 +17,10 @@ experimental internals surface rather than stable public API.
 
 ## 1. Enable the runtime
 
-The debug graph only exists in debug-enabled builds.
+The debug graph only exists when FobX runs with `NODE_ENV=debug`.
 
 ```sh
-FOBX_DEBUG=1 deno test --allow-env --allow-read
+NODE_ENV=debug deno test --allow-env --allow-read
 ```
 
 ```ts

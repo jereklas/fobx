@@ -60,7 +60,7 @@ export function trackAccessKnownTracked(
     admin._epoch = epoch
     admin._tracker = tracking
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       recordDebugDependencyRead(tracking, admin, {
         added: false,
       })
@@ -75,7 +75,7 @@ export function trackAccessKnownTracked(
   deps.push(admin)
   addObserver(admin, tracking)
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     recordDebugDependencyRead(tracking, admin, {
       added: true,
     })
@@ -114,7 +114,7 @@ function stopTracking(prevTracking: ReactionAdmin | null): void {
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
   if (deleteObserver(dep, reaction)) {
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       recordDebugDependencyRemoved(reaction, dep)
     }
     dep.onLoseObserver?.(dep)

@@ -22,11 +22,11 @@ import {
 } from "../../internals.ts"
 
 function withDebugTracking<T>(run: () => T): T {
-  const previousDebug = Deno.env.get("FOBX_DEBUG")
-  const previousProcessDebug = process.env.FOBX_DEBUG
+  const previousDebug = Deno.env.get("NODE_ENV")
+  const previousProcessDebug = process.env.NODE_ENV
 
-  Deno.env.set("FOBX_DEBUG", "1")
-  process.env.FOBX_DEBUG = "1"
+  Deno.env.set("NODE_ENV", "debug")
+  process.env.NODE_ENV = "debug"
   resetDebugTracking()
   configureDebugTracking({ maxEvents: 256 })
 
@@ -35,15 +35,15 @@ function withDebugTracking<T>(run: () => T): T {
   } finally {
     resetDebugTracking()
     if (previousDebug === undefined) {
-      Deno.env.delete("FOBX_DEBUG")
+      Deno.env.delete("NODE_ENV")
     } else {
-      Deno.env.set("FOBX_DEBUG", previousDebug)
+      Deno.env.set("NODE_ENV", previousDebug)
     }
 
     if (previousProcessDebug === undefined) {
-      delete process.env.FOBX_DEBUG
+      delete process.env.NODE_ENV
     } else {
-      process.env.FOBX_DEBUG = previousProcessDebug
+      process.env.NODE_ENV = previousProcessDebug
     }
   }
 }

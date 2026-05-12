@@ -438,7 +438,7 @@ export function observableArray<T>(
             notifyChanged(admin)
           } else {
             // deno-lint-ignore no-process-global
-            if (process.env.FOBX_DEBUG) {
+            if (process.env.NODE_ENV === "debug") {
               recordDebugWrite(admin, {
                 changed: false,
                 operation: "array:length:no-op",
@@ -454,7 +454,7 @@ export function observableArray<T>(
           const oldValue = arr[index]
           if (admin.comparer(oldValue, newValue)) {
             // deno-lint-ignore no-process-global
-            if (process.env.FOBX_DEBUG) {
+            if (process.env.NODE_ENV === "debug") {
               recordDebugWrite(admin, {
                 changed: false,
                 operation: `array:index:${String(prop)}:no-op`,
@@ -498,7 +498,7 @@ export function observableArray<T>(
     rememberConvertedValue(initialValue as unknown as object, proxy)
 
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       registerDebugNode(proxy, {
         admin,
         kind: "array",

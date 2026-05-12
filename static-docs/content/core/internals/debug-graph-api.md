@@ -14,14 +14,15 @@ API.
 
 ## Enabling the runtime
 
-The debug graph runtime is only active when FobX is built with `FOBX_DEBUG=1`.
+The debug graph runtime is only active when FobX runs with `NODE_ENV=debug`.
 
 ```sh
-FOBX_DEBUG=1 deno test --allow-env --allow-read
-cd core && FOBX_DEBUG=1 deno task build
+NODE_ENV=debug deno test --allow-env --allow-read
+cd core && NODE_ENV=debug deno task build
 ```
 
-Hot-path instrumentation is guarded by literal `if (process.env.FOBX_DEBUG)`
+Hot-path instrumentation is guarded by literal
+`if (process.env.NODE_ENV === "debug")`
 checks. In current builds that strips the debug callsites from hot paths when
 debug is off, even though the helper exports themselves still remain part of the
 internal surface.

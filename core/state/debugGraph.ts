@@ -971,7 +971,7 @@ export function getDebugSnapshot(): DebugSnapshot {
   const nodes = collectLiveNodes().map(snapshotNode)
   return {
     // deno-lint-ignore no-process-global
-    enabled: Boolean(process.env.FOBX_DEBUG),
+    enabled: process.env.NODE_ENV === "debug",
     maxEvents: state.maxEvents,
     nodes,
     events: state.events.map(snapshotEvent),
@@ -1043,7 +1043,7 @@ export function buildDebugTraceSummary(
 
   return {
     // deno-lint-ignore no-process-global
-    enabled: Boolean(process.env.FOBX_DEBUG),
+    enabled: process.env.NODE_ENV === "debug",
     fromEventId: limitedEvents[0]?.id,
     toEventId: limitedEvents.at(-1)?.id,
     snapshot,

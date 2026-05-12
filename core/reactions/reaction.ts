@@ -80,7 +80,7 @@ function _runReaction(this: ReactionRunAdmin): void {
     if (deps.indexOf(collectionAdmin) === -1) {
       deps.push(collectionAdmin)
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         recordDebugDependencyRead(this, collectionAdmin, {
           added: true,
         })
@@ -147,7 +147,7 @@ export function reaction<T>(
     if (admin._isDisposed) return
     admin._isDisposed = true
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       markDebugDisposed(admin)
     }
     removeFromAllDeps(admin)
@@ -175,7 +175,7 @@ export function reaction<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "reaction",

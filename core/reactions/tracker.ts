@@ -58,7 +58,7 @@ export function createTracker(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "tracker",
@@ -83,7 +83,7 @@ export function createTracker(
       if (isDisposed) return
       isDisposed = true
       // deno-lint-ignore no-process-global
-      if (process.env.FOBX_DEBUG) {
+      if (process.env.NODE_ENV === "debug") {
         markDebugDisposed(admin)
       }
       removeFromAllDeps(admin)

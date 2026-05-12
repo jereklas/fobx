@@ -342,7 +342,7 @@ function installDataProperty(
       comparer: equalityOptions?.comparer,
     })
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       attachDebugNodeMetadata(box, {
         parentTarget: admin.target,
         propertyKey: key,
@@ -382,7 +382,7 @@ function installComputedProperty(
       set: setter ? setter.bind(target) : undefined,
     })
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       attachDebugNodeMetadata(value, {
         parentTarget: admin.target,
         propertyKey: key,
@@ -1290,7 +1290,7 @@ export function makeObservable<T extends object>(
   })
 
   // deno-lint-ignore no-process-global
-  if (process.env.FOBX_DEBUG) {
+  if (process.env.NODE_ENV === "debug") {
     registerDebugNode(target, {
       admin,
       kind: "observable-object",
@@ -1419,7 +1419,7 @@ export function observable<T extends object>(
     })
 
     // deno-lint-ignore no-process-global
-    if (process.env.FOBX_DEBUG) {
+    if (process.env.NODE_ENV === "debug") {
       registerDebugNode(observableTarget, {
         admin,
         kind: "observable-object",

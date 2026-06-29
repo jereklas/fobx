@@ -48,6 +48,7 @@ export { $fobx, deleteObserver, setActiveScope } from "./state/global.ts"
 export { endBatch, startBatch } from "./transactions/transaction.ts"
 
 // Public types
+export type { DebugSourceLocation } from "./utils/debug.ts"
 export type { FlowOptions } from "./reactions/flow.ts"
 export type { BoxOptions, ObservableBox } from "./observables/observableBox.ts"
 export type { Computed, ComputedOptions } from "./observables/computed.ts"

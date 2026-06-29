@@ -2,6 +2,7 @@
  * Box — the simplest reactive primitive.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   defaultComparer,
@@ -63,7 +64,7 @@ export function observableBox<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(box, {
       admin,
       kind: "box",
@@ -96,7 +97,7 @@ export function setBoxValue<T>(
   const previousValue = admin.value
   if (admin.comparer(admin.value, newValue)) {
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugWrite(admin, {
         changed: false,
         operation: "set-box:no-op",
@@ -110,7 +111,7 @@ export function setBoxValue<T>(
   admin.value = newValue
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugWrite(admin, {
       changed: true,
       operation: "set-box",

@@ -48,6 +48,7 @@ import {
   attachDebugNodeMetadata,
   registerDebugNode,
 } from "../state/debugGraph.ts"
+import { getNodeEnv } from "@fobx/lib"
 
 export interface ObservableObjectAdmin {
   id: number
@@ -342,7 +343,7 @@ function installDataProperty(
       comparer: equalityOptions?.comparer,
     })
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       attachDebugNodeMetadata(box, {
         parentTarget: admin.target,
         propertyKey: key,
@@ -382,7 +383,7 @@ function installComputedProperty(
       set: setter ? setter.bind(target) : undefined,
     })
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       attachDebugNodeMetadata(value, {
         parentTarget: admin.target,
         propertyKey: key,
@@ -1290,7 +1291,7 @@ export function makeObservable<T extends object>(
   })
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(target, {
       admin,
       kind: "observable-object",
@@ -1419,7 +1420,7 @@ export function observable<T extends object>(
     })
 
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       registerDebugNode(observableTarget, {
         admin,
         kind: "observable-object",

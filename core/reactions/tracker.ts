@@ -11,6 +11,7 @@
  * making it safe for nested/child components.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   getNextId,
   KIND_TRACKER,
@@ -58,7 +59,7 @@ export function createTracker(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "tracker",
@@ -83,7 +84,7 @@ export function createTracker(
       if (isDisposed) return
       isDisposed = true
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         markDebugDisposed(admin)
       }
       removeFromAllDeps(admin)

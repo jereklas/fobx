@@ -13,6 +13,7 @@ const config: DocsConfig = {
   basePath,
   includeMdx: true,
   cleanOutput: true,
+  excludedSourceDirs: ["dom", "jsx"],
 }
 
 export default config

@@ -28,6 +28,7 @@ export {
   when,
 } from "./core.ts"
 
+export type { DebugSourceLocation } from "./core.ts"
 export type { FlowOptions } from "./core.ts"
 export type { BoxOptions, ObservableBox } from "./core.ts"
 export type { Computed, ComputedOptions } from "./core.ts"

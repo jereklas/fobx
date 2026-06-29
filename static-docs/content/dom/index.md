@@ -48,7 +48,7 @@ document.body.appendChild(app)
 
 ## Mental model
 
-`@fobx/dom` follows the same fine-grained mental model as SolidJS:
+`@fobx/dom` follows a fine-grained DOM update model:
 
 - Static values are written once.
 - Function props become reactive bindings.

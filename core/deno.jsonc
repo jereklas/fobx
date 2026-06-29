@@ -33,12 +33,6 @@
       "command": "cd dist && npm publish",
       "dependencies": ["coverage", "build"]
     },
-    "bench": {
-      "command": "deno bench",
-      "dependencies": ["build"]
-    }
-  },
-  "compilerOptions": {
-    "lib": ["es2023", "dom", "dom.asynciterable", "dom.iterable", "deno.ns"]
+    "bench": "deno bench -A"
   }
 }

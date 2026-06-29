@@ -2,20 +2,21 @@
 /**
  * Reactive binding utilities — the core engine of @fobx/dom.
  *
- * Attaches autoruns to DOM elements so reactive expressions (functions)
- * are automatically tracked and their DOM side-effects are surgically updated.
+ * Attaches fine-grained reactive effects to DOM elements so reactive
+ * expressions (functions) are automatically tracked and their DOM side-effects
+ * are surgically updated.
  *
  * ## Disposal Model
  *
  * Two complementary mechanisms exist:
  *
  * 1. **Node-based (`onDispose` / `dispose`)** — attaches disposers to DOM
- *    nodes via a WeakMap.  `dispose(node)` recursively walks descendants.
+ *    nodes via a WeakMap. `dispose(node)` recursively walks descendants.
  *    This is the general-purpose approach used by standalone elements.
  *
  * 2. **Scope-based (`createScope` / `onCleanup`)** — collects all disposers
- *    created during a factory function into a flat array.  No tree walk
- *    needed; just iterate and call.  Used by `mountList` for O(1)-per-entry
+ *    created during a factory function into a flat array. No tree walk
+ *    needed; just iterate and call. Used by `mountList` for O(1)-per-entry
  *    teardown instead of a recursive DOM walk.
  *
  * When a scope is active (`_currentScope !== null`), helpers like
@@ -24,41 +25,31 @@
  * This avoids both the WeakMap overhead and the recursive walk.
  */
 
-import { effect, setActiveScope } from "@fobx/core/internals"
+import {
+  deleteObserver,
+  effect,
+  recycleReaction,
+  setActiveScope,
+} from "@fobx/core/internals"
 import type { Dispose } from "@fobx/core/internals"
-
-// ─── Disposal Scope ──────────────────────────────────────────────────────────
+import { isMountedNode, mountSubtree } from "./mount.ts"
 
 let _currentScope: Dispose[] | null = null
 
-/**
- * Run `fn` inside a disposal scope.  Every `onDispose` / `onCleanup` call
- * made during `fn` (including nested element creation) is collected into a
- * flat array.  Returns `[result, disposeFn]`.
- *
- * The returned `disposeFn` calls every collected disposer in order, then
- * clears the list.  This is far cheaper than a recursive DOM tree walk.
- */
 export function createScope<T>(fn: () => T): [T, Dispose] {
   const scope: Dispose[] = []
   const prev = _currentScope
   _currentScope = scope
+  setActiveScope(scope)
   try {
     const result = fn()
-    return [result, () => {
-      for (let i = 0; i < scope.length; i++) scope[i]()
-      scope.length = 0
-    }]
+    return [result, () => disposeScopeEntries(scope)]
   } finally {
     _currentScope = prev
+    setActiveScope(prev)
   }
 }
 
-/**
- * Low-level scope management for performance-critical paths.
- * Sets a new scope as active and returns the previous one.
- * Must be paired with `exitScope(prev)`.
- */
 export function enterScope(scope: Dispose[]): Dispose[] | null {
   const prev = _currentScope
   _currentScope = scope
@@ -66,18 +57,11 @@ export function enterScope(scope: Dispose[]): Dispose[] | null {
   return prev
 }
 
-/**
- * Restore the scope saved by `enterScope`.
- */
 export function exitScope(prev: Dispose[] | null): void {
   _currentScope = prev
   setActiveScope(prev)
 }
 
-/**
- * Register a disposer with the current scope (if any).
- * Returns `true` if a scope captured this disposer, `false` otherwise.
- */
 export function onCleanup(disposer: Dispose): boolean {
   if (_currentScope) {
     _currentScope.push(disposer)
@@ -86,11 +70,8 @@ export function onCleanup(disposer: Dispose): boolean {
   return false
 }
 
-// ─── Disposer Storage ────────────────────────────────────────────────────────
-
 const _disposers = new WeakMap<Node, Dispose[]>()
 
-/** Get or create the disposer list for a node. */
 function getDisposers(node: Node): Dispose[] {
   let list = _disposers.get(node)
   if (!list) {
@@ -100,48 +81,44 @@ function getDisposers(node: Node): Dispose[] {
   return list
 }
 
-/**
- * Attach a disposer to a node (cleaned up when `dispose(node)` is called).
- *
- * If a disposal scope is active, the disposer is pushed into the scope
- * instead of the node's WeakMap list (scope-based disposal is preferred
- * when available because it avoids recursive tree walks).
- */
 export function onDispose(node: Node, disposer: Dispose): void {
   if (!onCleanup(disposer)) {
     getDisposers(node).push(disposer)
   }
 }
 
-/**
- * Dispose all reactive bindings on a node and its descendants.
- * Call this when removing elements from the DOM to prevent leaks.
- *
- * NOTE: When a disposal scope is used (e.g. inside `mountList`), nodes
- * will have no entries in the WeakMap — the scope owns the disposers.
- * This function still works as a fallback for non-scoped usage.
- */
 export function dispose(node: Node): void {
+  const errors: unknown[] = []
   const list = _disposers.get(node)
   if (list) {
-    for (let i = 0; i < list.length; i++) list[i]()
-    list.length = 0
-    _disposers.delete(node)
+    try {
+      for (let i = 0; i < list.length; i++) {
+        try {
+          list[i]()
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+    } finally {
+      list.length = 0
+      _disposers.delete(node)
+    }
   }
-  // Recurse into children
+
   let child = node.firstChild
   while (child) {
-    dispose(child)
-    child = child.nextSibling
+    const next = child.nextSibling
+    try {
+      dispose(child)
+    } catch (error) {
+      errors.push(error)
+    }
+    child = next
   }
+
+  rethrowCleanupErrors(errors)
 }
 
-// ─── Reactive Attribute Binding ──────────────────────────────────────────────
-
-/**
- * Bind a reactive function to an element attribute.
- * Sets up an autorun that updates the attribute whenever dependencies change.
- */
 export function bindAttribute(
   el: HTMLElement,
   key: string,
@@ -153,20 +130,28 @@ export function bindAttribute(
   onDispose(el, d)
 }
 
-/**
- * Set an attribute/property on an element (static, non-reactive).
- */
+const _styleObjectProps = new WeakMap<HTMLElement, Set<string>>()
+const _styleMode = new WeakMap<HTMLElement, "string" | "object">()
+const _baseClasses = new WeakMap<HTMLElement, string>()
+const _classListTokens = new WeakMap<HTMLElement, Set<string>>()
+const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
+const XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
+
 export function setAttribute(el: HTMLElement, key: string, value: any): void {
-  if (key === "class" || key === "className") {
-    el.className = value ?? ""
+  if (key.startsWith("prop:")) {
+    setProperty(el, key.slice(5), value)
+  } else if (key.startsWith("attr:")) {
+    setDOMAttribute(el, key.slice(5), value)
+  } else if (key.startsWith("bool:")) {
+    setBooleanAttribute(el, key.slice(5), value)
+  } else if (key === "class" || key === "className") {
+    setClassName(el, value)
+  } else if (key === "classList") {
+    setClassList(el, value)
   } else if (key === "style") {
-    if (typeof value === "string") {
-      el.style.cssText = value
-    } else if (value && typeof value === "object") {
-      setStyleObject(el, value)
-    }
+    setStyle(el, value)
   } else if (key === "value" && "value" in el) {
-    ;(el as any).value = value
+    ;(el as any).value = value == null ? "" : value
   } else if (key === "checked" && "checked" in el) {
     ;(el as any).checked = value
   } else if (key === "disabled" && "disabled" in el) {
@@ -174,11 +159,15 @@ export function setAttribute(el: HTMLElement, key: string, value: any): void {
   } else if (key === "selected" && "selected" in el) {
     ;(el as any).selected = value
   } else if (key === "htmlFor") {
-    el.setAttribute("for", value)
+    if (value === false || value == null) {
+      el.removeAttribute("for")
+    } else {
+      el.setAttribute("for", String(value))
+    }
   } else if (key === "innerHTML") {
-    el.innerHTML = value
+    el.innerHTML = value === false || value == null ? "" : String(value)
   } else if (key === "textContent") {
-    el.textContent = value
+    el.textContent = value === false || value == null ? "" : String(value)
   } else if (value === false || value == null) {
     el.removeAttribute(key)
   } else if (value === true) {
@@ -188,34 +177,222 @@ export function setAttribute(el: HTMLElement, key: string, value: any): void {
   }
 }
 
+function setProperty(el: HTMLElement, key: string, value: any): void {
+  ;(el as Record<string, any>)[key] = value
+}
+
+function setDOMAttribute(el: HTMLElement, key: string, value: any): void {
+  const namespaced = getNamespacedAttribute(key)
+
+  if (value === false || value == null) {
+    if (namespaced) {
+      el.removeAttributeNS(namespaced.namespaceURI, namespaced.localName)
+    } else {
+      el.removeAttribute(key)
+    }
+    return
+  }
+
+  if (value === true) {
+    if (namespaced) {
+      el.setAttributeNS(namespaced.namespaceURI, key, "")
+    } else {
+      el.setAttribute(key, "")
+    }
+    return
+  }
+
+  if (namespaced) {
+    el.setAttributeNS(namespaced.namespaceURI, key, String(value))
+    return
+  }
+
+  el.setAttribute(key, String(value))
+}
+
+function setBooleanAttribute(el: HTMLElement, key: string, value: any): void {
+  if (value) {
+    el.setAttribute(key, "")
+    return
+  }
+
+  el.removeAttribute(key)
+}
+
+function setClassName(el: HTMLElement, value: any): void {
+  const baseClassName = value === false || value == null ? "" : String(value)
+  if (baseClassName) {
+    _baseClasses.set(el, baseClassName)
+  } else {
+    _baseClasses.delete(el)
+  }
+  syncClassName(el)
+}
+
+function setClassList(el: HTMLElement, value: any): void {
+  if (value == null) {
+    _classListTokens.delete(el)
+    syncClassName(el)
+    return
+  }
+
+  const tokens = new Set<string>()
+  if (typeof value === "object") {
+    const keys = Object.keys(value)
+    for (let i = 0; i < keys.length; i++) {
+      if (!value[keys[i]]) continue
+      const parts = keys[i].trim().split(/\s+/)
+      for (let j = 0; j < parts.length; j++) {
+        if (parts[j]) tokens.add(parts[j])
+      }
+    }
+  }
+
+  if (tokens.size > 0) {
+    _classListTokens.set(el, tokens)
+  } else {
+    _classListTokens.delete(el)
+  }
+
+  syncClassName(el)
+}
+
+function syncClassName(el: HTMLElement): void {
+  const merged = new Set<string>()
+
+  const baseClassName = _baseClasses.get(el)
+  if (baseClassName) {
+    const parts = baseClassName.trim().split(/\s+/)
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i]) merged.add(parts[i])
+    }
+  }
+
+  const classListTokens = _classListTokens.get(el)
+  if (classListTokens) {
+    for (const token of classListTokens) {
+      merged.add(token)
+    }
+  }
+
+  if (merged.size === 0) {
+    el.removeAttribute("class")
+    return
+  }
+
+  el.className = Array.from(merged).join(" ")
+}
+
+function setStyle(el: HTMLElement, value: any): void {
+  if (value == null || value === false) {
+    _styleObjectProps.delete(el)
+    _styleMode.delete(el)
+    el.removeAttribute("style")
+    return
+  }
+
+  if (typeof value === "string") {
+    _styleObjectProps.delete(el)
+    _styleMode.set(el, "string")
+    el.style.cssText = value
+    return
+  }
+
+  if (value && typeof value === "object") {
+    if (_styleMode.get(el) !== "object") {
+      el.style.cssText = ""
+    }
+    _styleMode.set(el, "object")
+    setStyleObject(el, value)
+    return
+  }
+
+  _styleObjectProps.delete(el)
+  _styleMode.set(el, "string")
+  el.style.cssText = String(value)
+}
+
 function setStyleObject(el: HTMLElement, styles: Record<string, any>): void {
-  // Reset inline styles, then apply the object
-  el.style.cssText = ""
-  for (const k of Object.keys(styles)) {
-    const prop = k.includes("-")
-      ? k
-      : k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
-    el.style.setProperty(prop, String(styles[k]))
+  const previous = _styleObjectProps.get(el)
+  const next = new Set<string>()
+  const keys = Object.keys(styles)
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    const prop = normalizeStyleProperty(key)
+    const styleValue = styles[key]
+
+    if (styleValue == null) {
+      el.style.removeProperty(prop)
+      continue
+    }
+
+    next.add(prop)
+    el.style.setProperty(prop, String(styleValue))
+  }
+
+  if (previous) {
+    for (const prop of previous) {
+      if (!next.has(prop)) {
+        el.style.removeProperty(prop)
+      }
+    }
+  }
+
+  if (next.size > 0) {
+    _styleObjectProps.set(el, next)
+  } else {
+    _styleObjectProps.delete(el)
   }
 }
 
-// ─── Reactive Children ───────────────────────────────────────────────────────
+function normalizeStyleProperty(key: string): string {
+  if (key.startsWith("--") || key.includes("-")) return key
+  return key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)
+}
 
-/**
- * Append a child to a parent, handling all child types.
- * Returns the appended node (or null for empty children).
- */
+function getNamespacedAttribute(
+  key: string,
+): { namespaceURI: string; localName: string } | null {
+  const separatorIndex = key.indexOf(":")
+  if (separatorIndex <= 0) return null
+
+  const prefix = key.slice(0, separatorIndex)
+  const localName = key.slice(separatorIndex + 1)
+
+  if (!localName) return null
+
+  if (prefix === "xlink") {
+    return { namespaceURI: XLINK_NAMESPACE, localName }
+  }
+
+  if (prefix === "xml") {
+    return { namespaceURI: XML_NAMESPACE, localName }
+  }
+
+  return null
+}
+
 export function appendChildNode(parent: Node, child: any): Node | null {
   if (child == null || typeof child === "boolean") return null
 
   if (child instanceof Node) {
+    if (child instanceof DocumentFragment) {
+      const fragmentNodes = Array.from(child.childNodes)
+      parent.appendChild(child)
+      mountInsertedNodes(parent, fragmentNodes)
+      return child
+    }
+
     parent.appendChild(child)
+    mountInsertedNode(parent, child)
     return child
   }
 
   if (typeof child === "string" || typeof child === "number") {
     const text = document.createTextNode(String(child))
     parent.appendChild(text)
+    mountInsertedNode(parent, text)
     return text
   }
 
@@ -230,69 +407,80 @@ export function appendChildNode(parent: Node, child: any): Node | null {
     return null
   }
 
-  // Fallback: coerce to string
   const text = document.createTextNode(String(child))
   parent.appendChild(text)
+  mountInsertedNode(parent, text)
   return text
 }
 
-/**
- * Mount a reactive child expression.
- * For the common case of simple text/number values, optimizes to a single
- * Text node update (no comment markers needed).
- */
 function mountReactiveChild(parent: Node, fn: () => any): Node {
-  // Fast path: probe the function to see if it returns a simple value
-  // Most reactive children are text expressions (e.g. () => row.label.get())
-  // We can optimize these to a single Text node with direct textContent updates
-  const textNode = document.createTextNode("")
+  const sMarker = document.createComment("fobx-start")
+  const eMarker = document.createComment("fobx-end")
+  let textNode: Text | null = document.createTextNode("")
+  parent.appendChild(sMarker)
   parent.appendChild(textNode)
+  parent.appendChild(eMarker)
 
   let isSimple = true
   let currentNodes: Node[] = []
-  let sMarker: Node | null = null
-  let eMarker: Node | null = null
 
   const d = effect(() => {
     const result = fn()
 
-    if (isSimple) {
-      // Check if result is a simple primitive (string, number, null, boolean)
-      if (result == null || typeof result === "boolean") {
-        textNode.textContent = ""
+    if (
+      result == null || typeof result === "boolean" ||
+      typeof result === "string" ||
+      typeof result === "number"
+    ) {
+      const nextText = result == null || typeof result === "boolean"
+        ? ""
+        : String(result)
+
+      if (isSimple && textNode && textNode.parentNode === parent) {
+        textNode.textContent = nextText
         return
       }
-      if (typeof result === "string" || typeof result === "number") {
-        textNode.textContent = String(result)
-        return
-      }
-      // Result is complex (Node, Array) — switch to full mode
-      isSimple = false
-      sMarker = document.createComment("fobx-start")
-      eMarker = document.createComment("fobx-end")
-      parent.replaceChild(sMarker, textNode)
-      parent.insertBefore(eMarker, sMarker.nextSibling)
-      // Insert the complex result
-      insertResult(parent, eMarker, result, currentNodes)
+
+      clearInsertedNodes(currentNodes)
+      currentNodes = []
+      textNode = document.createTextNode(nextText)
+      parent.insertBefore(textNode, eMarker)
+      isSimple = true
       return
     }
 
-    // Complex mode (fallback — rare)
-    for (const node of currentNodes) dispose(node)
-    while (sMarker!.nextSibling && sMarker!.nextSibling !== eMarker) {
-      sMarker!.nextSibling.remove()
+    if (isSimple) {
+      if (textNode) {
+        textNode.remove()
+      }
+      textNode = null
+      isSimple = false
+    } else {
+      clearInsertedNodes(currentNodes)
+      currentNodes = []
     }
-    currentNodes = []
-    insertResult(parent, eMarker!, result, currentNodes)
+
+    insertResult(parent, eMarker, result, currentNodes)
   })
 
-  onDispose(isSimple ? textNode : sMarker!, d)
-  return isSimple ? textNode : sMarker!
+  onDispose(sMarker, d)
+  return sMarker
 }
 
-/**
- * Insert a result value before a reference node, collecting created nodes.
- */
+function clearInsertedNodes(nodes: Node[]): void {
+  const errors: unknown[] = []
+  for (let i = 0; i < nodes.length; i++) {
+    try {
+      dispose(nodes[i])
+    } catch (error) {
+      errors.push(error)
+    }
+    nodes[i].parentNode?.removeChild(nodes[i])
+  }
+
+  rethrowCleanupErrors(errors)
+}
+
 function insertResult(
   parent: Node,
   before: Node,
@@ -301,9 +489,20 @@ function insertResult(
 ): void {
   if (value == null || typeof value === "boolean") return
 
+  if (value instanceof DocumentFragment) {
+    const fragmentNodes = Array.from(value.childNodes)
+    parent.insertBefore(value, before)
+    for (let i = 0; i < fragmentNodes.length; i++) {
+      nodes.push(fragmentNodes[i])
+    }
+    mountInsertedNodes(parent, fragmentNodes)
+    return
+  }
+
   if (value instanceof Node) {
     parent.insertBefore(value, before)
     nodes.push(value)
+    mountInsertedNode(parent, value)
     return
   }
 
@@ -311,6 +510,7 @@ function insertResult(
     const text = document.createTextNode(String(value))
     parent.insertBefore(text, before)
     nodes.push(text)
+    mountInsertedNode(parent, text)
     return
   }
 
@@ -321,8 +521,63 @@ function insertResult(
     return
   }
 
-  // Fallback
   const text = document.createTextNode(String(value))
   parent.insertBefore(text, before)
   nodes.push(text)
+  mountInsertedNode(parent, text)
+}
+
+function mountInsertedNode(parent: Node, node: Node): void {
+  if (!isMountedNode(parent)) return
+  mountSubtree(node)
+}
+
+function mountInsertedNodes(parent: Node, nodes: readonly Node[]): void {
+  if (!isMountedNode(parent)) return
+
+  for (let i = 0; i < nodes.length; i++) {
+    mountSubtree(nodes[i])
+  }
+}
+
+export function disposeScopeEntries(scope: Dispose[]): void {
+  const errors: unknown[] = []
+
+  try {
+    for (let i = 0; i < scope.length; i++) {
+      const entry = scope[i] as any
+
+      try {
+        if (typeof entry === "function") {
+          entry()
+          continue
+        }
+
+        const admin = entry._admin
+        deleteObserver(admin, entry)
+        if (admin.observers === null && admin.onLoseObserver) {
+          admin.onLoseObserver(admin)
+        }
+        recycleReaction(entry)
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+  } finally {
+    scope.length = 0
+  }
+
+  rethrowCleanupErrors(errors)
+}
+
+export function rethrowCleanupErrors(errors: unknown[]): void {
+  if (errors.length === 0) return
+  if (errors.length === 1) {
+    throw errors[0]
+  }
+
+  throw new AggregateError(
+    errors,
+    "[@fobx/dom] Multiple cleanup errors occurred.",
+  )
 }

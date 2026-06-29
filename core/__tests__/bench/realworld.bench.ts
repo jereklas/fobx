@@ -13,8 +13,10 @@
  */
 
 import * as mobx from "mobx"
-// @deno-types="../../dist/index.d.ts"
-import {
+import type * as FobxCore from "@fobx/core"
+import { productionBundleUrl } from "./setup.ts"
+
+const {
   autorun,
   computed,
   observable,
@@ -24,7 +26,7 @@ import {
   observableSet,
   reaction,
   runInTransaction,
-} from "../../dist/index.production.js"
+} = await import(productionBundleUrl) as typeof FobxCore
 
 mobx.configure({ enforceActions: "never" })
 
@@ -536,7 +538,7 @@ Deno.bench(
           a - b
         )
       },
-      (val) => {
+      (val: unknown) => {
         _above = val as number[]
       },
       { fireImmediately: true },
@@ -650,7 +652,7 @@ Deno.bench("fobx", { group: "set-membership-reaction", baseline: true }, () => {
   let _missing: string[] = []
   const dispose = reaction(
     () => required.filter((r) => !tags.has(r)),
-    (val) => {
+    (val: unknown) => {
       _missing = val as string[]
     },
     { fireImmediately: true },

@@ -31,6 +31,7 @@ const ReactMemoSymbol = hasSymbol
   : typeof React.memo === "function" && React.memo(() => null)["$$typeof"]
 
 type TypeOf = { ["$$typeof"]: symbol }
+type AnyRenderFn = (...args: readonly unknown[]) => React.ReactNode
 
 // ─── Overloads ───────────────────────────────────────────────────────────────
 
@@ -71,26 +72,43 @@ export function observer<P extends object, TRef = object>(
     )
   }
 
-  let useForwardRef = false
-  let render = baseComponent
+  let render: AnyRenderFn = baseComponent as any
   const baseComponentName = baseComponent.displayName || baseComponent.name
+  let isForwardRefComponent = false
 
-  // Unwrap forwardRef so we can re-wrap: memo(forwardRef(observer))
   if (
     ReactForwardRefSymbol &&
     (baseComponent as TypeOf)["$$typeof"] === ReactForwardRefSymbol
   ) {
-    useForwardRef = true
+    isForwardRefComponent = true
     render = (baseComponent as any)["render"]
   }
 
-  let ObserverComponent = (props: any, ref: React.Ref<TRef>) => {
-    return useObserver(() => render(props, ref), baseComponentName)
-  } // Preserve displayName and function name
-  ;(ObserverComponent as React.FunctionComponent).displayName =
-    baseComponent.displayName
+  const observerWithRef: React.ForwardRefRenderFunction<
+    TRef,
+    React.PropsWithoutRef<P>
+  > = (props, ref) => {
+    return useObserver(
+      () => render(props, ref),
+      baseComponentName,
+    )
+  }
+
+  const observerWithoutRef: React.FunctionComponent<P> = (props) => {
+    return useObserver(
+      () => render(props),
+      baseComponentName,
+    )
+  }
+
+  const observerComponent = isForwardRefComponent
+    ? React.forwardRef<TRef, React.PropsWithoutRef<P>>(
+      observerWithRef as any,
+    )
+    : observerWithoutRef
+
   if (isFunctionNameConfigurable) {
-    Object.defineProperty(ObserverComponent, "name", {
+    Object.defineProperty(observerComponent, "name", {
       value: baseComponent.name,
       writable: true,
       configurable: true,
@@ -99,20 +117,17 @@ export function observer<P extends object, TRef = object>(
 
   // Support legacy context: contextTypes must be applied before memo
   if ((baseComponent as any).contextTypes) {
-    ;(ObserverComponent as React.FunctionComponent).contextTypes =
+    ;(observerComponent as any).contextTypes =
       (baseComponent as any).contextTypes
   }
 
-  // forwardRef must come before memo
-  if (useForwardRef) {
-    ObserverComponent = React.forwardRef(ObserverComponent)
-  }
+  const MemoizedObserver = React.memo(
+    observerComponent as React.ComponentType<P>,
+  )
 
-  ObserverComponent = React.memo(ObserverComponent)
+  copyStaticProperties(baseComponent, MemoizedObserver)
 
-  copyStaticProperties(baseComponent, ObserverComponent)
-
-  return ObserverComponent
+  return MemoizedObserver
 }
 
 // ─── Static property hoisting ────────────────────────────────────────────────

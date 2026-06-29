@@ -13,8 +13,7 @@ The examples intentionally focus on how fobx wants you to think:
 - state lives in `@fobx/core`
 - JSX structure is usually static
 - reactive expressions update the precise DOM binding that read the state
-- class components are for lifecycle and imperative APIs, not routine state
-  churn
+- lifecycle is function-based through `onMount()` and `onCleanup()`
 
 ## Conditional rendering
 
@@ -127,93 +126,35 @@ const SearchBox = () => (
 Use this when you need direct access to focus, measure, scroll, or call other
 native DOM APIs.
 
-## Class component instance refs
+## Lifecycle-driven external resources
 
-For class components, `ref` receives the component instance instead of a DOM
-node.
+Use `onMount()` and `onCleanup()` when a component owns a timer, subscription,
+or other external resource.
 
 ```tsx
 import { observableBox } from "@fobx/core"
-import { Component } from "@fobx/jsx"
+import { onCleanup, onMount } from "@fobx/jsx"
 
-class Counter extends Component<{ initial: number }> {
-  count = observableBox(this.props.initial)
+const Clock = () => {
+  const now = observableBox(new Date().toLocaleTimeString())
+  let timer: number | undefined
 
-  increment() {
-    this.count.set(this.count.get() + 1)
-  }
-
-  override render() {
-    return <div>Count: {() => this.count.get()}</div>
-  }
-}
-
-let counter: Counter | null = null
-
-const App = () => (
-  <>
-    <Counter
-      initial={0}
-      ref={(instance) => {
-        counter = instance
-      }}
-    />
-    <button onClick={() => counter?.increment()}>Increment externally</button>
-  </>
-)
-```
-
-This is one of the strongest reasons to use a class component in fobx.
-
-## Lifecycle-driven external resources
-
-Class components are a good fit when you need setup and teardown around a
-subscription, timer, or external object.
-
-```tsx
-class Clock extends Component {
-  now = observableBox(new Date().toLocaleTimeString())
-  timer?: number
-
-  override didMount() {
-    this.timer = setInterval(() => {
-      this.now.set(new Date().toLocaleTimeString())
+  onMount(() => {
+    timer = setInterval(() => {
+      now.set(new Date().toLocaleTimeString())
     }, 1000)
-  }
+  })
 
-  override didUnmount() {
-    clearInterval(this.timer)
-  }
+  onCleanup(() => {
+    clearInterval(timer)
+  })
 
-  override render() {
-    return <div>{() => this.now.get()}</div>
-  }
+  return <div>{() => now.get()}</div>
 }
 ```
 
-Notice that the interval changes the observable, while the DOM still updates
-through a fine-grained reactive child.
-
-## Structural rerender with `update()`
-
-Reach for `update()` only when the component's root structure itself should be
-replaced.
-
-```tsx
-class Badge extends Component<{ label: string; emphasized: boolean }> {
-  override render() {
-    return this.props.emphasized
-      ? <strong>{this.props.label}</strong>
-      : <span>{this.props.label}</span>
-  }
-}
-
-badge.props = { label: "Updated", emphasized: true }
-badge.update()
-```
-
-For ordinary text, attribute, and list changes, prefer observables plus reactive
-expressions inside `render()`.
+Notice that the resource ownership lives next to the JSX instead of on a class
+instance.
 
 ## Mixing static structure with reactive bindings
 
@@ -234,20 +175,13 @@ const Profile = () => (
 
 That style keeps components easy to read while still getting precise updates.
 
-## When to choose a class component
+## When to use lifecycle hooks
 
-Use a function component when:
+Reach for `onMount()` and `onCleanup()` when:
 
-- you only need structure plus reactive bindings
-- no instance methods are needed
-- no lifecycle hooks are needed
+- a component owns a timer, subscription, or DOM observer
+- you need setup only after the component's nodes exist
+- teardown must follow disposal automatically
 
-Use a class component when:
-
-- you need `didMount()` / `didUnmount()`
-- you want to expose instance methods through `ref`
-- you want a stable imperative object that owns observables
-- you explicitly need root replacement through `update()`
-
-For the full class-component model, see
-[Class Components](/jsx/class-components/).
+For ordinary UI changes, keep using observables plus reactive functions inside
+otherwise static JSX.

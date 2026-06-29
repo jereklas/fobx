@@ -1,13 +1,20 @@
 {
   "name": "@fobx/dom",
   "version": "0.1.0",
-  "exports": "./index.ts",
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+  "exports": {
+    ".": "./index.ts",
+    "./mount": "./mount.ts",
+    "./recreate": "./recreate.ts"
+  },
+  "tasks": {
+    "build": "deno check index.ts"
   },
   "lint": {
     "rules": {
       "exclude": ["no-slow-types"]
     }
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "esnext"]
   }
 }

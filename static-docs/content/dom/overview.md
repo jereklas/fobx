@@ -134,9 +134,18 @@ button({ onClick: () => save() }, "Save")
 div({ "on:MyEvent": (event) => console.log(event.type) })
 ```
 
-Solid-style handler tuples are supported and call `handler(data, event)`.
+Event handler tuples use the shape `[handler, data]`.
+
+- `handler` is the function that should run for the event
+- `data` is a pre-bound value passed to that handler first
+
+When the event fires, fobx calls `handler(data, event)`.
 
 ```ts
+function handleSelect(id: string, event: Event) {
+  console.log(id, event.type)
+}
+
 button({ onClick: [handleSelect, "todo-1"] }, "Select")
 ```
 

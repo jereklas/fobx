@@ -1,46 +1,4 @@
-import * as esbuild from "esbuild"
 import * as utils from "@fobx/utils"
-
-const CORE_ENTRY = "./core.ts"
-
-async function bundle(opts: {
-  file: "core" | "index" | "internals"
-  format: "esm" | "cjs"
-  noBundler?: boolean
-}) {
-  const ext = opts.format === "esm" ? "js" : "cjs"
-  const suffix = opts.noBundler ? ".production" : ""
-  const outfile = `dist/${opts.file}${suffix}.${ext}`
-  const bundle = opts.file === "core"
-
-  const minifyOptions = opts.noBundler
-    ? { minifySyntax: true, minifyWhitespace: true }
-    : { minify: false }
-
-  await esbuild.build({
-    target: utils.JS_TARGET,
-    define: {
-      "process.env.NODE_ENV": opts.noBundler
-        ? '"production"'
-        : "process.env.NODE_ENV",
-      "globalThis.window": "globalThis.window",
-    },
-    entryPoints: [opts.file === "core" ? CORE_ENTRY : `./${opts.file}.ts`],
-    bundle,
-    outfile,
-    format: opts.format,
-    ...minifyOptions,
-  })
-
-  if (!bundle) {
-    let content = await Deno.readTextFile(outfile)
-    content = rewriteRuntimeImportExtensions(content, {
-      ext,
-      noBundler: Boolean(opts.noBundler),
-    })
-    await Deno.writeTextFile(outfile, content)
-  }
-}
 
 function rewriteRuntimeImportExtensions(
   content: string,
@@ -50,7 +8,7 @@ function rewriteRuntimeImportExtensions(
     /(["'])(\.{1,2}\/[^"']+?)\.ts\1/g,
     (_match, quote: string, specifier: string) => {
       if (options.noBundler && specifier === "./core") {
-        return `${quote}./core.production.${options.ext}${quote}`
+        return `${quote}./core.${options.ext}${quote}`
       }
 
       return `${quote}${specifier}.${options.ext}${quote}`
@@ -58,9 +16,53 @@ function rewriteRuntimeImportExtensions(
   )
 }
 
+async function bundle(opts: {
+  file: "core" | "index" | "internals"
+  format: "esm" | "cjs"
+  noBundler?: boolean
+  declaration?: boolean
+}) {
+  const ext = opts.format === "esm" ? "js" : "cjs"
+  const outfile = `dist/${opts.file}.${ext}`
+  const entry = opts.file === "core" ? "./core.ts" : `./${opts.file}.ts`
+
+  const args = [
+    "bundle",
+    "--format",
+    opts.format,
+    "--output",
+    outfile,
+    ...(opts.declaration ? ["--declaration"] : []),
+    entry,
+  ]
+
+  if (opts.noBundler) {
+    args.push("--inline-imports=false")
+  }
+
+  await utils.runDenoCommand(args)
+
+  let content = await Deno.readTextFile(outfile)
+  if (opts.noBundler) {
+    content = rewriteRuntimeImportExtensions(content, { ext, noBundler: true })
+  }
+  content = utils.rewriteGetNodeEnvCalls(content)
+  await Deno.writeTextFile(outfile, content)
+}
+
+async function createDeclarationWrapper(
+  sourceFile: string,
+  targetFile: string,
+) {
+  let content = await Deno.readTextFile(sourceFile)
+  content = content.replaceAll(/from "(\.\/[^"']+?)\.ts"/g, 'from "$1.d.ts"')
+  content = content.replaceAll(/from '(\.\/[^"']+?)\.ts'/g, "from '$1.d.ts'")
+  await Deno.writeTextFile(targetFile, content)
+}
+
 async function build() {
   await utils.rm("dist")
-  await utils.generateTypeDefinitions("dist")
+  await Deno.mkdir("dist", { recursive: true })
   await utils.generatePackageJson("dist", {
     ".": {
       import: "./index.js",
@@ -72,31 +74,23 @@ async function build() {
       require: "./internals.cjs",
       types: "./internals.d.ts",
     },
-    "./production": {
-      import: "./index.production.js",
-      require: "./index.production.cjs",
-      types: "./index.d.ts",
-    },
   })
 
   console.log("bundling...")
   await Promise.all([
-    bundle({ file: "core", format: "esm" }),
+    bundle({ file: "core", format: "esm", declaration: true }),
     bundle({ file: "core", format: "cjs" }),
-    bundle({ file: "core", format: "esm", noBundler: true }),
-    bundle({ file: "core", format: "cjs", noBundler: true }),
-    bundle({ file: "index", format: "esm" }),
-    bundle({ file: "index", format: "cjs" }),
     bundle({ file: "index", format: "esm", noBundler: true }),
     bundle({ file: "index", format: "cjs", noBundler: true }),
-    bundle({ file: "internals", format: "esm" }),
-    bundle({ file: "internals", format: "cjs" }),
+    bundle({ file: "internals", format: "esm", noBundler: true }),
+    bundle({ file: "internals", format: "cjs", noBundler: true }),
   ])
 
+  await createDeclarationWrapper("index.ts", "dist/index.d.ts")
+  await createDeclarationWrapper("internals.ts", "dist/internals.d.ts")
+  await utils.removeDeclarationCtsFiles("dist")
   await utils.printSize("dist/core.js")
   await utils.copyCommonFiles("dist")
 }
 
 await build()
-
-await esbuild.stop()

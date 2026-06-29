@@ -16,7 +16,6 @@ Supports:
 
 - intrinsic element tags
 - functional components
-- class components extending `Component`
 - `Fragment`
 
 ## Automatic runtime exports
@@ -64,31 +63,20 @@ Notes:
 - fallback content is disposed when hidden and recreated when shown again later
 - `<For>` is wrapper-free and marker-based internally
 
-## `Component<P>`
+## `onMount(fn)`
 
-Base class for optional class components.
+Register setup for the current function component.
 
-Key members:
+- runs once after the component is actually mounted into the rendered tree
+- can only be called while a function component is rendering
 
-- `props`
-- `render()`
-- `didMount()`
-- `willUpdate()`
-- `didUpdate()`
-- `didUnmount()`
-- `update()`
+## `onCleanup(fn)`
 
-`render()` may return a node, array of nodes, fragment, or `null`.
+Register teardown for the current function component.
 
-Behavior notes:
-
-- `didMount()` runs on the next microtask after initial render
-- `update()` performs full root replacement rather than diffing
-- `didUnmount()` runs when tracked root nodes are disposed or removed
-- `ref` on a class component receives the instance
-- assigning to `props` does not trigger an update automatically
-
-See [Class Components](/jsx/class-components/) for a deeper walkthrough.
+- runs when the component's root nodes are disposed or unmounted
+- can only be called while a function component is rendering
+- may be called during render or from `onMount()`
 
 ## `render(element, container, options?)`
 
@@ -122,6 +110,6 @@ Important exported types:
 ## Notes
 
 - Function props and function children are the reactive boundaries.
+- Lifecycle is function-based through `onMount()` and `onCleanup()`.
 - Event handlers are attached once.
-- `Component.update()` replaces root nodes rather than diffing them.
 - `<For>` is wrapper-free and marker-based.

@@ -5,36 +5,22 @@ navSection: ["@fobx/jsx"]
 navOrder: 5
 ---
 
-This page maps common SolidJS and React instincts to the `@fobx/jsx` runtime.
+This page maps common React expectations to the `@fobx/jsx` runtime.
 
 The goal is not to claim full framework parity. It is to show how to think in
 fobx terms when you already know another JSX system.
 
 ## At a glance
 
-`@fobx/jsx` is closer to SolidJS than to React in its update model.
+`@fobx/jsx` updates DOM more narrowly than a full component rerender model.
 
 - JSX creates real DOM nodes immediately.
 - Function props and function children are the reactive boundaries.
 - `<For>` is an explicit keyed list primitive.
 - There is no virtual DOM diff for normal updates.
 
-At the same time, `@fobx/jsx` does include an optional class-component API,
-which gives it an imperative escape hatch that feels more familiar to React
-developers.
-
-## If you know SolidJS
-
-The closest mental mapping is:
-
-| SolidJS instinct    | fobx equivalent                               |
-| ------------------- | --------------------------------------------- |
-| `createSignal()`    | `observableBox()` from `@fobx/core`           |
-| signal read in JSX  | wrap the read in `() => ...`                  |
-| `createMemo()`      | `computed()` from `@fobx/core`                |
-| `createEffect()`    | `autorun()` or `reaction()` from `@fobx/core` |
-| `<For>`             | `<For>`                                       |
-| ternary with `null` | ternary with `null`                           |
+Setup and teardown are registered with `onMount()` and `onCleanup()` inside
+function components instead of class lifecycle methods.
 
 ### The main similarities
 
@@ -47,7 +33,6 @@ The closest mental mapping is:
 
 #### Reactivity lives in `@fobx/core`
 
-In SolidJS, signal and effect primitives are part of the main component story.
 In fobx, JSX rendering lives in `@fobx/jsx`, while the reactive primitives live
 in `@fobx/core`.
 
@@ -71,7 +56,7 @@ is just a one-time read.
 
 That is one of the most important habits to internalize when moving into fobx.
 
-#### No built-in `Show`, `Portal`, or `Suspense`
+#### No built-in control-flow or boundary helpers
 
 The current JSX package focuses on the core rendering model. Higher-level
 control-flow or boundary helpers are not part of the package today.
@@ -82,21 +67,17 @@ Common replacements:
 - use `<For>` for keyed lists
 - use direct DOM ownership patterns when you need more control
 
-#### Class components exist
+#### Lifecycle hooks stay inside function components
 
-SolidJS does not center class components. fobx includes `Component` as an
-optional lifecycle-oriented abstraction.
+Lifecycle is function-based instead of class-based.
 
-That means if you need:
-
-- imperative setup and teardown
-- a stable instance with methods
-- explicit `update()` calls
-
-you can use a class component, but it is still running on the same real-DOM,
-fine-grained runtime.
-
-See [Class Components](/jsx/class-components/) for the detailed model.
+```tsx
+const Timer = () => {
+  onMount(() => console.log("mounted"))
+  onCleanup(() => console.log("disposed"))
+  return <div>Ready</div>
+}
+```
 
 ## If you know React
 
@@ -142,22 +123,11 @@ Passing a function to `onClick` means "this is the listener". It does not mean
 
 If the listener itself must change, render a new node.
 
-#### Class components are not React class components
+#### No class-component lifecycle layer
 
-fobx class components are more direct and more explicit.
-
-- `render()` returns actual DOM nodes
-- `update()` performs full root replacement
-- assigning to `this.props` does not auto-rerender
-- lifecycle hooks are tied to DOM ownership and disposal
-
-```tsx
-instance.props = { label: "Next" }
-instance.update()
-```
-
-That makes them useful for imperative integration, but they are not a state
-queue or diff-based component model.
+fobx does not expose a class-component API here. Setup and teardown stay inside
+function components through `onMount()` and `onCleanup()`, and ongoing UI
+updates are still driven by observables plus reactive JSX bindings.
 
 #### Hooks are not the JSX runtime API
 
@@ -165,47 +135,20 @@ queue or diff-based component model.
 come from `@fobx/core`, and rendering is driven by DOM-bound reactive
 expressions.
 
-## Where class components fit in
+## Where lifecycle fits in
 
-Class components are best viewed as an optional imperative shell around the same
-fine-grained runtime.
+The intended pattern is:
 
-Use them when you need:
-
-- lifecycle hooks
-- instance methods through `ref`
-- owned observables on an instance
-- explicit structural rerendering through `update()`
-
-Do not treat them as the default path for ordinary state changes. In most cases,
-the best pattern is still to keep observables on the instance and read them
-through reactive expressions inside `render()`.
-
-```tsx
-class Counter extends Component<{ initial: number }> {
-  count = observableBox(this.props.initial)
-
-  override render() {
-    return <button>Count: {() => this.count.get()}</button>
-  }
-}
-```
-
-That pattern gives you the lifecycle benefits of a class instance without giving
-up fine-grained DOM updates.
+- keep render logic in function components
+- keep changing values in observables from `@fobx/core`
+- use `onMount()` and `onCleanup()` only for setup and teardown
+- let reactive JSX bindings handle ongoing UI updates
 
 ## Recommended migration checklist
-
-If you are coming from SolidJS:
-
-1. Move your reactivity imports to `@fobx/core`.
-2. Keep explicit reactive function boundaries in JSX.
-3. Use `<For>` for keyed lists and ternaries for simple conditional rendering.
-4. Reach for class components only when lifecycle or instance methods matter.
 
 If you are coming from React:
 
 1. Stop thinking in terms of rerendering whole components for every change.
 2. Put changing values in observables.
 3. Read observables through reactive expressions inside otherwise static JSX.
-4. Use class components only when you truly need an imperative shell.
+4. Use `onMount()` and `onCleanup()` instead of looking for class lifecycle methods.

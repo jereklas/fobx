@@ -22,9 +22,9 @@
  */
 
 export { Fragment, h } from "./h.ts"
-export { Component } from "./component.ts"
+export { onCleanup, onMount } from "./lifecycle.ts"
 export { render, unmount } from "./render.ts"
-export type { FC, JsxProps } from "./types.ts"
+export type { FC, JsxProps, PropsWithChildren } from "./types.ts"
 
 // Reactive list rendering
 export { For } from "./for.ts"

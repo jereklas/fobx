@@ -1,22 +1,18 @@
 # @fobx/jsx
 
-A JSX rendering solution that works natively with `@fobx/v2` — powered by
-`@fobx/dom`.
+`@fobx/jsx` is a JSX authoring layer on top of `@fobx/dom` and `@fobx/core`.
 
-**No virtual DOM. No reconciler. Real DOM nodes with fine-grained reactive
-updates.**
+**No virtual DOM. No reconciler. Real DOM nodes with fine-grained reactive updates.**
 
-JSX expressions compile to direct DOM node creation. Reactive expressions
-(functions) in props or children are automatically wrapped in autoruns, so only
-the specific text node or attribute that depends on an observable gets updated —
-not the entire component tree.
+JSX compiles to direct DOM creation. When a prop or child is a function, fobx
+tracks the observable reads inside that function and updates only the affected
+attribute, text node, or child range.
 
 ## Setup
 
-### Modern JSX Transform (recommended)
+### Modern JSX Transform
 
 ```jsonc
-// deno.jsonc or tsconfig.json
 {
   "compilerOptions": {
     "jsx": "react-jsx",
@@ -36,16 +32,15 @@ import { Fragment, h } from "@fobx/jsx"
 ## Quick Start
 
 ```tsx
-import { box } from "@fobx/v2"
+import { observableBox } from "@fobx/core"
 import { render } from "@fobx/jsx"
 
-const count = box(0)
+const count = observableBox(0)
 
 const App = () => (
   <div class="counter">
     <span>Count: {() => count.get()}</span>
     <button onClick={() => count.set(count.get() + 1)}>+</button>
-    <button onClick={() => count.set(count.get() - 1)}>-</button>
   </div>
 )
 
@@ -54,139 +49,128 @@ render(<App />, document.getElementById("root")!)
 
 ## Functional Components
 
-Components are plain functions that receive props and return DOM nodes:
+Components are plain functions that receive props and return nodes, fragments,
+arrays of nodes, or `null`.
 
 ```tsx
 interface GreetingProps {
   name: string
 }
 
-const Greeting = (props: GreetingProps) => (
-  <h1>Hello, {props.name}!</h1>
-)
-
-// Usage:
-<Greeting name="World" />
+const Greeting = (props: GreetingProps) => <h1>Hello, {props.name}!</h1>
 ```
 
-### Children
-
-Children are passed via `props.children`:
+Children are available on `props.children`.
 
 ```tsx
-const Card = (props: { title: string; children?: any }) => (
+const Card = (props: { title: string; children?: unknown }) => (
   <div class="card">
     <h2>{props.title}</h2>
     <div class="body">{props.children}</div>
   </div>
 )
-
-<Card title="Hello">
-  <p>Card content here</p>
-</Card>
 ```
 
-## Reactive Props
+## Reactive Props and Children
 
-Pass a function to make any prop reactive:
+Wrap a prop or child in a function to make that binding reactive.
 
 ```tsx
-const isActive = box(false)
+import { observableBox } from "@fobx/core"
 
-<div class={() => isActive.get() ? "active" : ""}>
-  Content
-</div>
+const active = observableBox(false)
+const name = observableBox("World")
+
+const Greeting = () => (
+  <div class={() => active.get() ? "active" : ""}>
+    Hello, {() => name.get()}!
+  </div>
+)
 ```
 
-## Reactive Children
+`classList`, `style`, `prop:`, `attr:`, `bool:`, `textContent`, and `innerHTML`
+work the same way they do in `@fobx/dom`, including SVG namespace-aware
+creation for known SVG tags.
 
-Wrap expressions in arrow functions to make them reactive:
+Event handlers are different: `onClick` and `on:*` are attached once and are not
+reactive accessors. If the handler itself must change, render a new element.
 
 ```tsx
-const name = box("World")
-
-<div>Hello, {() => name.get()}!</div>
+<button onClick={() => console.log("clicked")}>Click</button>
+<div on:MyEvent={(event) => console.log(event.type)} />
+<button onClick={[handleSelect, "todo-1"]}>Select</button>
 ```
 
-Conditional rendering:
+In tuple form, pass `[handler, data]`. fobx pre-binds the second value and then
+calls `handler(data, event)` when the event fires.
+
+## Lifecycle Hooks
+
+Lifecycle is function-based.
+
+- `onMount(fn)` runs once after the component is actually mounted into the rendered DOM tree.
+- `onCleanup(fn)` runs when the component's root nodes are disposed or unmounted.
 
 ```tsx
-const loggedIn = box(false)
+import { observableBox } from "@fobx/core"
+import { onCleanup, onMount } from "@fobx/jsx"
 
-<div>
-  {() => loggedIn.get()
-    ? <span>Welcome back!</span>
-    : <span>Please log in</span>
-  }
-</div>
+const Timer = () => {
+  const count = observableBox(0)
+  let interval: number | undefined
+
+  onMount(() => {
+    interval = setInterval(() => {
+      count.set(count.get() + 1)
+    }, 1000)
+  })
+
+  onCleanup(() => {
+    clearInterval(interval)
+  })
+
+  return <div>Elapsed: {() => count.get()}s</div>
+}
 ```
+
+Lifecycle is owned by the rendered nodes, not by a class instance. That keeps
+setup and teardown close to the JSX that owns the DOM.
 
 ## Collections
 
-For reactive lists, use `mapArray` / `mountList` from `@fobx/dom` (re-exported
-from `@fobx/jsx`):
-
-```tsx
-import { array } from "@fobx/v2"
-import { mountList } from "@fobx/jsx"
-
-const todos = array(["Buy milk", "Write code"])
-
-const TodoList = () => {
-  const list = <ul />
-  mountList(list, () => todos, (todo) => <li>{todo}</li>)
-  return list
-}
-```
-
-Or use a reactive function child (simpler but less efficient for large lists):
+For small lists, a reactive child can be enough.
 
 ```tsx
 <ul>
-  {() => todos.map((todo) => <li>{todo}</li>)}
+  {() => todos.get().map((todo) => <li>{todo}</li>)}
 </ul>
 ```
 
-## Class Components
-
-For components that need lifecycle hooks or imperative updates:
+For keyed reconciliation, use `mountList()` or `mapArray()` from `@fobx/dom`
+(both are re-exported by `@fobx/jsx`) or use `<For>`.
 
 ```tsx
-import { Component } from "@fobx/jsx"
-import { box } from "@fobx/v2"
+import { observableArray } from "@fobx/core"
+import { For } from "@fobx/jsx"
 
-class Timer extends Component<{ initial: number }> {
-  count = box(this.props.initial)
-  interval?: number
+const todos = observableArray(["Buy milk", "Write code"])
 
-  didMount() {
-    this.interval = setInterval(() => {
-      this.count.set(this.count.get() + 1)
-    }, 1000)
-  }
-
-  didUnmount() {
-    clearInterval(this.interval)
-  }
-
-  render() {
-    return <div>Elapsed: {() => this.count.get()}s</div>
-  }
-}
+<ul>
+  <For each={todos} fallback={<li>No todos</li>}>
+    {(todo, index) => <li>{index()}: {todo}</li>}
+  </For>
+</ul>
 ```
 
-### Lifecycle Methods
+`<For>` accepts either `each={items}` or `each={() => items}`. It exposes a
+reactive `index()` accessor and does not inject a wrapper element into the DOM.
 
-| Method         | When                             |
-| -------------- | -------------------------------- |
-| `didMount()`   | After first render, DOM inserted |
-| `willUpdate()` | Before `update()` re-renders     |
-| `didUpdate()`  | After `update()` re-renders      |
-| `didUnmount()` | When removed from DOM            |
+Fallback content is disposed when the list becomes non-empty and recreated if it
+needs to be shown again later.
 
 ## Fragment
 
-Use `<>...</>` to group elements without a wrapper:
+Use `<>...</>` to group sibling nodes without adding a wrapper element.
 
 ```tsx
 const Header = () => (
@@ -197,39 +181,34 @@ const Header = () => (
 )
 ```
 
-## render / unmount
+## render, unmount, and dispose
 
 ```tsx
-import { render, unmount } from "@fobx/jsx"
+import { dispose, render, unmount } from "@fobx/jsx"
 
-// Mount
 render(<App />, document.getElementById("root")!)
-
-// Teardown (disposes all reactive bindings)
 unmount(document.getElementById("root")!)
+
+const node = <div>{() => count.get()}</div>
+dispose(node)
 ```
 
-## Cleanup
+`render()` mounts into a container. `unmount()` disposes everything inside that
+container. `dispose(node)` is for standalone subtrees you remove manually.
 
-`dispose(node)` tears down reactive bindings on a node and its descendants. It's
-called automatically by `unmount` and `render` (when clearing).
+## Rendering Notes
 
-```tsx
-import { dispose } from "@fobx/jsx"
-
-const node = <div>{() => observable.get()}</div>
-dispose(node) // Stops all reactive updates
-```
+`@fobx/jsx` uses fine-grained DOM ownership. Lifecycle setup and teardown live
+in `onMount()` and `onCleanup()`, and conditional rendering is typically
+written with ternaries and `null`.
 
 ## How It Works
 
-1. **JSX compiles to `h()` calls** — each call creates a real DOM element (via
-   `@fobx/dom`)
-2. **Function props** → wrapped in `autorun`, update the specific attribute on
-   change
-3. **Function children** → wrapped in `autorun` with comment markers, surgically
-   replace the affected DOM region
-4. **No diffing** — changes are tracked at the observable level, not the
-   component tree level
-5. **Batching** — use `runInTransaction` to batch multiple observable mutations
-   into a single DOM update pass
+1. JSX compiles to `h()` calls.
+2. Intrinsic elements are created through `@fobx/dom`.
+3. Function props and function children become fine-grained reactive bindings.
+4. Function components can register `onMount()` and `onCleanup()` during render.
+5. `<For>` and `mountList()` use keyed reconciliation instead of whole-list
+   replacement.
+6. `runInTransaction()` batches multiple observable mutations into one DOM
+   update pass.

@@ -1,6 +1,7 @@
 // TODO: Keep this module out of the main production bundle once the debug API
 // moves behind a separate debug-only entrypoint or build target.
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   $scheduler,
@@ -971,7 +972,7 @@ export function getDebugSnapshot(): DebugSnapshot {
   const nodes = collectLiveNodes().map(snapshotNode)
   return {
     // deno-lint-ignore no-process-global
-    enabled: process.env.NODE_ENV === "debug",
+    enabled: getNodeEnv() === "debug",
     maxEvents: state.maxEvents,
     nodes,
     events: state.events.map(snapshotEvent),
@@ -1043,7 +1044,7 @@ export function buildDebugTraceSummary(
 
   return {
     // deno-lint-ignore no-process-global
-    enabled: process.env.NODE_ENV === "debug",
+    enabled: getNodeEnv() === "debug",
     fromEventId: limitedEvents[0]?.id,
     toEventId: limitedEvents.at(-1)?.id,
     snapshot,

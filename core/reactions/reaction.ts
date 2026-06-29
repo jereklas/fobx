@@ -2,6 +2,7 @@
  * Reaction — two-phase: expression (tracked) → effect (untracked on change).
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   addObserver,
@@ -80,7 +81,7 @@ function _runReaction(this: ReactionRunAdmin): void {
     if (deps.indexOf(collectionAdmin) === -1) {
       deps.push(collectionAdmin)
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         recordDebugDependencyRead(this, collectionAdmin, {
           added: true,
         })
@@ -147,7 +148,7 @@ export function reaction<T>(
     if (admin._isDisposed) return
     admin._isDisposed = true
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       markDebugDisposed(admin)
     }
     removeFromAllDeps(admin)
@@ -175,7 +176,7 @@ export function reaction<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "reaction",

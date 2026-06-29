@@ -2,9 +2,9 @@
 //
 // Provides fine-grained reactive DOM construction that integrates natively
 // with @fobx/core observables. Every element factory (div, span, input, …)
-// returns a real DOM node. Reactive expressions (functions) passed as props
-// or children are automatically wrapped in autoruns that surgically update
-// only the affected DOM attribute / text node when dependencies change.
+// returns a real DOM node. Reactive expressions (functions) passed as props or
+// children are bound through fine-grained effects that surgically update only
+// the affected DOM attribute or child range when dependencies change.
 
 export {
   appendChildNode,
@@ -13,9 +13,22 @@ export {
   onCleanup,
   onDispose,
 } from "./reactive.ts"
-export { mapArray, mountList } from "./map-array.ts"
+export { mapArray, mountList, mountListRange } from "./map-array.ts"
 export { el } from "./element.ts"
-export type { Child, Children, Props, ReactiveValue } from "./types.ts"
+export type {
+  AttributeValue,
+  Child,
+  Children,
+  EventBindingValue,
+  EventHandler,
+  EventHandlerTuple,
+  EventHandlerWithData,
+  EventListenerWithOptions,
+  Props,
+  ReactiveValue,
+  RefCallback,
+  StyleObject,
+} from "./types.ts"
 
 // Re-export all element factories
 export {

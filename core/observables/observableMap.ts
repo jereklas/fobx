@@ -2,6 +2,7 @@
  * Observable Map — reactive Map implementation.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   $scheduler,
@@ -113,7 +114,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
     this[$fobx] = this.collectionAdmin
 
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       registerDebugNode(this, {
         admin: this.collectionAdmin,
         kind: "map",
@@ -185,7 +186,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       _epoch: 0,
     }
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       registerDebugNode(admin, {
         admin,
         kind: "map-entry",
@@ -234,7 +235,7 @@ class ObservableMap<K = Any, V = Any> implements Map<K, V> {
       hasMap.set(key, hasBox)
 
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         attachDebugNodeMetadata(hasBox, {
           parentTarget: this,
           propertyKey: `has(${String(key)})`,

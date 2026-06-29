@@ -10,8 +10,7 @@ navSectionCollapsible: false
 
 `makeObservable()` makes an existing object reactive using an explicit
 annotations map. It is most commonly used in a class constructor. Unlike
-[`observable()`](/core/api/observable/), it does **not** auto-infer
-annotations.
+[`observable()`](/core/api/observable/), it does **not** auto-infer annotations.
 
 ## Signature
 
@@ -158,6 +157,51 @@ left that key unclaimed.
 This applies to both `makeObservable(this)` and `observable(this)` on class
 instances, which is what keeps hooks like `ViewModel.update()` plain even when a
 subclass later calls `observable(this)`.
+
+## TypeScript `private` fields
+
+TypeScript's `private` keyword is a compile-time-only restriction. Fields marked
+`private` are excluded from `keyof T`, which means they do not appear in
+`AnnotationsMap<T>` and TypeScript will report an error if you list them in
+`annotations`.
+
+The runtime object still carries those fields — the restriction is purely in the
+type system. The practical workaround is to suppress the error on the offending
+line:
+
+```ts
+class Counter {
+  private count = 0
+
+  constructor() {
+    makeObservable(this, {
+      annotations: {
+        // @ts-expect-error — TypeScript private is compile-time only;
+        // the field exists at runtime and can be annotated safely.
+        count: "observable",
+      },
+    })
+  }
+}
+```
+
+Be aware that `@ts-expect-error` here will **not** catch a rename of the private
+field. Because TypeScript never knew about the field in the first place, both a
+valid private name and a completely wrong name produce the same "property does
+not exist" error — so the directive silently swallows both.
+
+ECMAScript hard-private fields (`#count`) are a different case: they are
+genuinely inaccessible from outside the class at runtime, so they cannot be
+annotated by `makeObservable` at all.
+
+A future first-class fix is likely to come from **JS decorator support**. The
+[TC39 decorator proposal](https://github.com/tc39/proposal-decorators) is
+supported by TypeScript 5.0+, esbuild, Babel, and SWC, though support varies
+across bundlers and native browser support is still uneven. Decorator-based
+annotation operates at the point of class field definition, giving the decorator
+direct access to the field regardless of TypeScript access modifiers. Decorators
+are on the roadmap for this library and would eliminate this limitation
+entirely.
 
 ## Related API
 

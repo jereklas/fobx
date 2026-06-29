@@ -6,7 +6,7 @@
  * so that @fobx/dom and @fobx/jsx can use standard DOM APIs in tests.
  */
 
-import { Window } from "npm:happy-dom"
+import { Window } from "happy-dom"
 
 let _window: InstanceType<typeof Window> | null = null
 

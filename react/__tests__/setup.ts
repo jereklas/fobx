@@ -6,7 +6,7 @@
  */
 
 // @ts-ignore - npm import
-import { Window } from "npm:happy-dom"
+import { Window } from "happy-dom"
 
 // Keys that React needs from the browser environment.
 // We copy these from happy-dom's Window into globalThis.

@@ -20,6 +20,7 @@ export {
   subscribe,
 } from "./core.ts"
 
+export type { DebugSourceLocation } from "./core.ts"
 export type { Tracker } from "./core.ts"
 export type { Dispose, ObservableAdmin } from "./core.ts"
 export type {

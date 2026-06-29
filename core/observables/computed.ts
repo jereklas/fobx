@@ -40,6 +40,7 @@ import {
   recordDebugWrite,
   registerDebugNode,
 } from "../state/debugGraph.ts"
+import { getNodeEnv } from "@fobx/lib"
 
 export interface Computed<T> {
   get(): T
@@ -91,7 +92,7 @@ export function computed<T>(
     },
     dispose(): void {
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         markDebugDisposed(admin)
       }
       removeFromAllDeps(admin)
@@ -99,7 +100,7 @@ export function computed<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(value, {
       admin,
       kind: "computed",
@@ -211,7 +212,7 @@ function _runComputed(this: ComputedAdmin): void {
   // Notify observers if value changed (skip on first computation)
   if (oldValue !== NOT_CACHED && !admin.comparer(oldValue, admin.value)) {
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugWrite(admin, {
         changed: true,
         operation: "computed:update",

@@ -1,33 +1,25 @@
-import * as esbuild from "esbuild"
 import * as utils from "@fobx/utils"
 
-const bundle = (format: "esm" | "cjs") => {
-  return esbuild.build({
-    entryPoints: ["./index.ts"],
-    bundle: true,
+const bundle = async (format: "esm" | "cjs") => {
+  const outfile = `dist/index${format === "esm" ? ".js" : ".cjs"}`
+  await utils.runDenoCommand([
+    "bundle",
+    "--format",
     format,
-    define: {
-      "process.env.NODE_ENV": "process.env.NODE_ENV",
-    },
-    external: ["@fobx/core", "react"],
-    minify: false,
-    outfile: `dist/index${format === "esm" ? ".js" : ".cjs"}`,
-  })
+    "--output",
+    outfile,
+    "--external",
+    "react",
+    "--declaration",
+    "index.ts",
+  ])
+  const content = await Deno.readTextFile(outfile)
+  await Deno.writeTextFile(outfile, utils.rewriteGetNodeEnvCalls(content))
 }
 
 async function build() {
   await utils.rm("dist")
-  await utils.generateTypeDefinitions("dist", {
-    externalTypePackages: {
-      "@fobx/core": {
-        sourceDir: "../core",
-        exports: {
-          ".": "index.ts",
-          "./internals": "internals.ts",
-        },
-      },
-    },
-  })
+  await Deno.mkdir("dist", { recursive: true })
   await utils.generatePackageJson("dist", {
     ".": {
       "import": "./index.js",
@@ -41,10 +33,9 @@ async function build() {
     bundle("cjs"),
   ])
 
+  await utils.removeDeclarationCtsFiles("dist")
   await utils.printSize("dist/index.js")
   await utils.copyCommonFiles("dist")
 }
 
 await build()
-
-await esbuild.stop()

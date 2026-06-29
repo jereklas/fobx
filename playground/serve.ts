@@ -7,7 +7,7 @@ const port = 3000
 
 async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  let path = url.pathname === "/" ? "/index.html" : url.pathname
+  const path = url.pathname === "/" ? "/index.html" : url.pathname
 
   // Serve dist/ files at /dist/...
   const filePath = `${Deno.cwd()}${path}`

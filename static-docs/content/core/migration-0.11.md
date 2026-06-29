@@ -301,10 +301,10 @@ For `reaction(..., { fireImmediately: true })`, the first callback now matches
 the older `previousValue` surface behavior while still exposing the corner case
 explicitly:
 
-| Current callback state | Meaning |
-| ---------------------- | ------- |
+| Current callback state                                    | Meaning                                             |
+| --------------------------------------------------------- | --------------------------------------------------- |
 | `previousValue === undefined` and `hasPrevious === false` | First immediate run — no previous value existed yet |
-| `previousValue === undefined` and `hasPrevious === true` | The real previous value was actually `undefined` |
+| `previousValue === undefined` and `hasPrevious === true`  | The real previous value was actually `undefined`    |
 
 If your code needs to distinguish those cases, check `hasPrevious` rather than
 comparing against a sentinel.
@@ -414,3 +414,40 @@ changes.
    `Reaction` objects.
 10. Remove imports of `extendObservable`, `Reaction`, `ReactionAdmin`, and
     `getGlobalState`.
+
+---
+
+## Known limitation: TypeScript `private` fields
+
+TypeScript's `private` keyword excludes fields from `keyof T`, so
+`AnnotationsMap<T>` does not include them and TypeScript will report an error if
+you list a `private` field in `annotations`.
+
+The field exists on the runtime object — this is a compile-time-only
+restriction. The short-term workaround is `@ts-expect-error`:
+
+```ts
+class Counter {
+  private count = 0
+
+  constructor() {
+    makeObservable(this, {
+      annotations: {
+        // @ts-expect-error — TypeScript private is compile-time only
+        count: "observable",
+      },
+    })
+  }
+}
+```
+
+Note that the directive will **not** catch a rename of the private field:
+because TypeScript never knew about it, both a valid private name and an invalid
+name produce the same error — the suppression silently swallows both.
+
+ECMAScript hard-private fields (`#count`) cannot be annotated at all, since they
+are genuinely inaccessible from outside the class at runtime.
+
+See the [`makeObservable`](/core/api/make-observable#typescript-private-fields)
+and [`observable`](/core/api/observable#typescript-private-fields) API docs for
+more detail, including notes on the decorator-based fix that is on the roadmap.

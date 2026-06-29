@@ -2,6 +2,7 @@
  * When — one-time reaction that disposes itself when predicate becomes true.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   type Dispose,
   getNextId,
@@ -81,7 +82,7 @@ function createWhen(
       options?.signal?.removeEventListener("abort", abortHandler)
     }
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       markDebugDisposed(admin)
     }
     removeFromAllDeps(admin)
@@ -145,7 +146,7 @@ function createWhen(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "when",

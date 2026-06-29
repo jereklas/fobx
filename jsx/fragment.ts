@@ -7,6 +7,8 @@
  */
 
 import { appendChildNode } from "@fobx/dom"
+import { dispose as disposeNode, onDispose } from "@fobx/dom"
+import { recreateValue, registerRecreateFactory } from "@fobx/dom/recreate"
 
 export function Fragment(props: { children?: any }): DocumentFragment {
   const frag = document.createDocumentFragment()
@@ -20,5 +22,16 @@ export function Fragment(props: { children?: any }): DocumentFragment {
       appendChildNode(frag, children)
     }
   }
-  return frag
+
+  const nodes = Array.from(frag.childNodes)
+  onDispose(frag, () => {
+    for (let i = 0; i < nodes.length; i++) {
+      disposeNode(nodes[i])
+    }
+  })
+
+  return registerRecreateFactory(
+    frag,
+    () => Fragment({ children: recreateValue(children) }),
+  )
 }

@@ -9,12 +9,15 @@ import { observableArray, observableBox, runInTransaction } from "@fobx/core"
 import {
   a,
   button,
+  createScope,
   dispose,
   div,
   el,
   h1,
   input,
   li,
+  mapArray,
+  onCleanup,
   onDispose,
   p,
   span,
@@ -73,6 +76,12 @@ Deno.test("dom: static class attribute", () => {
   assertEquals(node.className, "foo bar")
 })
 
+Deno.test("dom: falsy class does not serialize to literal text", () => {
+  const node = div({ class: false as unknown as string })
+  assertEquals(node.getAttribute("class"), null)
+  assertEquals(node.className, "")
+})
+
 Deno.test("dom: static data attribute", () => {
   const node = div({ "data-id": "42" })
   assertEquals(node.getAttribute("data-id"), "42")
@@ -105,6 +114,59 @@ Deno.test("dom: null attribute removes it", () => {
   assertEquals(node.getAttribute("data-x"), null)
 })
 
+Deno.test("dom: special setters clear nullish values", () => {
+  const label = el("label", { htmlFor: "field-1", textContent: "Name" })
+  assertEquals(label.getAttribute("for"), "field-1")
+  assertEquals(label.textContent, "Name")
+
+  label.textContent = "stale"
+  label.innerHTML = "<span>stale</span>"
+
+  const clearedLabel = el("label", {
+    htmlFor: null,
+    textContent: null,
+    innerHTML: null,
+  })
+
+  assertEquals(clearedLabel.getAttribute("for"), null)
+  assertEquals(clearedLabel.textContent, "")
+  assertEquals(clearedLabel.innerHTML, "")
+
+  const field = input({ value: null }) as HTMLInputElement
+  assertEquals(field.value, "")
+})
+
+Deno.test("dom: namespaced prop attr and bool bindings", () => {
+  const node = input({
+    type: "checkbox",
+    "prop:indeterminate": true,
+    "attr:data-state": "ready",
+    "bool:data-open": true,
+  })
+
+  assertEquals((node as HTMLInputElement).indeterminate, true)
+  assertEquals(node.getAttribute("data-state"), "ready")
+  assertEquals(node.getAttribute("data-open"), "")
+})
+
+Deno.test("dom: svg elements use the svg namespace", () => {
+  const icon = el(
+    "svg",
+    { viewBox: "0 0 16 16" },
+    el("use", { "attr:xlink:href": "#icon-check" }),
+  )
+
+  assertEquals(icon.namespaceURI, "http://www.w3.org/2000/svg")
+  assertEquals(
+    icon.firstElementChild?.namespaceURI,
+    "http://www.w3.org/2000/svg",
+  )
+  assertEquals(
+    icon.firstElementChild?.getAttribute("xlink:href"),
+    "#icon-check",
+  )
+})
+
 // ─── Event Handlers ──────────────────────────────────────────────────────────
 
 Deno.test("dom: onClick event handler", () => {
@@ -129,6 +191,52 @@ Deno.test("dom: onInput event handler", () => {
   assertEquals(fired, true)
 })
 
+Deno.test("dom: tuple event handlers receive data before event", () => {
+  const calls: unknown[] = []
+  const node = button({
+    onClick: [
+      (id: string, event: Event) => {
+        calls.push(id, event.type)
+      },
+      "todo-1",
+    ],
+  }, "Click me")
+
+  node.dispatchEvent(new Event("click"))
+  assertEquals(calls, ["todo-1", "click"])
+})
+
+Deno.test("dom: listener objects support once and abort signals", () => {
+  let onceCalls = 0
+  const onceNode = button({
+    onClick: {
+      once: true,
+      handleEvent() {
+        onceCalls++
+      },
+    },
+  }, "Once")
+
+  onceNode.dispatchEvent(new Event("click"))
+  onceNode.dispatchEvent(new Event("click"))
+  assertEquals(onceCalls, 1)
+
+  let abortCalls = 0
+  const controller = new AbortController()
+  const abortNode = button({
+    onClick: {
+      signal: controller.signal,
+      handleEvent() {
+        abortCalls++
+      },
+    },
+  }, "Abort")
+
+  controller.abort()
+  abortNode.dispatchEvent(new Event("click"))
+  assertEquals(abortCalls, 0)
+})
+
 // ─── Ref ─────────────────────────────────────────────────────────────────────
 
 Deno.test("dom: ref callback is called with element", () => {
@@ -139,6 +247,22 @@ Deno.test("dom: ref callback is called with element", () => {
     },
   }, "Hello")
   assertEquals(refEl, node)
+})
+
+Deno.test("dom: ref callback sees appended children", () => {
+  let childCount = -1
+  let text = ""
+
+  const node = div({
+    ref: (el: HTMLElement) => {
+      childCount = el.childNodes.length
+      text = el.textContent ?? ""
+    },
+  }, span(null, "child"), " tail")
+
+  assertEquals(childCount, 2)
+  assertEquals(text, "child tail")
+  assertEquals(node.childNodes.length, 2)
 })
 
 // ─── Reactive Props ──────────────────────────────────────────────────────────
@@ -192,6 +316,41 @@ Deno.test("dom: reactive style object", () => {
     node.style.cssText.replace(/\s/g, "").includes("font-size:24px"),
     true,
   )
+})
+
+Deno.test("dom: class and classList merge without duplicates", () => {
+  const active = observableBox(false)
+  const node = div({
+    class: "base",
+    classList: () => ({
+      base: true,
+      active: active.get(),
+    }),
+  })
+
+  assertEquals(node.className, "base")
+
+  active.set(true)
+  assertEquals(node.className, "base active")
+})
+
+Deno.test("dom: reactive style can switch between string and object modes", () => {
+  const useObject = observableBox(false)
+  const node = div({
+    style: () =>
+      useObject.get()
+        ? { color: "blue", paddingTop: "4px" }
+        : "color: red; margin-top: 8px;",
+  })
+
+  assertEquals(node.style.color, "red")
+  assertEquals(node.style.marginTop, "8px")
+
+  useObject.set(true)
+
+  assertEquals(node.style.color, "blue")
+  assertEquals(node.style.marginTop, "")
+  assertEquals(node.style.paddingTop, "4px")
 })
 
 // ─── Reactive Children ───────────────────────────────────────────────────────
@@ -283,6 +442,39 @@ Deno.test("dom: onDispose registers custom cleanup", () => {
   assertEquals(cleaned, true)
 })
 
+Deno.test("dom: createScope captures onCleanup and scoped disposers", () => {
+  let cleanupCount = 0
+  let outsideScopeTriggered = false
+
+  assertEquals(
+    onCleanup(() => {
+      outsideScopeTriggered = true
+    }),
+    false,
+  )
+  assertEquals(outsideScopeTriggered, false)
+
+  const [node, disposeScope] = createScope(() => {
+    const scopedNode = div(null, "scoped")
+    assertEquals(
+      onCleanup(() => {
+        cleanupCount += 1
+      }),
+      true,
+    )
+    onDispose(scopedNode, () => {
+      cleanupCount += 10
+    })
+    return scopedNode
+  })
+
+  dispose(node)
+  assertEquals(cleanupCount, 0)
+
+  disposeScope()
+  assertEquals(cleanupCount, 11)
+})
+
 // ─── Transaction Batching ────────────────────────────────────────────────────
 
 Deno.test("dom: batch updates with runInTransaction", () => {
@@ -359,6 +551,123 @@ Deno.test("dom: mountList reacts to splice/remove", () => {
   assertEquals(container.querySelectorAll("li").length, 2)
   assertEquals(container.querySelectorAll("li")[0].textContent, "A")
   assertEquals(container.querySelectorAll("li")[1].textContent, "C")
+})
+
+Deno.test("dom: mountList preserves surrounding siblings and duplicate keys", () => {
+  const first = { id: 1, label: "A" }
+  const second = { id: 1, label: "B" }
+  const items = observableArray([first, second])
+  const container = div(null)
+
+  container.appendChild(span({ class: "before" }, "before"))
+  mountList(
+    container,
+    () => items,
+    (item) => span({ class: "item" }, item.label),
+    (item) => item.id,
+  )
+  container.appendChild(span({ class: "after" }, "after"))
+
+  assertEquals(
+    Array.from(container.querySelectorAll(".item")).map((node) =>
+      node.textContent
+    ),
+    ["A", "B"],
+  )
+  assertEquals(container.querySelector(".before")?.textContent, "before")
+  assertEquals(container.querySelector(".after")?.textContent, "after")
+
+  items.splice(0, 2, second, first)
+
+  assertEquals(
+    Array.from(container.querySelectorAll(".item")).map((node) =>
+      node.textContent
+    ),
+    ["B", "A"],
+  )
+  assertEquals(container.querySelector(".before")?.textContent, "before")
+  assertEquals(container.querySelector(".after")?.textContent, "after")
+})
+
+Deno.test("dom: mountList refreshes index-derived content after reorder", () => {
+  const first = { id: 1, label: "A" }
+  const second = { id: 2, label: "B" }
+  const items = observableArray([first, second])
+  const container = ul(null)
+
+  mountList(
+    container,
+    () => items,
+    (item, index) => li(null, `${index}:${item.label}`),
+    (item) => item.id,
+  )
+
+  assertEquals(
+    Array.from(container.querySelectorAll("li")).map((node) => node.textContent),
+    ["0:A", "1:B"],
+  )
+
+  items.splice(0, 2, second, first)
+
+  assertEquals(
+    Array.from(container.querySelectorAll("li")).map((node) => node.textContent),
+    ["0:B", "1:A"],
+  )
+})
+
+Deno.test("dom: mapArray updates nodes and disposes removed entries", () => {
+  const first = { id: 1, label: observableBox("A") }
+  const second = { id: 2, label: observableBox("B") }
+  const items = observableArray([first, second])
+  let cleanupCount = 0
+
+  const mapped = mapArray(
+    () => items,
+    (item) => {
+      const node = span(null, () => item.label.get())
+      onDispose(node, () => {
+        cleanupCount++
+      })
+      return node
+    },
+    (item) => item.id,
+  )
+
+  assertEquals(mapped.nodes.length, 2)
+  assertEquals(mapped.nodes[0].textContent, "A")
+  assertEquals(mapped.nodes[1].textContent, "B")
+
+  first.label.set("A+")
+  assertEquals(mapped.nodes[0].textContent, "A+")
+
+  items.splice(0, 1)
+  assertEquals(mapped.nodes.length, 1)
+  assertEquals(mapped.nodes[0].textContent, "B")
+  assertEquals(cleanupCount, 2)
+
+  mapped.dispose()
+  assertEquals(cleanupCount, 3)
+  assertEquals(mapped.nodes.length, 0)
+})
+
+Deno.test("dom: mapArray refreshes index-derived content after reorder", () => {
+  const first = { id: 1, label: "A" }
+  const second = { id: 2, label: "B" }
+  const items = observableArray([first, second])
+
+  const mapped = mapArray(
+    () => items,
+    (item, index) => span(null, `${index}:${item.label}`),
+    (item) => item.id,
+  )
+
+  assertEquals(mapped.nodes.map((node) => node.textContent), ["0:A", "1:B"])
+
+  items.splice(0, 2, second, first)
+
+  assertEquals(mapped.nodes.map((node) => node.textContent), ["0:B", "1:A"])
+
+  mapped.dispose()
 })
 
 // ─── Complex Scenarios ───────────────────────────────────────────────────────

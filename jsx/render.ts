@@ -4,6 +4,7 @@
  */
 
 import { dispose as disposeNode } from "@fobx/dom"
+import { mountSubtree } from "@fobx/dom/mount"
 
 /**
  * Render a component or element into a container.
@@ -38,10 +39,10 @@ export function render(
 
   if (Array.isArray(element)) {
     for (const node of element) {
-      if (node instanceof Node) container.appendChild(node)
+      appendRenderedNode(container, node)
     }
   } else if (element instanceof Node) {
-    container.appendChild(element)
+    appendRenderedNode(container, element)
   }
 
   return container
@@ -58,4 +59,18 @@ export function unmount(container: HTMLElement): void {
     container.removeChild(child)
     child = next
   }
+}
+
+function appendRenderedNode(container: HTMLElement, node: Node): void {
+  if (node instanceof DocumentFragment) {
+    const fragmentNodes = Array.from(node.childNodes)
+    container.appendChild(node)
+    for (let i = 0; i < fragmentNodes.length; i++) {
+      mountSubtree(fragmentNodes[i])
+    }
+    return
+  }
+
+  container.appendChild(node)
+  mountSubtree(node)
 }

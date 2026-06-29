@@ -2,6 +2,7 @@
  * Transaction processing and graph resolution.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   $scheduler,
@@ -99,7 +100,7 @@ export function endBatch(): void {
 
 export function scheduleReaction(reaction: ReactionAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugSchedule(reaction, {
       reason: "run-immediately",
       fromState: reaction.state,
@@ -112,7 +113,7 @@ export function scheduleReaction(reaction: ReactionAdmin): void {
 
 export function safeRunReaction(reaction: ReactionAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugRunStart(reaction)
   }
   let runDetail = "completed"
@@ -135,7 +136,7 @@ export function safeRunReaction(reaction: ReactionAdmin): void {
     }
   } finally {
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugRunEnd(reaction, runDetail)
     }
     drainPendingReactionsIfIdle()

@@ -5,7 +5,7 @@
  * Instead of every row observing the selection signal (O(n) reactions),
  * only the previously-selected and newly-selected items are notified.
  *
- * Inspired by SolidJS's createSelector.
+ * Inspired by keyed selection helpers used in fine-grained UI systems.
  *
  * @example
  * ```ts
@@ -17,6 +17,7 @@
  * ```
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import { autorun } from "./autorun.ts"
 import { UNDEFINED } from "./reaction.ts"
 import {
@@ -104,7 +105,7 @@ export function createSelector<T>(
       subs.set(key, admin)
 
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         registerDebugNode(admin, {
           admin,
           kind: "selector-entry",
@@ -125,7 +126,7 @@ export function createSelector<T>(
   isSelected.dispose = (): void => {
     disposeAutorun()
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       for (const admin of subs.values()) {
         markDebugDisposed(admin)
       }
@@ -156,7 +157,7 @@ export function createSelector<T>(
       subs.set(key, admin)
 
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         registerDebugNode(admin, {
           admin,
           kind: "selector-entry",
@@ -172,7 +173,7 @@ export function createSelector<T>(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(isSelected, {
       kind: "selector",
       name: "selector",
@@ -207,7 +208,7 @@ function _cleanupKey(admin: ObservableAdmin): void {
   const subs = (admin as Any)._subs as Map<Any, ObservableAdmin>
   subs.delete(key)
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     markDebugDisposed(admin)
   }
 }

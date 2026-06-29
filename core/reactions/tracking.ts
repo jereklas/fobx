@@ -8,6 +8,7 @@
  * dependency graph.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $scheduler,
   addObserver,
@@ -60,7 +61,7 @@ export function trackAccessKnownTracked(
     admin._epoch = epoch
     admin._tracker = tracking
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugDependencyRead(tracking, admin, {
         added: false,
       })
@@ -75,7 +76,7 @@ export function trackAccessKnownTracked(
   deps.push(admin)
   addObserver(admin, tracking)
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugDependencyRead(tracking, admin, {
       added: true,
     })
@@ -114,7 +115,7 @@ function stopTracking(prevTracking: ReactionAdmin | null): void {
 function removeObserver(dep: ObservableAdmin, reaction: ReactionAdmin): void {
   if (deleteObserver(dep, reaction)) {
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugDependencyRemoved(reaction, dep)
     }
     dep.onLoseObserver?.(dep)

@@ -60,46 +60,43 @@ Key behaviors:
 - exposes a reactive `index()` accessor
 - keeps fragment or multi-node rows together during moves
 
-## Class components
+## Lifecycle hooks
 
-Use `Component` when you need lifecycle hooks or imperative updates.
+Use `onMount()` and `onCleanup()` inside a function component when you need
+setup and teardown tied to that component's rendered nodes.
 
 ```tsx
-class Counter extends Component<{ label: string }> {
-  override render() {
-    return <button>{this.props.label}</button>
-  }
+import { observableBox } from "@fobx/core"
+import { onCleanup, onMount } from "@fobx/jsx"
+
+const Clock = () => {
+  const now = observableBox(new Date().toLocaleTimeString())
+  let timer: number | undefined
+
+  onMount(() => {
+    timer = setInterval(() => {
+      now.set(new Date().toLocaleTimeString())
+    }, 1000)
+  })
+
+  onCleanup(() => {
+    clearInterval(timer)
+  })
+
+  return <div>{() => now.get()}</div>
 }
 ```
 
-Lifecycle hooks:
-
-- `didMount()`
-- `willUpdate()`
-- `didUpdate()`
-- `didUnmount()`
-
 Key behaviors:
 
-- `didMount()` runs on the next microtask after the initial roots are created
-- `update()` is a full root replacement, not a surgical diff
-- `didUnmount()` is tied to root-node disposal, not just top-level container
+- `onMount()` runs once after the component is actually mounted into the rendered tree
+- `onCleanup()` is tied to root-node disposal, not just top-level container
   unmount
-- `render()` may return a node, an array of nodes, a fragment, or `null`
+- lifecycle is registered while the function component renders
+- components may return a node, an array of nodes, a fragment, or `null`
 
-Prefer reactive expressions inside `render()` for most updates, and use
-`update()` when you explicitly want to replace the component's root structure.
-
-If you assign new values to `this.props`, call `update()` yourself. There is no
-separate prop diffing system.
-
-```tsx
-instance.props = { label: "Next" }
-instance.update()
-```
-
-See [Class Components](/jsx/class-components/) for the full lifecycle and
-multi-root behavior.
+For values that should update over time, prefer observables plus reactive
+functions inside otherwise static JSX.
 
 ## Fragments
 
@@ -111,8 +108,6 @@ Fragments return sibling nodes without a wrapper element.
   <p>Body</p>
 </>
 ```
-
-Class components can also return fragments or multiple root nodes.
 
 ## Mounting and cleanup
 
@@ -126,17 +121,16 @@ unmount(root)
 
 For standalone subtrees you remove manually, call `dispose(node)`.
 
-For concrete patterns like controlled inputs, imperative refs, and class
-instance APIs, see [Recipes](/jsx/recipes/).
+For concrete patterns like controlled inputs, imperative refs, and lifecycle
+hooks, see [Recipes](/jsx/recipes/).
 
 ## Differences from React-style expectations
 
 - there is no virtual DOM
 - there is no state setter queue inside components
+- there are no class components or instance lifecycle methods
 - event handlers are not rebound reactively
-- `Component.update()` replaces root nodes instead of diffing them
-- assigning to `this.props` does not automatically trigger a rerender
 - `innerHTML` is supported but not sanitized
 
-For a broader SolidJS and React mapping, see
+For a broader runtime comparison, see
 [Comparison Guide](/jsx/comparison/).

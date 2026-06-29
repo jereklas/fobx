@@ -5,6 +5,7 @@
  * `notifyChanged` centralizes the notify + runPending pattern.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $scheduler,
   type ComputedAdmin,
@@ -38,9 +39,7 @@ export function setRunPendingReactions(fn: () => void): void {
   _runPendingReactions = fn
 }
 
-const isNotProduction =
-  // deno-lint-ignore no-process-global no-process-global
-  typeof process !== "undefined" && process.env?.NODE_ENV !== "production"
+const isNotProduction = getNodeEnv() !== "production"
 
 /**
  * Process a single observer notification — extracted to avoid duplication
@@ -65,7 +64,7 @@ function _notifyOneObserver(
       reaction.state = STALE
       pushPending(reaction)
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         recordDebugSchedule(reaction, {
           source: observable,
           notificationType,
@@ -88,7 +87,7 @@ function _notifyOneObserver(
       const previousState = reaction.state
       reaction.state = STALE
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         recordDebugSchedule(reaction, {
           source: observable,
           notificationType,
@@ -116,7 +115,7 @@ function _notifyOneObserver(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugSchedule(reaction, {
       source: observable,
       notificationType,
@@ -147,7 +146,7 @@ export function notifyObservers(
   if (obs === null) return
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugNotify(observable, { notificationType })
   }
 
@@ -178,7 +177,7 @@ export function notifyObserversChanged(observable: ObservableAdmin): void {
  */
 export function notifyChanged(admin: ObservableAdmin): void {
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug" && admin.kind === KIND_COLLECTION) {
+  if (getNodeEnv() === "debug" && admin.kind === KIND_COLLECTION) {
     recordDebugWrite(admin, {
       changed: true,
       operation: "collection:changed",

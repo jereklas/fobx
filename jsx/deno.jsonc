@@ -6,14 +6,12 @@
     "./jsx-runtime": "./jsx-runtime.ts",
     "./jsx-dev-runtime": "./jsx-runtime.ts"
   },
-  "imports": {
-    "@fobx/core": "../core/index.ts",
-    "@fobx/dom": "../dom/index.ts"
-  },
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@fobx/jsx",
-    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"]
+    "lib": ["deno.ns", "dom", "esnext"]
+  },
+  "tasks": {
+    "build": "deno check index.ts"
   },
   "lint": {
     "rules": {

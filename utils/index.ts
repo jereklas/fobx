@@ -1,66 +1,9 @@
 import { parse } from "@std/jsonc"
-import { fromFileUrl, join, resolve } from "@std/path"
+import { fromFileUrl, join } from "@std/path"
 export * from "./file-server.ts"
 export * from "./file-crawler.ts"
 
 const REPO_ROOT = fromFileUrl(new URL("../", import.meta.url))
-
-type ExternalTypePackageConfig = {
-  sourceDir: string
-  exports: Record<string, string>
-}
-
-type ExternalTypePackageCleanup = {
-  packageDir: string
-  backupDir?: string
-}
-
-function getDeclarationCompilerOptions() {
-  const globalTypesPath = new URL("../global.d.ts", import.meta.url).pathname
-  let packageCompilerOptions: Record<string, unknown> = {}
-
-  try {
-    const denoConfig = parse(Deno.readTextFileSync("./deno.jsonc")) as {
-      compilerOptions?: Record<string, unknown>
-    } | null
-    packageCompilerOptions = denoConfig?.compilerOptions ?? {}
-  } catch {
-    // Some packages may not define per-package compiler options.
-  }
-
-  const rawLibs = Array.isArray(packageCompilerOptions.lib)
-    ? packageCompilerOptions.lib.filter((lib): lib is string => {
-      return typeof lib === "string" && !lib.startsWith("deno.")
-    })
-    : []
-
-  const rawTypes = Array.isArray(packageCompilerOptions.types)
-    ? packageCompilerOptions.types.filter((type): type is string => {
-      return typeof type === "string"
-    })
-    : []
-
-  return {
-    ...packageCompilerOptions,
-    target: JS_TARGET,
-    lib: Array.from(
-      new Set([
-        ...rawLibs,
-        "esnext",
-        "dom",
-        "dom.asynciterable",
-        "dom.iterable",
-      ]),
-    ),
-    declaration: true,
-    emitDeclarationOnly: true,
-    outDir: "dist",
-    allowImportingTsExtensions: true,
-    rewriteRelativeImportExtensions: true,
-    moduleResolution: "bundler",
-    types: Array.from(new Set([globalTypesPath, ...rawTypes])),
-  }
-}
 
 /**
  * Removes a file or directory if it exists. Directories will be removed recursively.
@@ -80,6 +23,27 @@ export async function rm(path: string) {
   }
 }
 
+export async function removeDeclarationCtsFiles(outDir: string) {
+  for await (const entry of Deno.readDir(outDir)) {
+    if (!entry.isFile) continue
+    if (entry.name.endsWith(".d.cts")) {
+      await Deno.remove(`${outDir}/${entry.name}`)
+    }
+  }
+}
+
+export async function runDenoCommand(args: string[]) {
+  const command = new Deno.Command("deno", {
+    args,
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  const { code } = await command.output()
+  if (code !== 0) {
+    Deno.exit(code)
+  }
+}
+
 /**
  * Prints the size of a file in bytes.
  * @param path - path to the file
@@ -96,9 +60,9 @@ export async function printSize(file: string) {
 
   const gzipSize = new Uint8Array(gzippedBuffer).byteLength
   console.log(
-    `Size [gzip]: ${(fileSize / 1024).toFixed(2)} [${
+    `Size [gzip]: ${(fileSize / 1024).toFixed(2)} kb [${
       (gzipSize / 1024).toFixed(2)
-    }] kB`,
+    } kb]`,
   )
 }
 
@@ -106,160 +70,6 @@ export async function printSize(file: string) {
  * The target JavaScript version to compile to.
  */
 export const JS_TARGET = "es2022"
-
-async function rewriteDeclarationImportExtensions(dir: string) {
-  for await (const entry of Deno.readDir(dir)) {
-    const fullPath = `${dir}/${entry.name}`
-
-    if (entry.isDirectory) {
-      await rewriteDeclarationImportExtensions(fullPath)
-      continue
-    }
-
-    if (!entry.isFile || !fullPath.endsWith(".d.ts")) {
-      continue
-    }
-
-    const source = await Deno.readTextFile(fullPath)
-    const rewritten = source.replace(
-      /((?:from\s+|import\s*\()["'])(\.{1,2}\/[^"']+)\.ts(["'])/g,
-      "$1$2.d.ts$3",
-    )
-
-    if (rewritten !== source) {
-      await Deno.writeTextFile(fullPath, rewritten)
-    }
-  }
-}
-
-async function createExternalTypePackages(
-  packages?: Record<string, ExternalTypePackageConfig>,
-) {
-  if (!packages) return [] as ExternalTypePackageCleanup[]
-
-  const cleanups: ExternalTypePackageCleanup[] = []
-
-  for (const [packageName, config] of Object.entries(packages)) {
-    const packageDir = join("node_modules", packageName)
-    const existing = await Deno.lstat(packageDir).catch((error) => {
-      if (error instanceof Deno.errors.NotFound) {
-        return null
-      }
-
-      throw error
-    })
-
-    const cleanup: ExternalTypePackageCleanup = { packageDir }
-
-    if (existing) {
-      cleanup.backupDir =
-        `${packageDir}.__fobx_typegen_backup_${crypto.randomUUID()}`
-      await Deno.rename(packageDir, cleanup.backupDir)
-    }
-
-    cleanups.push(cleanup)
-
-    await Deno.mkdir(packageDir, { recursive: true })
-    await Deno.symlink(
-      resolve(config.sourceDir),
-      join(packageDir, "source"),
-      { type: "dir" },
-    )
-
-    const rootTypes = config.exports["."]
-    if (!rootTypes) {
-      throw new Error(
-        `External type package '${packageName}' must define a '.' export.`,
-      )
-    }
-
-    const packageJson = {
-      name: packageName,
-      private: true,
-      types: `./source/${rootTypes}`,
-      exports: Object.fromEntries(
-        Object.entries(config.exports).map(([specifier, target]) => {
-          return [specifier, { types: `./source/${target}` }]
-        }),
-      ),
-    }
-
-    await Deno.writeTextFile(
-      join(packageDir, "package.json"),
-      JSON.stringify(packageJson, null, 2),
-    )
-  }
-
-  return cleanups
-}
-
-async function cleanupExternalTypePackages(
-  cleanups: ExternalTypePackageCleanup[],
-) {
-  for (const cleanup of cleanups.reverse()) {
-    await rm(cleanup.packageDir)
-
-    if (cleanup.backupDir) {
-      await Deno.rename(cleanup.backupDir, cleanup.packageDir)
-    }
-  }
-}
-
-/**
- * Generates type definitions for the project.
- * @param outDir - The output directory for the generated type definitions.
- */
-export async function generateTypeDefinitions(
-  outDir: string,
-  options?: {
-    paths?: Record<string, string[]>
-    baseUrl?: string
-    externalTypePackages?: Record<string, ExternalTypePackageConfig>
-  },
-) {
-  const CONFIG_PATH = "./tsconfig.json"
-  const externalTypePackages = await createExternalTypePackages(
-    options?.externalTypePackages,
-  )
-
-  const tsconfig = JSON.stringify({
-    compilerOptions: {
-      ...getDeclarationCompilerOptions(),
-      outDir,
-      ...(options?.baseUrl ? { baseUrl: options.baseUrl } : {}),
-      ...(options?.paths ? { paths: options.paths } : {}),
-    },
-    exclude: [
-      "convertImports.ts",
-      "build.ts",
-      "**/__tests__",
-      "dist",
-      "**/*.test.ts",
-      "**/*bench.ts",
-    ],
-  })
-  let code = 0
-
-  try {
-    await Deno.writeTextFile(CONFIG_PATH, tsconfig)
-
-    const command = new Deno.Command("deno", {
-      args: ["run", "-A", "npm:typescript/bin/tsc", "--project", CONFIG_PATH],
-      stdout: "inherit",
-      stderr: "inherit",
-    })
-    ;({ code } = await command.output())
-  } finally {
-    await rm(CONFIG_PATH)
-    await cleanupExternalTypePackages(externalTypePackages)
-  }
-
-  if (code !== 0) {
-    Deno.exit(code)
-  }
-
-  await rewriteDeclarationImportExtensions(outDir)
-}
 
 // deno-lint-ignore no-explicit-any
 export async function generatePackageJson(outDir: string, exports: any) {
@@ -291,6 +101,27 @@ export async function generatePackageJson(outDir: string, exports: any) {
     `${outDir}/package.json`,
     JSON.stringify(contents, null, 2),
   )
+}
+
+/**
+ * Rewrites a bundled JS/CJS file so that downstream bundlers (Vite, Rollup,
+ * esbuild, …) can statically eliminate debug-only and dev-only branches when
+ * `NODE_ENV` is defined (e.g. `define: { 'process.env.NODE_ENV': '"production"' }`).
+ *
+ * Steps performed (order matters):
+ *  1. Remove the inlined `getNodeEnv` function definition before its name
+ *     appears in a call-site replacement and would corrupt the `function` keyword.
+ *  2. Replace all `getNodeEnv()` call sites with `process.env.NODE_ENV`.
+ *  3. Remove the `var isNotProduction = …` declaration.
+ *  4. Inline `isNotProduction` at every use site as `process.env.NODE_ENV !== "production"`,
+ *     so each occurrence becomes independently foldable (e.g. `false && warn()` → dead code).
+ */
+export function rewriteGetNodeEnvCalls(content: string): string {
+  let result = content.replace(/\nfunction getNodeEnv\(\) \{[^}]+\}/, "")
+  result = result.replaceAll("getNodeEnv()", "process.env.NODE_ENV")
+  result = result.replace(/\nvar isNotProduction = process\.env\.NODE_ENV !== "production";/, "")
+  result = result.replaceAll("isNotProduction", `process.env.NODE_ENV !== "production"`)
+  return result
 }
 
 export async function copyCommonFiles(outDir: string) {

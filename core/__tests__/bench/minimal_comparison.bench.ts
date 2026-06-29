@@ -9,14 +9,16 @@
  */
 
 import * as mobx from "mobx"
-// @deno-types="../../dist/index.d.ts"
-import {
+import type * as FobxCore from "@fobx/core"
+import { productionBundleUrl } from "./setup.ts"
+
+const {
   autorun,
   computed,
   observableBox,
   reaction,
   runInTransaction,
-} from "../../dist/index.production.js"
+} = await import(productionBundleUrl) as typeof FobxCore
 
 mobx.configure({ enforceActions: "never" })
 

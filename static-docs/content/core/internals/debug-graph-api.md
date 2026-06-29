@@ -21,8 +21,7 @@ NODE_ENV=debug deno test --allow-env --allow-read
 cd core && NODE_ENV=debug deno task build
 ```
 
-Hot-path instrumentation is guarded by literal
-`if (process.env.NODE_ENV === "debug")`
+Hot-path instrumentation is guarded by literal `if (getNodeEnv() === "debug")`
 checks. In current builds that strips the debug callsites from hot paths when
 debug is off, even though the helper exports themselves still remain part of the
 internal surface.

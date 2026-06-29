@@ -1,0 +1,4 @@
+{
+  "name": "@fobx/lib",
+  "exports": "./mod.ts"
+}

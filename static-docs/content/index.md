@@ -22,6 +22,8 @@ State (observables) → Derived values (computeds) → Side effects (reactions)
 | Package       | Description                                                                             |
 | ------------- | --------------------------------------------------------------------------------------- |
 | `@fobx/core`  | Framework-agnostic reactive primitives: observables, computeds, reactions, transactions |
+| `@fobx/dom`   | Fine-grained DOM construction with real nodes, direct bindings, and keyed lists         |
+| `@fobx/jsx`   | JSX runtime on top of `@fobx/dom` with fragments, `<For>`, and class components         |
 | `@fobx/react` | React bindings — `observer` HOC, `useObserver`, `useViewModel`                          |
 
 ---
@@ -62,5 +64,7 @@ become batched transactions — all from one `observable()` call.
 - [@fobx/core Introduction](/core/) — learn the reactive model
 - [@fobx/core Installation](/core/installation/) — add FobX to your project
 - [@fobx/core Overview](/core/overview/) — a 5-minute tour of every feature
+- [@fobx/dom Introduction](/dom/) — build fine-grained real DOM directly
+- [@fobx/jsx Introduction](/jsx/) — use the JSX runtime and `<For>`
 - [@fobx/react Introduction](/react/) — integrate with React
 - [Migration guide](/core/migration-0.11/) — upgrading from 0.10.x to 0.11.0

@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 // ─── React + v2 ViewModel playground tab ─────────────────────────────────────
 //
 // Demonstrates:
@@ -20,7 +22,7 @@ import {
   runInTransaction,
   runWithoutTracking,
 } from "../../core/index.ts"
-import { observer, useViewModel, ViewModel } from "../../reactV2/index.ts"
+import { observer, useViewModel, ViewModel } from "../../react/index.ts"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. Counter with ViewModel
@@ -71,6 +73,7 @@ const Counter = observer(function Counter(props: {
   const vm = useViewModel(CounterVM, props)
 
   return (
+    // @ts-ignore - for some reason deno check CLI doesn't like this line but only the CLI
     <div className="card">
       <h2>Counter (ViewModel)</h2>
       <div className="counter-row">
@@ -165,7 +168,7 @@ const TodoList = observer(function TodoList() {
           type="text"
           value={vm.inputText}
           placeholder="Add a todo..."
-          onInput={(
+          onChange={(
             e: React.ChangeEvent<HTMLInputElement>,
           ) => (vm.inputText = e.target.value)}
           onKeyDown={(e: React.KeyboardEvent) => {
@@ -252,7 +255,7 @@ const PrimitivesDemo = observer(function PrimitivesDemo() {
           <input
             type="text"
             value={firstName.get()}
-            onInput={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               firstName.set(e.target.value)}
           />
         </div>
@@ -262,7 +265,7 @@ const PrimitivesDemo = observer(function PrimitivesDemo() {
           <input
             type="text"
             value={lastName.get()}
-            onInput={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               lastName.set(e.target.value)}
           />
         </div>

@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource @fobx/jsx */
 // ─── @fobx/jsx playground tab ────────────────────────────────────────────────
 //
 // Uses @fobx/jsx with the automatic JSX runtime — real DOM nodes, no virtual DOM.
@@ -9,16 +11,14 @@
 //   - No reconciliation — mutations are surgical effects on real DOM nodes
 // deno-lint-ignore-file
 
-/// <reference types="../../jsx/types.ts" />
-
-import { Component, dispose, For, Fragment, render } from "../../jsx/index.ts"
+import { dispose, For, Fragment, onCleanup, render } from "@fobx/jsx"
 import {
   computed,
   observable,
   observableArray,
   observableBox,
   runInTransaction,
-} from "../../core/index.ts"
+} from "@fobx/core"
 
 const container = document.getElementById("tab-jsx")!
 
@@ -59,40 +59,38 @@ function CounterFC() {
 // 2. Temperature Converter — Class Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class TempConverter extends Component<{}> {
-  celsius = observableBox(0)
-  fahrenheit = computed(() => this.celsius.get() * 9 / 5 + 32)
-  kelvin = computed(() => this.celsius.get() + 273.15)
+function TempConverter() {
+  const celsius = observableBox(0)
+  const fahrenheit = computed(() => celsius.get() * 9 / 5 + 32)
+  const kelvin = computed(() => celsius.get() + 273.15)
 
-  render() {
-    return (
-      <div class="card">
-        <h2>Temperature Converter (Class Component)</h2>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-          <label style="font-size:13px;color:#666">Celsius:</label>
-          <input
-            type="number"
-            value={() => String(this.celsius.get())}
-            onInput={(e: Event) =>
-              this.celsius.set(
-                Number((e.target as HTMLInputElement).value) || 0,
-              )}
-            style="width:100px"
-          />
-        </div>
-        <div style="font-size:14px;margin-top:4px">
-          <span>{() => `${this.fahrenheit.get().toFixed(1)}°F`}</span>
-          <span style="margin:0 12px;color:#ccc">·</span>
-          <span>{() => `${this.kelvin.get().toFixed(1)}K`}</span>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button onClick={() => this.celsius.set(0)}>Freezing (0°C)</button>
-          <button onClick={() => this.celsius.set(100)}>Boiling (100°C)</button>
-          <button onClick={() => this.celsius.set(37)}>Body (37°C)</button>
-        </div>
+  return (
+    <div class="card">
+      <h2>Temperature Converter (Functional Component)</h2>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <label style="font-size:13px;color:#666">Celsius:</label>
+        <input
+          type="number"
+          value={() => String(celsius.get())}
+          onInput={(e: Event) =>
+            celsius.set(
+              Number((e.target as HTMLInputElement).value) || 0,
+            )}
+          style="width:100px"
+        />
       </div>
-    )
-  }
+      <div style="font-size:14px;margin-top:4px">
+        <span>{() => `${fahrenheit.get().toFixed(1)}°F`}</span>
+        <span style="margin:0 12px;color:#ccc">·</span>
+        <span>{() => `${kelvin.get().toFixed(1)}K`}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onClick={() => celsius.set(0)}>Freezing (0°C)</button>
+        <button onClick={() => celsius.set(100)}>Boiling (100°C)</button>
+        <button onClick={() => celsius.set(37)}>Body (37°C)</button>
+      </div>
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -214,7 +212,7 @@ function DynamicList() {
       <p style="font-size:13px;color:#666;margin-bottom:8px">
         {() => `${listItems.length} items`}
       </p>
-      <For each={() => listItems as Iterable<ListItem>} key={(item) => item.id}>
+      <For each={() => listItems} key={(item) => item.id}>
         {(item) => (
           <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee">
             <span style="flex:1">#{item.id}: {item.name}</span>
@@ -274,65 +272,73 @@ function FragmentDemo() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 6. Stopwatch — class Component with observable state
+// 6. Stopwatch — functional component with observable state
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class Stopwatch extends Component<{}> {
-  elapsed = observableBox(0)
-  running = observableBox(false)
-  private interval: ReturnType<typeof setInterval> | null = null
+const stopwatchInterval = observableBox<ReturnType<typeof setInterval> | null>(
+  null,
+)
 
-  formattedTime = computed(() => {
-    const ms = this.elapsed.get()
+function Stopwatch() {
+  const elapsed = observableBox(0)
+  const running = observableBox(false)
+  const interval = observableBox<ReturnType<typeof setInterval> | null>(null)
+
+  const formattedTime = computed(() => {
+    const ms = elapsed.get()
     const mins = Math.floor(ms / 60000)
     const secs = Math.floor((ms % 60000) / 1000)
     const centis = Math.floor((ms % 1000) / 10)
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${
-      String(centis).padStart(2, "0")
-    }`
+    return `${String(mins).padStart(2, "0")}:
+      ${String(secs).padStart(2, "0")}.
+      ${String(centis).padStart(2, "0")}`
   })
 
-  start() {
-    if (this.interval) return
-    this.interval = setInterval(
-      () => this.elapsed.set(this.elapsed.get() + 10),
-      10,
-    )
-    this.running.set(true)
+  const start = () => {
+    if (interval.get()) return
+    interval.set(setInterval(() => elapsed.set(elapsed.get() + 10), 10))
+    running.set(true)
   }
 
-  stop() {
-    if (this.interval) {
-      clearInterval(this.interval)
-      this.interval = null
+  const stop = () => {
+    const timer = interval.get()
+    if (timer) {
+      clearInterval(timer)
+      interval.set(null)
     }
-    this.running.set(false)
+    running.set(false)
   }
 
-  reset() {
-    this.stop()
-    this.elapsed.set(0)
+  const reset = () => {
+    stop()
+    elapsed.set(0)
   }
 
-  render() {
-    return (
-      <div class="card">
-        <h2>Stopwatch (Class Component)</h2>
-        <div style="font-size:36px;font-weight:700;font-family:monospace;margin:8px 0">
-          {() => this.formattedTime.get()}
-        </div>
-        <div style="display:flex;gap:8px">
-          <button
-            class="btn-primary"
-            onClick={() => this.running.get() ? this.stop() : this.start()}
-          >
-            {() => this.running.get() ? "Stop" : "Start"}
-          </button>
-          <button onClick={() => this.reset()}>Reset</button>
-        </div>
+  onCleanup(() => {
+    const timer = interval.get()
+    if (timer) {
+      clearInterval(timer)
+      interval.set(null)
+    }
+  })
+
+  return (
+    <div class="card">
+      <h2>Stopwatch (Functional Component)</h2>
+      <div style="font-size:36px;font-weight:700;font-family:monospace;margin:8px 0">
+        {() => formattedTime.get()}
       </div>
-    )
-  }
+      <div style="display:flex;gap:8px">
+        <button
+          class="btn-primary"
+          onClick={() => (running.get() ? stop() : start())}
+        >
+          {() => (running.get() ? "Stop" : "Start")}
+        </button>
+        <button onClick={() => reset()}>Reset</button>
+      </div>
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

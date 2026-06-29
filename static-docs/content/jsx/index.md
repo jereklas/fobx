@@ -20,8 +20,9 @@ on changed state.
 | JSX runtime / `h()`      | Turn JSX into real DOM nodes                                    |
 | `Fragment`               | Group sibling nodes without a wrapper element                   |
 | `For`                    | Keyed list rendering with fallback support and reactive indexes |
+| `onMount()`              | Register mount-time setup for a function component              |
+| `onCleanup()`            | Register teardown for a function component                      |
 | `render()` / `unmount()` | Mount and tear down trees in a container                        |
-| `Component`              | Optional class-component API with lifecycle hooks               |
 | `dispose()`              | Manual cleanup for standalone subtrees                          |
 
 ## Quick example
@@ -52,14 +53,13 @@ render(<App />, document.getElementById("root")!)
 
 ## Mental model
 
-If you know SolidJS, the best mental model is:
+The best mental model is:
 
 - JSX is syntax sugar over real-node creation.
 - Function props and function children are the reactive boundaries.
+- Function components own lifecycle through `onMount()` and `onCleanup()`.
 - Event listeners are attached once, not rebound reactively.
 - `<For>` provides explicit keyed reconciliation for collections.
-- Class components are an imperative wrapper around the same DOM ownership
-  model, not a separate component diffing system.
 
 ## When to use it
 
@@ -68,17 +68,15 @@ authoring structure. It is a good fit for:
 
 - framework-free apps that still want JSX ergonomics
 - widget libraries that should not ship a virtual DOM
-- teams already comfortable with Solid-style reactive expressions
+- teams that want explicit reactive expressions in JSX
 
 ## Next steps
 
 - [Installation](/jsx/installation/) — configure the JSX transform
 - [Overview](/jsx/overview/) — learn components, reactivity, lists, and
-  lifecycle
-- [Class Components](/jsx/class-components/) — lifecycle timing, `update()`, and
-  multi-root behavior
-- [Comparison Guide](/jsx/comparison/) — map common SolidJS and React instincts
-  to the fobx runtime
+  lifecycle hooks
+- [Comparison Guide](/jsx/comparison/) — map common React expectations to the
+  fobx runtime
 - [Recipes](/jsx/recipes/) — practical patterns for conditional UI, inputs,
-  refs, and class-component APIs
+  refs, and lifecycle hooks
 - [API Reference](/jsx/api-reference/) — public API behavior and signatures

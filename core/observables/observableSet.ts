@@ -2,6 +2,7 @@
  * Observable Set — reactive Set implementation.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $fobx,
   $scheduler,
@@ -74,7 +75,7 @@ class ObservableSet<T = unknown> implements Set<T> {
     }
 
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       registerDebugNode(this, {
         admin: this[$fobx],
         kind: "set",
@@ -108,7 +109,7 @@ class ObservableSet<T = unknown> implements Set<T> {
       this.hasMap.set(value, hasBox)
 
       // deno-lint-ignore no-process-global
-      if (process.env.NODE_ENV === "debug") {
+      if (getNodeEnv() === "debug") {
         attachDebugNodeMetadata(hasBox, {
           parentTarget: this,
           propertyKey: `has(${String(value)})`,

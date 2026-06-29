@@ -2,6 +2,7 @@
  * Autorun reaction — runs immediately, re-runs on dependency changes.
  */
 
+import { getNodeEnv } from "@fobx/lib"
 import {
   $scheduler,
   addObserver,
@@ -64,7 +65,7 @@ export function autorun(
     if (admin._isDisposed) return
     admin._isDisposed = true
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       markDebugDisposed(admin)
     }
     removeFromAllDeps(admin)
@@ -83,7 +84,7 @@ export function autorun(
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "autorun",
@@ -128,7 +129,7 @@ export function effect(fn: () => void): Dispose {
   }
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(admin, {
       admin,
       kind: "effect",
@@ -202,7 +203,7 @@ export function subscribe<T>(
   const reaction = _getReaction(fn, admin)
 
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     registerDebugNode(reaction, {
       admin: reaction,
       kind: "subscription",
@@ -212,7 +213,7 @@ export function subscribe<T>(
 
   addObserver(admin, reaction)
   // deno-lint-ignore no-process-global
-  if (process.env.NODE_ENV === "debug") {
+  if (getNodeEnv() === "debug") {
     recordDebugObserverLink(admin, reaction, "subscribe")
   }
   fn(admin.value) // initial synchronous run
@@ -229,7 +230,7 @@ export function subscribe<T>(
   return () => {
     deleteObserver(admin, reaction)
     // deno-lint-ignore no-process-global
-    if (process.env.NODE_ENV === "debug") {
+    if (getNodeEnv() === "debug") {
       recordDebugObserverUnlink(admin, reaction, "subscribe")
       markDebugDisposed(reaction)
     }

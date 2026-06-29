@@ -17,7 +17,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - \
 
 USER vscode
 
-ENV DENO_VERSION=2.2.12
+ENV DENO_VERSION=2.9.0
 ENV PATH="/home/vscode/.deno/bin:${PATH}"
 
 RUN curl -fsSL https://deno.land/x/install/install.sh | sh -s v$DENO_VERSION

@@ -1,5 +1,5 @@
+import { getNodeEnv } from "@fobx/lib"
 import { expect, test } from "@fobx/testing"
-import process from "node:process"
 import {
   autorun,
   computed,
@@ -23,10 +23,9 @@ import {
 
 function withDebugTracking<T>(run: () => T): T {
   const previousDebug = Deno.env.get("NODE_ENV")
-  const previousProcessDebug = process.env.NODE_ENV
+  const previousProcessDebug = getNodeEnv()
 
   Deno.env.set("NODE_ENV", "debug")
-  process.env.NODE_ENV = "debug"
   resetDebugTracking()
   configureDebugTracking({ maxEvents: 256 })
 
@@ -41,9 +40,9 @@ function withDebugTracking<T>(run: () => T): T {
     }
 
     if (previousProcessDebug === undefined) {
-      delete process.env.NODE_ENV
+      Deno.env.delete("NODE_ENV")
     } else {
-      process.env.NODE_ENV = previousProcessDebug
+      Deno.env.set("NODE_ENV", previousProcessDebug)
     }
   }
 }

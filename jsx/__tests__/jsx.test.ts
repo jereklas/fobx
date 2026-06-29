@@ -5,8 +5,18 @@
 
 import { assertEquals } from "@std/assert"
 import { cleanupDOM, setupDOM } from "../../dom/__tests__/setup.ts"
-import { observableBox, runInTransaction } from "@fobx/core"
-import { Component, dispose, Fragment, h, render, unmount } from "../index.ts"
+import { observableArray, observableBox, runInTransaction } from "@fobx/core"
+import {
+  dispose,
+  For,
+  Fragment,
+  h,
+  onCleanup,
+  onDispose,
+  onMount,
+  render,
+  unmount,
+} from "../index.ts"
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
 
@@ -120,62 +130,178 @@ Deno.test("jsx: Fragment returns children without wrapper", () => {
   assertEquals(frag.childNodes.length, 2)
 })
 
-// ─── Class Component ─────────────────────────────────────────────────────────
+Deno.test("jsx: dispose() cleans up mounted fragment bindings", () => {
+  const count = observableBox(0)
+  const fragment = h(
+    Fragment,
+    null,
+    h("span", { class: "value" }, () => String(count.get())),
+  )
+  const container = h("div", null) as HTMLElement
 
-Deno.test("jsx: class component renders", () => {
-  class MyComp extends Component<{ label: string }> {
-    render() {
-      return h("div", { class: "my-comp" }, this.props.label)
-    }
-  }
+  render(fragment, container)
+  assertEquals(container.textContent, "0")
 
-  const node = h(MyComp, { label: "test" })
-  assertEquals(node.tagName, "DIV")
-  assertEquals(node.className, "my-comp")
-  assertEquals(node.textContent, "test")
+  count.set(1)
+  assertEquals(container.textContent, "1")
+
+  dispose(fragment)
+  count.set(2)
+  assertEquals(container.textContent, "1")
 })
 
-Deno.test("jsx: class component ref receives instance", () => {
-  let ref: any = null
+// ─── Function Lifecycle ─────────────────────────────────────────────────────
 
-  class MyComp extends Component {
-    greeting() {
-      return "hello"
-    }
-    render() {
-      return h("div", null, "comp")
-    }
-  }
-
-  h(MyComp, {
-    ref: (inst: any) => {
-      ref = inst
-    },
-  })
-  assertEquals(ref?.greeting(), "hello")
-})
-
-Deno.test("jsx: class component with reactive children", () => {
+Deno.test("jsx: functional component with reactive children", () => {
   const count = observableBox(0)
 
-  class Counter extends Component {
-    render() {
-      return h(
-        "div",
-        null,
-        h("span", { class: "count" }, () => String(count.get())),
-        h("button", {
-          onClick: () => count.set(count.get() + 1),
-        }, "+"),
-      )
-    }
+  const Counter = () => {
+    return h(
+      "div",
+      null,
+      h("span", { class: "count" }, () => String(count.get())),
+      h("button", {
+        onClick: () => count.set(count.get() + 1),
+      }, "+"),
+    )
   }
 
-  const node = h(Counter, null)
+  const node = h(Counter, null) as HTMLElement
   assertEquals(node.querySelector(".count")?.textContent, "0")
 
   count.set(5)
   assertEquals(node.querySelector(".count")?.textContent, "5")
+})
+
+Deno.test("jsx: onMount runs after initial render", async () => {
+  const lifecycle: string[] = []
+
+  const Widget = (props: { label: string }) => {
+    lifecycle.push(`render:${props.label}`)
+    onMount(() => {
+      lifecycle.push("mounted")
+    })
+    return h("div", null, props.label)
+  }
+
+  const container = h("div", null) as HTMLElement
+  render(h(Widget, { label: "A" }), container)
+
+  assertEquals(lifecycle, ["render:A"])
+
+  await Promise.resolve()
+  assertEquals(lifecycle, ["render:A", "mounted"])
+})
+
+Deno.test("jsx: onMount waits until a component is actually rendered", async () => {
+  const lifecycle: string[] = []
+
+  const Widget = () => {
+    lifecycle.push("render")
+    onMount(() => {
+      lifecycle.push("mounted")
+    })
+    return h("div", null, "Widget")
+  }
+
+  const detached = h(Widget, null)
+
+  await Promise.resolve()
+  assertEquals(lifecycle, ["render"])
+
+  const container = h("div", null) as HTMLElement
+  render(detached, container)
+
+  await Promise.resolve()
+  assertEquals(lifecycle, ["render", "mounted"])
+})
+
+Deno.test("jsx: onCleanup runs when a functional component is disposed", async () => {
+  let cleanupCount = 0
+  const count = observableBox(0)
+
+  const Pair = () => {
+    onCleanup(() => {
+      cleanupCount += 1
+    })
+
+    return h(
+      Fragment,
+      null,
+      h("span", { class: "left" }, () => String(count.get())),
+      h("span", { class: "right" }, "!"),
+    )
+  }
+
+  const pair = h(Pair, null)
+  const container = h("div", null) as HTMLElement
+  render(pair, container)
+
+  await Promise.resolve()
+  assertEquals(container.textContent, "0!")
+
+  count.set(1)
+  assertEquals(container.textContent, "1!")
+
+  dispose(pair)
+  assertEquals(cleanupCount, 1)
+
+  count.set(2)
+  assertEquals(container.textContent, "1!")
+})
+
+Deno.test("jsx: onCleanup callbacks run in reverse registration order", () => {
+  const cleanupOrder: string[] = []
+
+  const Widget = () => {
+    onCleanup(() => {
+      cleanupOrder.push("first")
+    })
+    onCleanup(() => {
+      cleanupOrder.push("second")
+    })
+    return h("div", null, "Widget")
+  }
+
+  const node = h(Widget, null)
+  dispose(node)
+
+  assertEquals(cleanupOrder, ["second", "first"])
+})
+
+Deno.test("jsx: lifecycle hooks work for components inserted by reactive children", async () => {
+  const lifecycle: string[] = []
+  const showChild = observableBox(false)
+
+  const Child = () => {
+    lifecycle.push("render")
+    onMount(() => {
+      lifecycle.push("mount")
+    })
+    onCleanup(() => {
+      lifecycle.push("cleanup")
+    })
+    return h("span", { class: "child" }, "Child")
+  }
+
+  const App = () => h("div", null, () => showChild.get() ? h(Child, null) : null)
+
+  const container = h("div", null) as HTMLElement
+  render(h(App, null), container)
+
+  await Promise.resolve()
+  assertEquals(lifecycle, [])
+  assertEquals(container.textContent, "")
+
+  showChild.set(true)
+  assertEquals(container.textContent, "Child")
+
+  await Promise.resolve()
+  assertEquals(lifecycle, ["render", "mount"])
+
+  showChild.set(false)
+  assertEquals(container.textContent, "")
+  assertEquals(lifecycle, ["render", "mount", "cleanup"])
 })
 
 // ─── render() ────────────────────────────────────────────────────────────────
@@ -328,6 +454,146 @@ Deno.test("jsx: transaction batches reactive UI updates", () => {
 
   assertEquals(node.textContent, "X-Y")
   assertEquals(renders, 2) // Only one re-render for both changes
+})
+
+Deno.test("jsx: For is wrapper-free and supports direct iterables", () => {
+  const items = observableArray(["A", "B"])
+  const list = h(
+    "ul",
+    null,
+    h(
+      For,
+      { each: items },
+      (item: string, index: () => number) =>
+        h("li", { "data-index": () => String(index()) }, item),
+    ),
+  ) as HTMLElement
+
+  assertEquals(list.children.length, 2)
+  assertEquals(
+    Array.from(list.children).every((child) => child.tagName === "LI"),
+    true,
+  )
+  assertEquals(list.querySelectorAll("div").length, 0)
+
+  items.splice(0, 2, "B", "A")
+
+  assertEquals(
+    Array.from(list.querySelectorAll("li")).map((node) => node.textContent),
+    ["B", "A"],
+  )
+  assertEquals(list.querySelectorAll("li")[0].getAttribute("data-index"), "0")
+  assertEquals(list.querySelectorAll("li")[1].getAttribute("data-index"), "1")
+})
+
+Deno.test("jsx: For fallback bindings are disposed on unmount", () => {
+  const fallbackText = observableBox("Empty")
+  let cleanupCount = 0
+
+  const fallbackNode = h("span", null, () => fallbackText.get())
+  onDispose(fallbackNode, () => {
+    cleanupCount++
+  })
+
+  const container = h("div", null) as HTMLElement
+  render(
+    h(
+      "ul",
+      null,
+      h(
+        For,
+        { each: [] as string[], fallback: fallbackNode },
+        (item: string) => h("li", null, item),
+      ),
+    ),
+    container,
+  )
+
+  assertEquals(container.textContent, "Empty")
+
+  unmount(container)
+  assertEquals(cleanupCount, 1)
+
+  fallbackText.set("Changed")
+  assertEquals(cleanupCount, 1)
+})
+
+Deno.test("jsx: For disposes hidden fallback bindings and recreates them when shown again", () => {
+  const items = observableArray<string>([])
+  const fallbackText = observableBox("Empty")
+  let cleanupCount = 0
+
+  const container = h(
+    "div",
+    null,
+    h(
+      For,
+      {
+        each: items,
+        fallback: h("span", null, () => fallbackText.get()),
+      },
+      (item: string) => h("span", { class: "item" }, item),
+    ),
+  ) as HTMLElement
+
+  const initialFallback = container.querySelector("span")
+  onDispose(initialFallback!, () => {
+    cleanupCount++
+  })
+
+  assertEquals(container.textContent, "Empty")
+
+  items.push("x")
+  assertEquals(container.textContent, "x")
+  assertEquals(cleanupCount, 1)
+
+  fallbackText.set("Hidden update")
+  assertEquals(container.textContent, "x")
+
+  items.splice(0, 1)
+  assertEquals(container.textContent, "Hidden update")
+  assertEquals(cleanupCount, 1)
+  assertEquals(container.querySelector("span.item"), null)
+})
+
+Deno.test("jsx: lifecycle hooks work for nested functional components", async () => {
+  const lifecycle: string[] = []
+
+  const Child = (props: { label: string }) => {
+    lifecycle.push(`render:${props.label}`)
+    onMount(() => {
+      lifecycle.push(`mount:${props.label}`)
+    })
+    onCleanup(() => {
+      lifecycle.push(`cleanup:${props.label}`)
+    })
+    return h("div", null, props.label)
+  }
+
+  const Parent = () => h(Fragment, null, h(Child, { label: "A" }), h(Child, { label: "B" }))
+
+  const container = h("div", null) as HTMLElement
+  render(h(Parent, null), container)
+
+  assertEquals(lifecycle, ["render:A", "render:B"])
+
+  await Promise.resolve()
+  assertEquals(lifecycle, [
+    "render:A",
+    "render:B",
+    "mount:A",
+    "mount:B",
+  ])
+
+  unmount(container)
+  assertEquals(lifecycle, [
+    "render:A",
+    "render:B",
+    "mount:A",
+    "mount:B",
+    "cleanup:A",
+    "cleanup:B",
+  ])
 })
 
 cleanupDOM()

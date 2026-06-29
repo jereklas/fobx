@@ -3,6 +3,7 @@
  */
 
 import type { Children, Props } from "./types.ts"
+import { recreateChildren, registerRecreateFactory } from "./recreate.ts"
 import {
   appendChildNode,
   bindAttribute,
@@ -10,13 +11,79 @@ import {
   setAttribute,
 } from "./reactive.ts"
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+const SVG_TAGS = new Set([
+  "a",
+  "animate",
+  "animateMotion",
+  "animateTransform",
+  "circle",
+  "clipPath",
+  "defs",
+  "desc",
+  "ellipse",
+  "feBlend",
+  "feColorMatrix",
+  "feComponentTransfer",
+  "feComposite",
+  "feConvolveMatrix",
+  "feDiffuseLighting",
+  "feDisplacementMap",
+  "feDistantLight",
+  "feDropShadow",
+  "feFlood",
+  "feFuncA",
+  "feFuncB",
+  "feFuncG",
+  "feFuncR",
+  "feGaussianBlur",
+  "feImage",
+  "feMerge",
+  "feMergeNode",
+  "feMorphology",
+  "feOffset",
+  "fePointLight",
+  "feSpecularLighting",
+  "feSpotLight",
+  "feTile",
+  "feTurbulence",
+  "filter",
+  "foreignObject",
+  "g",
+  "image",
+  "line",
+  "linearGradient",
+  "marker",
+  "mask",
+  "metadata",
+  "mpath",
+  "path",
+  "pattern",
+  "polygon",
+  "polyline",
+  "radialGradient",
+  "rect",
+  "set",
+  "stop",
+  "svg",
+  "switch",
+  "symbol",
+  "text",
+  "textPath",
+  "title",
+  "tspan",
+  "use",
+  "view",
+])
+
 /**
  * Create a DOM element with props and children.
  *
- * - Props whose values are functions are treated as reactive expressions
- *   and are wrapped in autoruns (except event handlers).
+ * - Props whose values are functions are treated as reactive expressions and
+ *   are bound through fine-grained reactive effects (except event handlers).
  * - Children that are functions are treated as reactive children.
- * - Event handlers (props starting with "on") are attached directly.
+ * - Event handlers (props starting with "on") are attached once and are not
+ *   rebound reactively. Render a new element if the handler itself must change.
  *
  * @param tag - The HTML tag name (e.g. "div", "span").
  * @param props - Attributes, event handlers, reactive bindings.
@@ -28,7 +95,7 @@ export function el(
   props?: Props | null,
   ...children: Children[]
 ): HTMLElement {
-  const element = document.createElement(tag)
+  const element = createElementForTag(tag)
 
   // ── Props ────────────────────────────────────────────────────────────────
   if (props) {
@@ -40,31 +107,31 @@ export function el(
       // Skip internal props
       if (key === "ref") continue
 
-      // Event handlers: onXxx
-      if (
-        key.length > 2 && key[0] === "o" && key[1] === "n" &&
-        key.charCodeAt(2) >= 65 && key.charCodeAt(2) <= 90
-      ) {
-        const eventName = key.slice(2).toLowerCase()
-        element.addEventListener(eventName, value)
-        // Store for cleanup
-        onDispose(element, () => element.removeEventListener(eventName, value))
+      const eventBinding = getEventBinding(key, value)
+      if (eventBinding) {
+        element.addEventListener(
+          eventBinding.eventName,
+          eventBinding.listener,
+          eventBinding.options,
+        )
+        onDispose(element, () => {
+          element.removeEventListener(
+            eventBinding.eventName,
+            eventBinding.listener,
+            eventBinding.options,
+          )
+        })
         continue
       }
 
       // Reactive prop (function)
       if (typeof value === "function") {
-        bindAttribute(element, key, value)
+        bindAttribute(element, key, value as () => unknown)
         continue
       }
 
       // Static prop
       setAttribute(element, key, value)
-    }
-
-    // Ref callback — called with the element
-    if (props.ref) {
-      props.ref(element)
     }
   }
 
@@ -73,5 +140,110 @@ export function el(
     appendChildNode(element, children[i])
   }
 
-  return element
+  if (props?.ref) {
+    props.ref(element)
+  }
+
+  return registerRecreateFactory(
+    element,
+    () => el(tag, props ?? null, ...recreateChildren(children)),
+  )
+}
+
+function createElementForTag(tag: string): HTMLElement {
+  if (SVG_TAGS.has(tag)) {
+    return document.createElementNS(
+      SVG_NAMESPACE,
+      tag,
+    ) as unknown as HTMLElement
+  }
+
+  return document.createElement(tag)
+}
+
+interface EventBinding {
+  eventName: string
+  listener: EventListenerOrEventListenerObject
+  options?: AddEventListenerOptions | boolean
+}
+
+function getEventBinding(key: string, value: unknown): EventBinding | null {
+  if (key.startsWith("on:")) {
+    return createEventBinding(key.slice(3), value)
+  }
+
+  if (
+    key.length > 2 && key[0] === "o" && key[1] === "n" &&
+    key.charCodeAt(2) >= 65 && key.charCodeAt(2) <= 90
+  ) {
+    return createEventBinding(key.slice(2).toLowerCase(), value)
+  }
+
+  return null
+}
+
+function createEventBinding(
+  eventName: string,
+  value: unknown,
+): EventBinding | null {
+  if (value == null || value === false) return null
+
+  if (Array.isArray(value)) {
+    const [handler, data] = value
+    if (typeof handler !== "function") return null
+
+    const listener: EventListener = (event) => {
+      // Tuple form: the bound data is passed first, then the event.
+      handler(data, event)
+    }
+    return { eventName, listener }
+  }
+
+  if (typeof value === "function") {
+    return { eventName, listener: value as EventListener }
+  }
+
+  if (isEventListenerObject(value)) {
+    const options = getListenerOptions(value)
+    return {
+      eventName,
+      listener: value,
+      options,
+    }
+  }
+
+  return null
+}
+
+function getListenerOptions(
+  value: Record<string, unknown>,
+): AddEventListenerOptions | undefined {
+  let hasOptions = false
+  const options: AddEventListenerOptions = {}
+
+  if ("capture" in value) {
+    options.capture = Boolean(value.capture)
+    hasOptions = true
+  }
+  if ("once" in value) {
+    options.once = Boolean(value.once)
+    hasOptions = true
+  }
+  if ("passive" in value) {
+    options.passive = Boolean(value.passive)
+    hasOptions = true
+  }
+  if ("signal" in value && value.signal instanceof AbortSignal) {
+    options.signal = value.signal
+    hasOptions = true
+  }
+
+  return hasOptions ? options : undefined
+}
+
+function isEventListenerObject(
+  value: unknown,
+): value is EventListenerObject & Record<string, unknown> {
+  return typeof value === "object" && value !== null &&
+    typeof (value as EventListenerObject).handleEvent === "function"
 }

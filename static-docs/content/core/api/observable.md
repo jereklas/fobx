@@ -144,8 +144,8 @@ const store = observable(
 ## Inheritance
 
 `observable()` supports class inheritance. Base class explicit annotations stay
-authoritative by property name when a subclass later calls `observable(this)`
-or `makeObservable(this)`:
+authoritative by property name when a subclass later calls `observable(this)` or
+`makeObservable(this)`:
 
 ```ts
 class Base {
@@ -180,9 +180,54 @@ This applies to both `makeObservable(this)` and `observable(this)` on class
 instances, which is what keeps hooks like `ViewModel.update()` plain even when a
 subclass later calls `observable(this)`.
 
+## TypeScript `private` fields
+
+TypeScript's `private` keyword is a compile-time-only restriction. Fields marked
+`private` are excluded from `keyof T`, which means they do not appear in
+`AnnotationsMap<T>` and TypeScript will report an error if you list them in
+`annotations`.
+
+The runtime object still carries those fields — the restriction is purely in the
+type system. The practical workaround is to suppress the error on the offending
+line:
+
+```ts
+class Store {
+  private count = 0
+
+  constructor() {
+    observable(this, {
+      annotations: {
+        // @ts-expect-error — TypeScript private is compile-time only;
+        // the field exists at runtime and can be annotated safely.
+        count: "observable",
+      },
+    })
+  }
+}
+```
+
+Be aware that `@ts-expect-error` here will **not** catch a rename of the private
+field. Because TypeScript never knew about the field in the first place, both a
+valid private name and a completely wrong name produce the same "property does
+not exist" error — so the directive silently swallows both.
+
+ECMAScript hard-private fields (`#count`) are a different case: they are
+genuinely inaccessible from outside the class at runtime, so they cannot be
+annotated by `observable` at all.
+
+A future first-class fix is likely to come from **JS decorator support**. The
+[TC39 decorator proposal](https://github.com/tc39/proposal-decorators) is
+supported by TypeScript 5.0+, esbuild, Babel, and SWC, though support varies
+across bundlers and native browser support is still uneven. Decorator-based
+annotation operates at the point of class field definition, giving the decorator
+direct access to the field regardless of TypeScript access modifiers. Decorators
+are on the roadmap for this library and would eliminate this limitation
+entirely.
+
 ## Related API
 
 Use [`makeObservable()`](/core/api/make-observable/) when you want an explicit
 annotations map instead of inference. It keeps the same instance reference and
-is usually the better fit for class constructors with carefully curated
-reactive members.
+is usually the better fit for class constructors with carefully curated reactive
+members.

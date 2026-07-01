@@ -55,6 +55,7 @@ interface ReactionRunAdmin extends ReactionAdmin {
   _comparer: EqualityChecker
   _isDisposed: boolean
   _previousValue: Any
+  _previousCollectionAdmin: Any
   _previousChanges: number | undefined
   _dispose: Dispose
   _fireImmediately: boolean
@@ -93,6 +94,8 @@ function _runReaction(this: ReactionRunAdmin): void {
 
   // Check if value changed
   const hasPrevious = this._previousValue !== UNDEFINED
+  const collectionIdentityChanged =
+    collectionAdmin !== this._previousCollectionAdmin
 
   let valueChanged: boolean
   if (!hasPrevious) {
@@ -100,7 +103,8 @@ function _runReaction(this: ReactionRunAdmin): void {
   } else if (
     currentChanges !== undefined && this._previousChanges !== undefined
   ) {
-    valueChanged = currentChanges !== this._previousChanges
+    valueChanged = collectionIdentityChanged ||
+      currentChanges !== this._previousChanges
   } else {
     valueChanged = !this._comparer(this._previousValue, newValue)
   }
@@ -119,6 +123,7 @@ function _runReaction(this: ReactionRunAdmin): void {
   }
 
   this._previousValue = newValue
+  this._previousCollectionAdmin = collectionAdmin
   this._previousChanges = currentChanges
 }
 
@@ -169,6 +174,7 @@ export function reaction<T>(
     _comparer: comparer,
     _isDisposed: false,
     _previousValue: UNDEFINED,
+    _previousCollectionAdmin: undefined,
     _previousChanges: undefined,
     _dispose: dispose,
     _fireImmediately: options?.fireImmediately === true,

@@ -144,7 +144,7 @@ jobs:
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.2.12
+          deno-version: v2.9.0
 
       - name: Build and publish packages
         run: |
@@ -204,7 +204,7 @@ jobs:
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.2.12
+          deno-version: v2.9.0
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

@@ -1,5 +1,15 @@
 {
-  "workspace": ["**", "!/fobx"],
+  "workspace": [
+    "core",
+    "dom",
+    "jsx",
+    "lib",
+    "playground",
+    "react",
+    "static-docs",
+    "testing",
+    "utils"
+  ],
   "fmt": {
     "semiColons": false
   },

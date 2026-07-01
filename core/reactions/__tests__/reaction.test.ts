@@ -439,6 +439,102 @@ test("do not rerun if expr output doesn't change structurally", () => {
   ])
 })
 
+test("reruns when an observable array is replaced by a new array instance with the same change count", () => {
+  const state = fobx.observable({
+    items: ["host1", "host2"],
+  })
+  const values: Array<[string[], string[] | undefined]> = []
+
+  const dispose = fobx.reaction(
+    () => state.items,
+    (nextItems, previousItems) => {
+      values.push([
+        [...nextItems],
+        previousItems ? [...previousItems] : undefined,
+      ])
+    },
+  )
+
+  state.items = ["host1"]
+
+  expect(values).toEqual([[["host1"], ["host1", "host2"]]])
+
+  dispose()
+})
+
+test("reruns when an observable map is replaced by a new map instance with the same change count", () => {
+  const state = fobx.observable({
+    items: new Map([["host1", 1], ["host2", 2]]),
+  })
+  const values: Array<
+    [Array<[string, number]>, Array<[string, number]> | undefined]
+  > = []
+
+  const dispose = fobx.reaction(
+    () => state.items,
+    (nextItems, previousItems) => {
+      values.push([
+        Array.from(nextItems.entries()),
+        previousItems ? Array.from(previousItems.entries()) : undefined,
+      ])
+    },
+  )
+
+  state.items = new Map([["host1", 1]])
+
+  expect(values).toEqual([[[["host1", 1]], [["host1", 1], ["host2", 2]]]])
+
+  dispose()
+})
+
+test("reruns when an observable set is replaced by a new set instance with the same change count", () => {
+  const state = fobx.observable({
+    items: new Set(["host1", "host2"]),
+  })
+  const values: Array<[string[], string[] | undefined]> = []
+
+  const dispose = fobx.reaction(
+    () => state.items,
+    (nextItems, previousItems) => {
+      values.push([
+        Array.from(nextItems.values()),
+        previousItems ? Array.from(previousItems.values()) : undefined,
+      ])
+    },
+  )
+
+  state.items = new Set(["host1"])
+
+  expect(values).toEqual([[["host1"], ["host1", "host2"]]])
+
+  dispose()
+})
+
+test("does not rerun when the same collection instance is re-evaluated without mutations", () => {
+  const gate = fobx.observableBox(0)
+  const state = fobx.observable({
+    items: ["host1", "host2"],
+  })
+  const values: string[][] = []
+
+  const dispose = fobx.reaction(
+    () => {
+      gate.get()
+      return state.items
+    },
+    (items) => {
+      values.push([...items])
+    },
+  )
+
+  gate.set(1)
+  gate.set(2)
+
+  expect(values).toEqual([])
+
+  dispose()
+})
+
 test("do not rerun if prev & next expr output is NaN", () => {
   const v = fobx.observableBox<string | typeof NaN>("a")
   const values: string[] = []

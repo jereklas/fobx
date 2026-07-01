@@ -10,6 +10,8 @@ const bundle = async (format: "esm" | "cjs") => {
     outfile,
     "--external",
     "react",
+    "--external",
+    "@fobx/core",
     "--declaration",
     "index.ts",
   ])
